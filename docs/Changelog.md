@@ -2,6 +2,18 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-08 – Phase 2: Hotel, Tag/Nacht und Sonnenaufgang (Branch `feature/core-loop`)
+- Neue Karte (32 × 24): Hotel-Viertel oben, Fluss in der Mitte, Markt unten mit Tor; Bauregeln je Bereich
+- Badehaus entfernt, dafür **Hotel** (4 × 3, 12 Betten, 8 Münzen pro Nacht)
+- Neue Gebäude: Path (5), Bridge (60), Brazier (40), Restroom (50); Wege lassen sich per Ziehen bauen
+- Tag/Nacht läuft automatisch mit Lichtwechsel; Uhr oben in der Leiste
+- Geister haben 2–3 Bedürfnisse, besuchen passende Gebäude und bezahlen; Symbol über dem Kopf zeigt den Wunsch
+- Morgengrauen-Warnung: alle eilen zum Hotel oder Tor; wer bei Sonnenaufgang draußen ist, vergeht
+- Ruf (Start 50) bestimmt die Gästezahl; Morgenbericht; Game Over bei Ruf 0
+- Wegfindung sucht jetzt den schnellsten Weg (Wege und Brücken doppelt so schnell)
+- Geistertypen: Wisp (normal), Elder (langsam), Sprite (schnell)
+- Oberfläche passt sich schmalen Fenstern an; Herauszoomen begrenzt, damit die Karte den Bildschirm füllt
+
 ## 2026-11-08 – Phase 1: spielbarer Prototyp
 - Projektgerüst mit Phaser 4.2, TypeScript 7 und Vite 8 (`npm run dev`, `npm run build`)
 - Nachtmarkt mit 28 × 20 Feldern in 3/4-Ansicht, Tor als Eingang

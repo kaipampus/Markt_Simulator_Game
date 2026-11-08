@@ -21,16 +21,23 @@ Konzept: [[Spielkonzept]] · Entscheidungen: [[Entscheidungen]] · Verlauf: [[Ch
 - [x] Geister erscheinen am Tor, laufen per Wegfindung zu Gebäuden und gehen wieder
 
 ## Phase 2 – Kern-Spielschleife
-- [ ] Bedürfnisse der Geister und Gebäude, die sie erfüllen
-- [ ] Einnahmen pro Besuch
-- [ ] Wege: Geister laufen nur auf Wegen (Wegfindung)
-- [ ] Tag/Nacht-Zyklus mit Bau- und Marktphase
+- [x] Karte mit Hotel-Viertel, Fluss und Markt; Bauregeln je Bereich; Startbrücke
+- [x] Tag/Nacht läuft automatisch (Tag 35 s, erster Tag 45 s, Nacht 150 s)
+- [x] Hotel mit 12 Betten und Zimmergeld; Gäste schlafen tagsüber und wachen nachts auf
+- [x] Kernregel: Morgengrauen-Warnung, danach vergehen Geister, die noch draußen sind
+- [x] Bedürfnisse (Hunger, Durst, Glück, Wärme, Toilette) mit passenden Gebäuden; Bezahlen pro Besuch
+- [x] Zufriedenheit und Ruf, Gästezahl hängt vom Ruf ab, Game Over bei Ruf 0
+- [x] Wege und Brücken: doppelt so schnell; Wegfindung sucht den schnellsten Weg; Wege per Ziehen bauen
+- [x] Geistertypen: normal, langsam (Elder), schnell (Sprite)
+- [x] Morgenbericht und Game-Over-Bildschirm
+- [ ] Balancing im echten Spiel testen (Preise, Tageslängen, Gästezahl)
 
-## Phase 3 – Infrastruktur
-- [ ] Laternen und Lichtradius
-- [ ] Wasser und Feuer für Badehaus und Küchen
+## Phase 3 – Infrastruktur und Transport
+- [ ] **Geister-Bus**: zwei Haltestellen, der Bus pendelt und nimmt langsame Geister mit
+- [ ] Laternen mit Wirkung (z. B. Geister meiden dunkle Wege)
 - [ ] Sauberkeit und Müll
 - [ ] Personal einstellen und einteilen
+- [ ] Hotel ausbauen (mehr Betten)
 
 ## Phase 4 – Magie
 - [ ] Mana und Schreine
@@ -50,6 +57,6 @@ Konzept: [[Spielkonzept]] · Entscheidungen: [[Entscheidungen]] · Verlauf: [[Ch
 - [ ] Version 1.0 auf dem Server
 
 ## Ideen-Parkplatz
-- Geister zahlen beim Besuch eines Stands (gehört zu Phase 2, Wegfindung ist schon da)
-- Mehrere Gebäude am Stück setzen, indem man die Maustaste gedrückt hält
+- Option „Geister laufen nur auf Wegen“ als schwerer Modus
+- Pause- oder Zeitraffer-Taste
 - Gebäude drehen oder spiegeln

@@ -1,14 +1,21 @@
 /** Size of one grid cell in pixels (world space). */
 export const TILE = 48;
 
-/** Market size in cells. */
-export const GRID_W = 28;
-export const GRID_H = 20;
+/** Map size in cells. */
+export const GRID_W = 32;
+export const GRID_H = 24;
+
+/**
+ * Map layout from top to bottom: hotel district, river, market.
+ * Rows [0, RIVER_TOP) = hotel district, [RIVER_TOP, RIVER_TOP + RIVER_ROWS) = river, rest = market.
+ */
+export const RIVER_TOP = 8;
+export const RIVER_ROWS = 2;
 
 export const WORLD_W = GRID_W * TILE;
 export const WORLD_H = GRID_H * TILE;
 
-/** Extra space around the market the camera may scroll into. */
+/** Extra space around the map the camera may scroll into. */
 export const WORLD_PADDING = 160;
 
 export const START_MONEY = 800;
@@ -16,28 +23,75 @@ export const START_MONEY = 800;
 /** Share of the build cost returned when demolishing. */
 export const DEMOLISH_REFUND = 0.5;
 
-/** Spirits: how many at most, and how often a new one arrives (ms). */
-export const SPIRIT_MAX = 14;
-export const SPIRIT_SPAWN_MS = 2200;
-/** Spirit walking speed in pixels per second. */
-export const SPIRIT_SPEED = 46;
+// --- Time (milliseconds) -----------------------------------------------------
 
-/** Camera. */
-export const ZOOM_MIN = 0.5;
+export const FIRST_DAY_MS = 45_000;
+export const DAY_MS = 35_000;
+export const NIGHT_MS = 150_000;
+/** Last part of the night in which every spirit hurries home. */
+export const DAWN_WARNING_MS = 35_000;
+/** New guests arrive during this first share of the night. */
+export const ARRIVAL_WINDOW = 0.45;
+
+// --- Spirits -------------------------------------------------------------------
+
+/** Base walking speed in pixels per second (multiplied by spirit kind and terrain). */
+export const SPIRIT_SPEED = 52;
+/** Speed multiplier on paths and bridges. */
+export const PATH_SPEED_FACTOR = 2;
+/** How long a spirit spends at a stall (ms). */
+export const VISIT_MS = 1400;
+/** Hard upper limit of spirits on the map. */
+export const SPIRIT_HARD_CAP = 45;
+
+/** Guests per night = GUESTS_BASE + reputation / GUESTS_PER_REPUTATION. */
+export const GUESTS_BASE = 6;
+export const GUESTS_PER_REPUTATION = 5;
+
+// --- Reputation ----------------------------------------------------------------
+
+export const REPUTATION_START = 50;
+export const REPUTATION_MAX = 100;
+export const REP_HAPPY = 1;
+export const REP_UNHAPPY = -1;
+export const REP_LOST = -5;
+/** A spirit counts as happy when at least this share of its needs was met. */
+export const HAPPY_THRESHOLD = 0.5;
+
+// --- Camera ----------------------------------------------------------------------
+
+export const ZOOM_MIN = 0.45;
 export const ZOOM_MAX = 2;
 export const PAN_SPEED = 700;
 
-/** UI layout (screen pixels). */
+// --- UI layout (screen pixels) ------------------------------------------------
+
 export const HUD_HEIGHT = 44;
-export const BAR_HEIGHT = 104;
+export const BAR_HEIGHT = 100;
+
+// --- Depth layers ----------------------------------------------------------------
+
+export const DEPTH = {
+  ground: -1000,
+  flat: -500, // paths, bridges
+  nightOverlay: 150_000,
+  glow: 150_001,
+  preview: 160_000,
+  floatText: 200_000,
+} as const;
 
 export const COLORS = {
   background: 0x0b0f1a,
-  groundA: 0x27313b,
-  groundB: 0x2b3640,
-  groundC: 0x232c35,
+  marketA: 0x27313b,
+  marketB: 0x2b3640,
+  marketC: 0x232c35,
+  hotelA: 0x3a2f2c,
+  hotelB: 0x40342f,
+  hotelC: 0x342a27,
+  water: 0x1d3d5c,
   groundLine: 0x1b222a,
   groundEdge: 0x161c23,
+  night: 0x060a24,
   valid: 0x8fe3a8,
   invalid: 0xff6b6b,
   uiPanel: 0x141a28,
@@ -50,6 +104,7 @@ export const COLORS = {
   uiTextDim: '#a79fb8',
   uiGold: '#f2c46a',
   uiRed: '#ff8a7a',
+  uiGreen: '#9fe0a8',
 } as const;
 
 export const FONT_TITLE = 'Georgia, "Times New Roman", serif';
