@@ -1,6 +1,6 @@
 # Spirit Night Market
 
-A cozy management game: run a lantern-lit night market in a world of spirits. Place stalls, tea houses and a bathhouse, keep the market running and watch spirit guests wander between your buildings.
+A management game set in a world of spirits: run a hotel district and a lantern-lit night market. Each night spirit guests arrive, look for food, tea, warmth and luck, and pay for it. Before the sun rises every spirit must reach a hotel bed or the gate, or it fades away in the light. Build paths, bridges and stalls so that everyone gets home in time.
 
 Built with [Phaser 4](https://phaser.io), TypeScript and Vite. Runs in the browser, no server logic needed.
 
@@ -17,8 +17,9 @@ Then open http://localhost:5173.
 
 | Action | Input |
 |---|---|
-| Pick a building | Click in the bottom bar or press `1`–`6` |
-| Build | Left-click on the market |
+| Pick a building | Click in the bottom bar or press `1`–`9`, `0` |
+| Build | Left-click on the map |
+| Lay paths | Hold the left mouse button and drag |
 | Demolish (50 % refund) | `X`, then click a building |
 | Cancel | Right-click or `Esc` |
 | Move the view | Drag with the mouse, or `WASD` / arrow keys |

@@ -6,43 +6,62 @@ aktualisiert: 2026-11-08
 # Spielkonzept
 
 ## Grundidee
-Du besitzt einen **Nachtmarkt in einer Geister- und Zauberwelt**. Tagsüber planst und baust du, bei Einbruch der Dunkelheit leuchten die Laternen auf und die Geister kommen als Kundschaft. Deine Aufgabe ist es, dass alles läuft: Stände, Wege, Licht, Wasser, Wärme, Personal und Magie.
+Du führst ein **Geister-Viertel aus Hotel und Nachtmarkt** in einer Zauberwelt. Nachts kommen die Geister, bummeln über den Markt und wollen versorgt werden. **Vor Sonnenaufgang müssen alle Geister im Hotel oder durch das Tor verschwunden sein**, denn im Sonnenlicht vergehen sie. Deine Aufgabe: Markt, Hotel und Infrastruktur so bauen, dass alle rechtzeitig ankommen.
 
-Stimmung: warm, verträumt, etwas unheimlich. Rote Laternen, Dampf aus dem Badehaus, Holzbrücken über Wasser, Glühwürmchen, Nebel.
+Stimmung: warm, verträumt, etwas unheimlich. Rote Laternen, ein großes, hell erleuchtetes Hotel, Holzbrücken über einen Fluss, Glühwürmchen, Nebel.
 
-> Inspiriert von der Atmosphäre von Ghibli-Filmen, aber **mit eigenen Figuren, Namen und Orten**. Siehe [[Entscheidungen]].
+> Inspiriert von der Atmosphäre von Ghibli-Filmen, aber **mit eigenen Figuren, Namen und Orten**. Statt eines Badehauses steht ein **Hotel** im Mittelpunkt. Siehe [[Entscheidungen]].
 
-## Spielschleife
-1. **Tag (Bauphase):** Gebäude und Infrastruktur setzen, Waren einkaufen, Personal einteilen
-2. **Nacht (Marktphase):** Geister kommen, laufen herum, erfüllen ihre Bedürfnisse und bezahlen
-3. **Morgen (Abrechnung):** Einnahmen, Zufriedenheit und Schäden ansehen, dann wieder zum Tag
+## Die Karte
+- **Hotel-Viertel** (oben): hier stehen die Hotels, in denen Geister den Tag verschlafen
+- **Fluss** (Mitte): trennt die Viertel, Geister kommen nur über **Brücken** hinüber
+- **Marktplatz** (unten): Stände, Teehaus, Schrein usw.; unten liegt das **Tor**, durch das neue Geister kommen und gehen
+- Hotels dürfen nur ins Hotel-Viertel, Stände nur auf den Markt. Wege, Laternen, Feuerschalen und Toiletten gehen überall an Land.
+
+## Spielschleife (läuft automatisch)
+1. **Tag:** Die Geister schlafen im Hotel. Du baust.
+2. **Abend:** Die Hotelgäste wachen auf, neue Geister kommen durchs Tor.
+3. **Nacht:** Jeder Geist hat 2–3 **Bedürfnisse** und sucht sich passende Gebäude. Jeder Besuch bringt Münzen.
+4. **Morgengrauen-Warnung:** Kurz vor Sonnenaufgang lassen alle Geister alles stehen und liegen und eilen zum Hotel (freies Bett) oder zum Tor.
+5. **Sonnenaufgang:** Wer noch draußen ist, vergeht. Danach Morgenbericht: Einnahmen, Hotelgeld, Zufriedenheit, Ruf.
+
+Die Zeit läuft immer weiter, gebaut werden kann jederzeit, auch nachts.
 
 ## Ressourcen
 - **Geistermünzen**: Hauptwährung
-- **Mana**: für Zauber, wird z. B. von Schreinen erzeugt
-- **Ruf**: bestimmt, wie viele und welche Geister kommen
+- **Ruf** (0–100, Start 50): bestimmt, wie viele Geister pro Nacht kommen. **Bei 0 ist das Spiel verloren.**
+  - zufriedener Geist (mind. die Hälfte der Wünsche erfüllt) sicher angekommen: Ruf +1
+  - unzufriedener Geist sicher angekommen: Ruf −1
+  - Geist vom Sonnenaufgang erwischt: Ruf −5
+- **Mana**: für Zauber (später)
 
-## Gebäude (erste Ideen)
-| Typ | Beispiele | Erfüllt |
+## Bedürfnisse und Gebäude
+| Bedürfnis | Gebäude | Bereich |
 |---|---|---|
-| Essen | Nudelküche, Spießgrill, Dampfbrötchen-Stand | Hunger |
-| Trinken | Teehaus, Pflaumenwein-Bude | Durst, Ruhe |
-| Wellness | Badehaus (groß, braucht Wasser und Feuer) | Wärme, Erholung |
-| Läden | Laternenmacher, Amulett- und Kräuterstand | Magie, Souvenirs |
-| Unterhaltung | Schattenspieltheater, Glücksrad | Spaß |
-| Magie | Schrein, Mondaltar | erzeugt Mana |
+| Hunger | Noodle Stall | Markt |
+| Durst | Tea House | Markt |
+| Glück/Magie | Charm Stand, Moon Shrine | Markt |
+| Wärme | Brazier (Feuerschale) | überall |
+| Toilette | Restroom | überall |
+| Schlaf | Hotel (Betten, Zimmergeld am Morgen) | Hotel-Viertel |
 
 ## Infrastruktur
-- **Wege und Brücken**: Geister laufen nur auf Wegen, Wasser braucht Brücken
-- **Laternen**: Licht zieht Geister an, dunkle Ecken bleiben leer oder ziehen unerwünschte Gäste an
-- **Wasser und Feuer**: Brunnen bzw. Kesselhaus versorgen das Badehaus und Küchen
-- **Sauberkeit**: Müll und Geisterstaub senken die Zufriedenheit, Reinigungspersonal nötig
-- **Personal**: eigene Hilfsgeister (z. B. Froschköche, Papierboten), brauchen Lohn und Pausen
+- **Wege**: Geister laufen überall, **auf Wegen und Brücken doppelt so schnell**. Wichtig für langsame Geister.
+- **Brücken**: einzige Verbindung über den Fluss
+- **Transportmittel** (später): z. B. ein Geister-Bus, der zwischen zwei Haltestellen pendelt und langsame Geister mitnimmt
+- **Laternen**: zunächst Deko, später Einfluss auf die Geister
+- **Personal**, **Sauberkeit** (später)
 
 ## Geister (Kundschaft)
-Jeder Geistertyp hat eigene Bedürfnisse und Vorlieben. Ideen:
+| Typ | Tempo | Hinweis |
+|---|---|---|
+| Wisp (normaler Geist) | normal | häufigster Gast |
+| Elder (alter Geist) | langsam | größer und grauer, braucht kurze Wege oder Transport |
+| Sprite (Flinkgeist) | schnell | kleiner |
+
+Weitere Ideen:
 - **Laternenmotte**: kommt nur zu hell erleuchteten Ständen
-- **Nebelgast**: zahlt viel, will aber Ruhe und das Badehaus
+- **Nebelgast**: zahlt viel, will aber Ruhe
 - **Hungriger Topfgeist**: isst alles, hinterlässt Unordnung
 - **Ahnenfuchs**: seltener, reicher Gast, der den Ruf steigert
 
@@ -67,5 +86,5 @@ Jeder Geistertyp hat eigene Bedürfnisse und Vorlieben. Ideen:
 - **Spielsprache:** Englisch (Begründungen in [[Entscheidungen]])
 
 ## Offene Fragen
-- [ ] Gibt es ein Spielziel (Kampagne, Stufen) oder nur Endlos-Modus?
+- [ ] Langfristiges Spielziel (Kampagne, Stufen) oder Endlos-Modus? Aktuell: Endlos, verlieren bei Ruf 0
 - [ ] Spielname

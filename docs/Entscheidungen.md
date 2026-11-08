@@ -13,6 +13,35 @@ Vorlage:
 
 ---
 
+## 2026-11-08 – Kernregel: vor Sonnenaufgang in Sicherheit
+**Status:** entschieden (Idee des Nutzers)
+**Entscheidung:** Geister müssen vor Sonnenaufgang ein Hotel mit freiem Bett oder das Tor erreichen, sonst vergehen sie. Die Infrastruktur (Wege, Brücken, später Transport) dient vor allem diesem Ziel.
+**Warum:** Gibt dem Aufbau ein klares Ziel und echten Zeitdruck. Unterscheidet das Spiel deutlich von der Vorlage.
+
+## 2026-11-08 – Hotel statt Badehaus
+**Status:** entschieden (Idee des Nutzers)
+**Entscheidung:** Das Badehaus entfällt. Zentrales Großgebäude ist ein Hotel, in dem Geister den Tag verschlafen und morgens Zimmergeld zahlen. Wärme kommt von Feuerschalen (Brazier).
+**Warum:** Eigenständiger als ein Badehaus und direkt mit der Sonnenaufgangs-Regel verknüpft.
+
+## 2026-11-08 – Karte mit Hotel-Viertel, Fluss und Markt
+**Status:** entschieden
+**Entscheidung:** Feste Bereiche: oben Hotel-Viertel, in der Mitte ein Fluss, unten der Marktplatz mit Tor. Hotels nur im Hotel-Viertel, Stände nur auf dem Markt, Brücken nur auf dem Fluss. Zu Beginn steht eine Brücke.
+**Verworfen:** Zonen ohne Fluss, völlig freies Bauen.
+
+## 2026-11-08 – Zeit läuft automatisch
+**Status:** entschieden
+**Entscheidung:** Tag und Nacht wechseln in festem Takt (Werte in `src/config.ts`). Gebaut werden kann jederzeit.
+**Verworfen:** Nacht per Knopf starten, automatisch mit Pause.
+
+## 2026-11-08 – Wege beschleunigen, sind aber keine Pflicht
+**Status:** entschieden
+**Entscheidung:** Geister laufen überall, auf Wegen und Brücken doppelt so schnell. Die Wegfindung sucht den schnellsten, nicht den kürzesten Weg.
+**Warum:** Einsteigerfreundlich, trotzdem sind Wege wegen der Sonnenaufgangs-Regel wichtig. Später auf „nur auf Wegen“ umstellbar.
+
+## 2026-11-08 – Ruf mit Game Over bei 0
+**Status:** entschieden
+**Entscheidung:** Ruf 0–100 (Start 50). Zufriedene sichere Geister +1, unzufriedene −1, vom Sonnenaufgang erwischte −5. Der Ruf bestimmt die Gästezahl. Bei 0 ist das Spiel verloren.
+
 ## 2026-11-08 – Ansicht: schräg von oben (3/4)
 **Status:** entschieden
 **Entscheidung:** Quadratisches Raster, Gebäude werden leicht von vorn gezeigt und ragen nach oben über ihr Feld hinaus. Was weiter unten steht, wird davor gezeichnet (Tiefe nach y-Position).

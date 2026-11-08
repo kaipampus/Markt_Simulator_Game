@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { COLORS, GRID_H, GRID_W, TILE, WORLD_H, WORLD_W } from '../config';
+import { COLORS, GRID_H, GRID_W, RIVER_ROWS, RIVER_TOP, TILE, WORLD_H, WORLD_W } from '../config';
 import { BUILDINGS, GATE, type BuildingDef } from '../data/buildings';
 
 /**
@@ -392,52 +392,173 @@ function drawTorii(ctx: Ctx, w: number, h: number, main: string, beam: string, w
   }
 }
 
-function drawBathhouse(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+function drawHotel(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   const footH = def.h * TILE;
   footShadow(ctx, w / 2, w, h, footH);
   const { main, roof: roofColor, accent } = def.colors;
   const bottom = h - 3;
 
-  // Lower floor.
-  const lowerWall = 74;
-  wall(ctx, 10, w - 10, bottom, lowerWall, main, accent, true);
-  const lowerEave = bottom - lowerWall + 6;
-  roof(ctx, 0, w, lowerEave, lowerEave - 52, roofColor);
+  // Ground floor with a wide entrance.
+  const wall1 = 72;
+  wall(ctx, 10, w - 10, bottom, wall1, main, accent, true);
+  const eave1 = bottom - wall1 + 6;
+  roof(ctx, 0, w, eave1, eave1 - 40, roofColor);
 
-  // Chimney behind the upper floor.
-  const chX = w - 34;
-  ctx.fillStyle = '#5b3b33';
-  ctx.fillRect(chX, 14, 14, lowerEave - 40);
-  ctx.fillStyle = '#3a2622';
-  ctx.fillRect(chX - 2, 12, 18, 5);
-  for (const [px, py, r] of [
-    [chX + 8, 6, 6],
-    [chX + 15, 1, 5],
+  // Second floor.
+  const bottom2 = eave1 - 18;
+  const wall2 = 46;
+  wall(ctx, 22, w - 22, bottom2, wall2, shade(main, -0.06), accent, true);
+  const eave2 = bottom2 - wall2 + 6;
+  roof(ctx, 10, w - 10, eave2, eave2 - 34, roofColor);
+
+  // Top floor.
+  const bottom3 = eave2 - 16;
+  const wall3 = 34;
+  wall(ctx, 44, w - 44, bottom3, wall3, shade(main, -0.12), accent, false);
+  roof(ctx, 32, w - 32, bottom3 - wall3 + 6, 8, roofColor);
+
+  // Rows of lit windows on the side wings of floors 1 and 2.
+  ctx.fillStyle = accent;
+  for (const [y, x0, x1] of [
+    [bottom - 46, 18, w - 18],
+    [bottom2 - 30, 30, w - 30],
   ] as const) {
-    ctx.fillStyle = 'rgba(220,225,235,0.35)';
-    ctx.beginPath();
-    ctx.arc(px, py, r, 0, Math.PI * 2);
-    ctx.fill();
+    for (let x = x0; x < x1 - 8; x += 16) {
+      if (Math.abs(x + 4 - w / 2) < 22) continue;
+      ctx.fillRect(x, y, 8, 10);
+    }
   }
 
-  // Upper floor sits on the lower roof.
-  const upperBottom = lowerEave - 26;
-  const upperWall = 38;
-  wall(ctx, 34, w - 34, upperBottom, upperWall, shade(main, -0.08), accent, false);
-  roof(ctx, 22, w - 22, upperBottom - upperWall + 6, 10, roofColor);
+  // Round moon emblem above the entrance.
+  ctx.fillStyle = '#2a1d1a';
+  ctx.beginPath();
+  ctx.arc(w / 2, bottom - wall1 + 2, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#f6e7b8';
+  ctx.beginPath();
+  ctx.arc(w / 2, bottom - wall1 + 2, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#2a1d1a';
+  ctx.beginPath();
+  ctx.arc(w / 2 + 4, bottom - wall1, 7, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Banner over the door.
-  ctx.fillStyle = '#c8372d';
-  ctx.fillRect(w / 2 - 16, bottom - lowerWall + 4, 32, 9);
-  ctx.fillStyle = '#f4e6c8';
-  ctx.fillRect(w / 2 - 3, bottom - lowerWall + 6, 6, 5);
+  for (const x of [16, w - 16, 40, w - 40]) hangingLantern(ctx, x, eave1 + 10, 6);
+}
 
-  hangingLantern(ctx, 16, lowerEave + 10, 7);
-  hangingLantern(ctx, w - 16, lowerEave + 10, 7);
+function drawPath(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  const rand = rng(11);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(0, 0, w, h);
+  // Four pavers per cell with small gaps.
+  const half = w / 2;
+  for (const [px, py] of [
+    [0, 0],
+    [half, 0],
+    [0, half],
+    [half, half],
+  ] as const) {
+    ctx.fillStyle = shade(def.colors.main, (rand() - 0.5) * 0.15);
+    ctx.fillRect(px + 2, py + 2, half - 4, half - 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(px + 2, py + 2, half - 4, 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(px + 2, py + half - 4, half - 4, 2);
+  }
+}
+
+function drawBridge(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  const { main, roof: rail, accent } = def.colors;
+  // Planks running across.
+  ctx.fillStyle = shade(main, -0.3);
+  ctx.fillRect(4, 0, w - 8, h);
+  for (let y = 2; y < h - 2; y += 7) {
+    ctx.fillStyle = y % 14 === 2 ? main : shade(main, 0.1);
+    ctx.fillRect(6, y, w - 12, 5);
+  }
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = 0.25;
+  ctx.fillRect(6, 0, w - 12, h);
+  ctx.globalAlpha = 1;
+  // Red railings with posts.
+  for (const x of [2, w - 6]) {
+    ctx.fillStyle = rail;
+    ctx.fillRect(x, 0, 4, h);
+    ctx.fillStyle = shade(rail, -0.4);
+    for (let y = 4; y < h; y += 22) ctx.fillRect(x - 1, y, 6, 6);
+  }
+}
+
+function drawBrazier(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  footShadow(ctx, w / 2, w * 0.6, h, 16);
+  const cx = w / 2;
+  const bowlY = Math.round(h * 0.45);
+  // Tripod legs.
+  ctx.strokeStyle = def.colors.roof;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx - 4, bowlY + 4);
+  ctx.lineTo(cx - 12, h - 8);
+  ctx.moveTo(cx + 4, bowlY + 4);
+  ctx.lineTo(cx + 12, h - 8);
+  ctx.moveTo(cx, bowlY + 4);
+  ctx.lineTo(cx, h - 6);
+  ctx.stroke();
+  // Bowl.
+  ctx.fillStyle = def.colors.main;
+  ctx.beginPath();
+  ctx.ellipse(cx, bowlY, 14, 8, 0, 0, Math.PI);
+  ctx.fill();
+  ctx.fillStyle = shade(def.colors.main, 0.25);
+  ctx.fillRect(cx - 15, bowlY - 2, 30, 3);
+  // Flames.
+  for (const [dx, fh, col] of [
+    [-6, 14, '#ff7a2a'],
+    [5, 16, '#ff7a2a'],
+    [0, 22, '#ffb347'],
+    [-1, 12, '#ffe08a'],
+  ] as const) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(cx + dx - 5, bowlY - 1);
+    ctx.quadraticCurveTo(cx + dx - 4, bowlY - fh * 0.6, cx + dx, bowlY - fh);
+    ctx.quadraticCurveTo(cx + dx + 4, bowlY - fh * 0.6, cx + dx + 5, bowlY - 1);
+    ctx.closePath();
+    ctx.fill();
+  }
+  glowDot(ctx, cx, bowlY - 8, 14, 'rgba(255,190,100,0.6)');
+}
+
+function drawRestroom(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  footShadow(ctx, w / 2, w, h, TILE);
+  const { main, roof: roofColor, accent } = def.colors;
+  const bottom = h - 3;
+  const wallH = 34;
+  ctx.fillStyle = main;
+  ctx.fillRect(9, bottom - wallH, w - 18, wallH);
+  ctx.fillStyle = shade(main, -0.4);
+  ctx.fillRect(9, bottom - wallH, w - 18, 3);
+  for (let x = 9; x < w - 9; x += 6) ctx.fillRect(x, bottom - wallH, 1, wallH);
+  // Door with a little round sign.
+  ctx.fillStyle = shade(main, -0.55);
+  ctx.fillRect(w / 2 - 7, bottom - 24, 14, 22);
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.arc(w / 2, bottom - 30, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#4a7bd0';
+  ctx.fillRect(w / 2 - 2, bottom - 32, 1.5, 4);
+  ctx.fillStyle = '#d04a5a';
+  ctx.fillRect(w / 2 + 1, bottom - 32, 1.5, 4);
+  roof(ctx, 2, w - 2, bottom - wallH + 5, 6, roofColor);
 }
 
 function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   switch (def.style) {
+    case 'path':
+      return drawPath(ctx, w, h, def);
+    case 'bridge':
+      return drawBridge(ctx, w, h, def);
     case 'lantern':
       return drawLantern(ctx, w, h, def);
     case 'stall':
@@ -446,8 +567,12 @@ function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
       return drawHouse(ctx, w, h, def);
     case 'torii':
       return drawTorii(ctx, w, h, def.colors.main, def.colors.roof, false);
-    case 'bathhouse':
-      return drawBathhouse(ctx, w, h, def);
+    case 'brazier':
+      return drawBrazier(ctx, w, h, def);
+    case 'restroom':
+      return drawRestroom(ctx, w, h, def);
+    case 'hotel':
+      return drawHotel(ctx, w, h, def);
   }
 }
 
@@ -457,14 +582,17 @@ function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
 
 function drawGround(ctx: Ctx): void {
   const rand = rng(7);
-  const tones = [COLORS.groundA, COLORS.groundB, COLORS.groundC].map(hex);
+  const marketTones = [COLORS.marketA, COLORS.marketB, COLORS.marketC].map(hex);
+  const hotelTones = [COLORS.hotelA, COLORS.hotelB, COLORS.hotelC].map(hex);
 
   for (let y = 0; y < GRID_H; y++) {
+    const river = y >= RIVER_TOP && y < RIVER_TOP + RIVER_ROWS;
+    if (river) continue;
+    const tones = y < RIVER_TOP ? hotelTones : marketTones;
     for (let x = 0; x < GRID_W; x++) {
       const px = x * TILE;
       const py = y * TILE;
-      const base = tones[Math.floor(rand() * tones.length)];
-      ctx.fillStyle = base;
+      ctx.fillStyle = tones[Math.floor(rand() * tones.length)];
       ctx.fillRect(px, py, TILE, TILE);
 
       // Bevel: light top-left, dark bottom-right.
@@ -486,21 +614,52 @@ function drawGround(ctx: Ctx): void {
     }
   }
 
-  // Grout lines.
+  // Grout lines (land only).
   ctx.strokeStyle = hex(COLORS.groundLine);
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let x = 0; x <= GRID_W; x++) {
     ctx.moveTo(x * TILE + 0.5, 0);
+    ctx.lineTo(x * TILE + 0.5, RIVER_TOP * TILE);
+    ctx.moveTo(x * TILE + 0.5, (RIVER_TOP + RIVER_ROWS) * TILE);
     ctx.lineTo(x * TILE + 0.5, WORLD_H);
   }
   for (let y = 0; y <= GRID_H; y++) {
+    if (y > RIVER_TOP && y < RIVER_TOP + RIVER_ROWS) continue;
     ctx.moveTo(0, y * TILE + 0.5);
     ctx.lineTo(WORLD_W, y * TILE + 0.5);
   }
   ctx.stroke();
 
-  // Darker vignette towards the market edge.
+  // River with soft gradient and wave lines.
+  const ry = RIVER_TOP * TILE;
+  const rh = RIVER_ROWS * TILE;
+  const water = ctx.createLinearGradient(0, ry, 0, ry + rh);
+  water.addColorStop(0, shade(hex(COLORS.water), -0.35));
+  water.addColorStop(0.5, hex(COLORS.water));
+  water.addColorStop(1, shade(hex(COLORS.water), -0.35));
+  ctx.fillStyle = water;
+  ctx.fillRect(0, ry, WORLD_W, rh);
+  ctx.strokeStyle = 'rgba(170,210,255,0.18)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 60; i++) {
+    const wx = rand() * WORLD_W;
+    const wy = ry + 8 + rand() * (rh - 16);
+    ctx.beginPath();
+    ctx.moveTo(wx, wy);
+    ctx.quadraticCurveTo(wx + 8, wy - 4, wx + 16, wy);
+    ctx.quadraticCurveTo(wx + 24, wy + 4, wx + 32, wy);
+    ctx.stroke();
+  }
+  // Stone river banks.
+  for (const by of [ry - 4, ry + rh - 2]) {
+    ctx.fillStyle = '#4b4a55';
+    ctx.fillRect(0, by, WORLD_W, 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(0, by, WORLD_W, 2);
+  }
+
+  // Darker vignette towards the edge.
   const g = ctx.createRadialGradient(WORLD_W / 2, WORLD_H / 2, WORLD_H * 0.3, WORLD_W / 2, WORLD_H / 2, WORLD_W * 0.62);
   g.addColorStop(0, 'rgba(10,12,24,0)');
   g.addColorStop(1, 'rgba(10,12,24,0.55)');
