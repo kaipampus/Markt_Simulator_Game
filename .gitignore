@@ -1,0 +1,27 @@
+# --- Node / Build ---
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+coverage/
+
+# --- Umgebungsvariablen / Geheimnisse ---
+.env
+.env.*
+!.env.example
+
+# --- macOS ---
+.DS_Store
+
+# --- Obsidian: lokale Fenster-/Cache-Dateien (ändern sich ständig) ---
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/workspaces.json
+.obsidian/cache
+.trash/
+
+# --- Editor ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
