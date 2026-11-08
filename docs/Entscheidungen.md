@@ -13,6 +13,33 @@ Vorlage:
 
 ---
 
+## 2026-11-08 – Entspannt statt stressig: kein Game Over, Zeitsteuerung
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Kein Game Over mehr. Vom Sonnenaufgang erwischte Geister vergehen weiterhin, das kostet aber nur Ruf (weniger Gäste). Die Zeit läuft automatisch, der Spieler hat Pause, Tempo 1×/2×/4× und „Nacht jetzt starten“.
+**Warum:** Es soll ein entspanntes Indie-Spiel sein, ohne Zeitdruck.
+**Ersetzt:** „Ruf mit Game Over bei 0“ und „Zeit läuft automatisch“ (ohne Steuerung).
+
+## 2026-11-08 – Geister laufen nur auf Wegen
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Geister bewegen sich nur auf Wegen, Brücken und Fähren. Wege sind nicht schneller. Zum Start liegt ein kurzer Weg vom Tor zur ersten Brücke.
+**Ersetzt:** „Wege beschleunigen, sind aber keine Pflicht“.
+
+## 2026-11-08 – Brücken mit Kapazität, Fähren als Massentransport
+**Status:** entschieden
+**Entscheidung:** Brücken lassen nur eine begrenzte Zahl Geister gleichzeitig darauf (Holz 3, Stein 6, Stahl 10), der Rest wartet. Fähren pendeln und nehmen viele Geister auf einmal mit (12 bzw. 20). Die Wegfindung rechnet Wartende als Zusatzkosten ein. Der Fluss ist 3 Felder breit.
+**Verworfen:** Begrenzung pro Nacht statt gleichzeitig.
+
+## 2026-11-08 – Zeitalter: Ruf schaltet frei, Münzen kaufen
+**Status:** entschieden (Idee des Nutzers)
+**Entscheidung:** Drei Zeitalter: Laternenzeit → Dampfzeit (Ruf 60, 1200 Münzen) → Neon-Zeit (Ruf 75, 3000 Münzen). Jedes bringt neue, teurere Gebäude, vor allem größere Hotels und bessere Übergänge. Wege ändern mit dem Zeitalter ihr Aussehen.
+**Warum:** Langfristiges Ziel und das Gefühl, dass sich die Welt von altmodisch zu modern entwickelt.
+**Verworfen:** Fortschritt nur nach Anzahl der Nächte, Fortschritt bis in die Gegenwart.
+
+## 2026-11-08 – Baumenü mit Kategorien
+**Status:** entschieden
+**Entscheidung:** Die Bauleiste hat Reiter (Transport, Market, Services, Hotels, Decor). Gebäude späterer Zeitalter sind gesperrt sichtbar.
+**Warum:** Mit den Zeitaltern gibt es zu viele Gebäude für eine Reihe.
+
 ## 2026-11-08 – Kernregel: vor Sonnenaufgang in Sicherheit
 **Status:** entschieden (Idee des Nutzers)
 **Entscheidung:** Geister müssen vor Sonnenaufgang ein Hotel mit freiem Bett oder das Tor erreichen, sonst vergehen sie. Die Infrastruktur (Wege, Brücken, später Transport) dient vor allem diesem Ziel.
@@ -29,17 +56,17 @@ Vorlage:
 **Verworfen:** Zonen ohne Fluss, völlig freies Bauen.
 
 ## 2026-11-08 – Zeit läuft automatisch
-**Status:** entschieden
+**Status:** ersetzt (siehe „Entspannt statt stressig“)
 **Entscheidung:** Tag und Nacht wechseln in festem Takt (Werte in `src/config.ts`). Gebaut werden kann jederzeit.
 **Verworfen:** Nacht per Knopf starten, automatisch mit Pause.
 
 ## 2026-11-08 – Wege beschleunigen, sind aber keine Pflicht
-**Status:** entschieden
+**Status:** ersetzt (siehe „Geister laufen nur auf Wegen“)
 **Entscheidung:** Geister laufen überall, auf Wegen und Brücken doppelt so schnell. Die Wegfindung sucht den schnellsten, nicht den kürzesten Weg.
 **Warum:** Einsteigerfreundlich, trotzdem sind Wege wegen der Sonnenaufgangs-Regel wichtig. Später auf „nur auf Wegen“ umstellbar.
 
 ## 2026-11-08 – Ruf mit Game Over bei 0
-**Status:** entschieden
+**Status:** ersetzt (siehe „Entspannt statt stressig“)
 **Entscheidung:** Ruf 0–100 (Start 50). Zufriedene sichere Geister +1, unzufriedene −1, vom Sonnenaufgang erwischte −5. Der Ruf bestimmt die Gästezahl. Bei 0 ist das Spiel verloren.
 
 ## 2026-11-08 – Ansicht: schräg von oben (3/4)

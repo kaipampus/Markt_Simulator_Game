@@ -16,6 +16,9 @@ export const TEX = {
   coin: 'coin',
   dust: 'dust',
   building: (id: string) => `b_${id}`,
+  /** Path look for an era. */
+  path: (era: number) => `path_${era}`,
+  boat: (id: string) => `boat_${id}`,
 } as const;
 
 type Ctx = CanvasRenderingContext2D;
@@ -446,30 +449,105 @@ function drawHotel(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   for (const x of [16, w - 16, 40, w - 40]) hangingLantern(ctx, x, eave1 + 10, 6);
 }
 
-function drawPath(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
-  const rand = rng(11);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.fillRect(0, 0, w, h);
-  // Four pavers per cell with small gaps.
-  const half = w / 2;
-  for (const [px, py] of [
-    [0, 0],
-    [half, 0],
-    [0, half],
-    [half, half],
-  ] as const) {
-    ctx.fillStyle = shade(def.colors.main, (rand() - 0.5) * 0.15);
-    ctx.fillRect(px + 2, py + 2, half - 4, half - 4);
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    ctx.fillRect(px + 2, py + 2, half - 4, 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    ctx.fillRect(px + 2, py + half - 4, half - 4, 2);
+/** Path look per era: dirt → stone pavers → asphalt street. */
+function drawPath(ctx: Ctx, w: number, h: number, era: number): void {
+  const rand = rng(11 + era);
+  if (era === 0) {
+    // Packed earth with pebbles.
+    ctx.fillStyle = '#6e5a42';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(255,230,190,0.06)';
+    ctx.fillRect(3, 3, w - 6, h - 6);
+    for (let i = 0; i < 14; i++) {
+      ctx.fillStyle = rand() < 0.5 ? 'rgba(40,30,20,0.35)' : 'rgba(200,180,150,0.25)';
+      ctx.beginPath();
+      ctx.arc(4 + rand() * (w - 8), 4 + rand() * (h - 8), 1 + rand() * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
   }
+  if (era === 1) {
+    // Four stone pavers per cell with small gaps.
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, 0, w, h);
+    const half = w / 2;
+    for (const [px, py] of [
+      [0, 0],
+      [half, 0],
+      [0, half],
+      [half, half],
+    ] as const) {
+      ctx.fillStyle = shade('#8d8a83', (rand() - 0.5) * 0.15);
+      ctx.fillRect(px + 2, py + 2, half - 4, half - 4);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(px + 2, py + 2, half - 4, 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(px + 2, py + half - 4, half - 4, 2);
+    }
+    return;
+  }
+  // Asphalt with a faint neon-lit edge.
+  ctx.fillStyle = '#2b2d33';
+  ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 30; i++) {
+    ctx.fillStyle = `rgba(255,255,255,${0.03 + rand() * 0.05})`;
+    ctx.fillRect(rand() * w, rand() * h, 1.5, 1.5);
+  }
+  ctx.fillStyle = 'rgba(255,240,200,0.55)';
+  ctx.fillRect(w / 2 - 1.5, 8, 3, 12);
+  ctx.fillRect(w / 2 - 1.5, 28, 3, 12);
+  ctx.strokeStyle = 'rgba(95,242,255,0.25)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(1.5, 1.5, w - 3, h - 3);
 }
 
 function drawBridge(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   const { main, roof: rail, accent } = def.colors;
-  // Planks running across.
+  if (def.id === 'bridge_stone') {
+    ctx.fillStyle = shade(main, -0.35);
+    ctx.fillRect(2, 0, w - 4, h);
+    for (let y = 0; y < h; y += 12) {
+      for (let x = (y / 12) % 2 === 0 ? 6 : 12; x < w - 8; x += 12) {
+        ctx.fillStyle = shade(main, ((x * 7 + y * 3) % 10) / 60 - 0.05);
+        ctx.fillRect(x, y + 1, 10, 10);
+      }
+    }
+    for (const x of [1, w - 7]) {
+      ctx.fillStyle = accent;
+      ctx.fillRect(x, 0, 6, h);
+      ctx.fillStyle = shade(accent, -0.3);
+      for (let y = 6; y < h; y += 24) ctx.fillRect(x - 1, y, 8, 8);
+    }
+    return;
+  }
+  if (def.id === 'bridge_steel') {
+    ctx.fillStyle = main;
+    ctx.fillRect(3, 0, w - 6, h);
+    ctx.fillStyle = 'rgba(255,240,200,0.45)';
+    for (let y = 6; y < h; y += 18) ctx.fillRect(w / 2 - 1, y, 2, 9);
+    for (const x of [2, w - 6]) {
+      ctx.fillStyle = accent;
+      ctx.fillRect(x, 0, 4, h);
+      ctx.strokeStyle = shade(accent, -0.3);
+      ctx.lineWidth = 1;
+      for (let y = 0; y < h - 12; y += 12) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + 4, y + 12);
+        ctx.moveTo(x + 4, y);
+        ctx.lineTo(x, y + 12);
+        ctx.stroke();
+      }
+      ctx.fillStyle = rail;
+      for (let y = 10; y < h; y += 30) {
+        ctx.beginPath();
+        ctx.arc(x + 2, y, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    return;
+  }
+  // Wooden bridge: planks running across, red railings with posts.
   ctx.fillStyle = shade(main, -0.3);
   ctx.fillRect(4, 0, w - 8, h);
   for (let y = 2; y < h - 2; y += 7) {
@@ -480,13 +558,335 @@ function drawBridge(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   ctx.globalAlpha = 0.25;
   ctx.fillRect(6, 0, w - 12, h);
   ctx.globalAlpha = 1;
-  // Red railings with posts.
   for (const x of [2, w - 6]) {
     ctx.fillStyle = rail;
     ctx.fillRect(x, 0, 4, h);
     ctx.fillStyle = shade(rail, -0.4);
     for (let y = 4; y < h; y += 22) ctx.fillRect(x - 1, y, 6, 6);
   }
+}
+
+/** Ferry lane: small piers at both ends and buoys along the water. */
+function drawFerryDock(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  const { main, accent } = def.colors;
+  for (const y of [0, h - 16]) {
+    ctx.fillStyle = shade(main, -0.3);
+    ctx.fillRect(6, y, w - 12, 16);
+    ctx.fillStyle = main;
+    for (let x = 8; x < w - 8; x += 6) ctx.fillRect(x, y + 1, 5, 14);
+    ctx.fillStyle = '#2a2226';
+    ctx.fillRect(5, y + (y === 0 ? 12 : 0), 4, 6);
+    ctx.fillRect(w - 9, y + (y === 0 ? 12 : 0), 4, 6);
+  }
+  for (let y = 26; y < h - 26; y += 16) {
+    for (const x of [4, w - 4]) {
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+/** The boat itself, seen from above, bow pointing up. */
+function drawBoat(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  const { main, roof, accent } = def.colors;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(w / 2 + 2, h / 2 + 3, w / 2 - 2, h / 2 - 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Hull.
+  ctx.fillStyle = main;
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 1);
+  ctx.quadraticCurveTo(w - 2, h * 0.25, w - 3, h * 0.6);
+  ctx.lineTo(w - 5, h - 3);
+  ctx.lineTo(5, h - 3);
+  ctx.lineTo(3, h * 0.6);
+  ctx.quadraticCurveTo(2, h * 0.25, w / 2, 1);
+  ctx.fill();
+  ctx.strokeStyle = shade(main, -0.45);
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Deck.
+  ctx.fillStyle = shade(main, def.id === 'ferry_motor' ? -0.08 : 0.15);
+  ctx.fillRect(7, h * 0.3, w - 14, h * 0.62);
+  if (def.id === 'ferry_motor') {
+    ctx.fillStyle = roof;
+    ctx.fillRect(3, h * 0.55, w - 6, 3);
+    ctx.fillStyle = '#e8e4dc';
+    ctx.fillRect(9, h * 0.18, w - 18, 10);
+    ctx.fillStyle = accent;
+    ctx.fillRect(11, h * 0.2, w - 22, 4);
+  } else {
+    // Cabin and a smoking chimney.
+    ctx.fillStyle = '#4a3a2e';
+    ctx.fillRect(10, h * 0.12, w - 20, 12);
+    ctx.fillStyle = roof;
+    ctx.fillRect(w / 2 - 3, h * 0.06, 6, 8);
+    ctx.fillStyle = 'rgba(220,225,235,0.4)';
+    ctx.beginPath();
+    ctx.arc(w / 2 + 3, h * 0.04, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = accent;
+    ctx.fillRect(12, h * 0.15, 4, 4);
+    ctx.fillRect(w - 16, h * 0.15, 4, 4);
+  }
+}
+
+function drawGasLamp(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  footShadow(ctx, w / 2, w * 0.5, h, 16);
+  const cx = w / 2;
+  const top = Math.round(h * 0.2);
+  ctx.fillStyle = def.colors.roof;
+  ctx.fillRect(cx - 6, h - 12, 12, 7);
+  ctx.fillStyle = def.colors.main;
+  ctx.fillRect(cx - 2, top + 8, 4, h - 12 - top - 8);
+  ctx.fillRect(cx - 8, top + 14, 16, 2);
+  // Glass lantern.
+  ctx.fillStyle = def.colors.main;
+  ctx.beginPath();
+  ctx.moveTo(cx - 8, top - 4);
+  ctx.lineTo(cx + 8, top - 4);
+  ctx.lineTo(cx, top - 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = def.colors.accent;
+  ctx.fillRect(cx - 6, top - 4, 12, 13);
+  glowDot(ctx, cx, top + 2, 9, 'rgba(255,245,210,0.95)');
+  ctx.strokeStyle = def.colors.main;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(cx - 6, top - 4, 12, 13);
+  ctx.beginPath();
+  ctx.moveTo(cx, top - 4);
+  ctx.lineTo(cx, top + 9);
+  ctx.stroke();
+}
+
+function drawNeon(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  footShadow(ctx, w / 2, w * 0.5, h, 16);
+  const cx = w / 2;
+  ctx.fillStyle = def.colors.roof;
+  ctx.fillRect(cx - 2, 30, 4, h - 36);
+  ctx.fillRect(cx - 6, h - 9, 12, 5);
+  // Vertical sign board with glowing outline and glyph strokes.
+  const bx = cx - 10;
+  const by = 6;
+  const bw = 20;
+  const bh = 40;
+  ctx.fillStyle = '#16141c';
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.shadowColor = def.colors.main;
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = def.colors.main;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+  ctx.strokeStyle = def.colors.accent;
+  ctx.shadowColor = def.colors.accent;
+  ctx.beginPath();
+  for (const gy of [by + 8, by + 20, by + 31]) {
+    ctx.moveTo(bx + 5, gy);
+    ctx.lineTo(bx + bw - 5, gy);
+    ctx.moveTo(cx, gy - 4);
+    ctx.lineTo(cx, gy + 4);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function drawVending(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  footShadow(ctx, w / 2, w * 0.7, h, 18);
+  const x0 = w / 2 - 13;
+  const top = h - 48;
+  ctx.fillStyle = def.colors.main;
+  ctx.fillRect(x0, top, 26, 44);
+  ctx.fillStyle = shade(def.colors.main, -0.35);
+  ctx.fillRect(x0 + 24, top, 2, 44);
+  // Lit display with rows of drinks.
+  ctx.fillStyle = def.colors.accent;
+  ctx.fillRect(x0 + 3, top + 4, 20, 22);
+  const cans = ['#ff5a5a', '#5ad1ff', '#ffd25a', '#7aff9a'];
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 4; c++) {
+      ctx.fillStyle = cans[(r + c) % cans.length];
+      ctx.fillRect(x0 + 5 + c * 4.5, top + 6 + r * 7, 3, 5);
+    }
+  }
+  ctx.fillStyle = def.colors.roof;
+  ctx.fillRect(x0 + 4, top + 32, 18, 6);
+  ctx.fillStyle = '#ffe08a';
+  ctx.fillRect(x0 + 18, top + 28, 3, 2);
+}
+
+function drawArcade(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  const footH = def.h * TILE;
+  footShadow(ctx, w / 2, w, h, footH);
+  const { main, roof: pink, accent } = def.colors;
+  const bottom = h - 3;
+  const top = 18;
+  ctx.fillStyle = main;
+  ctx.fillRect(6, top, w - 12, bottom - top);
+  ctx.fillStyle = shade(main, -0.3);
+  ctx.fillRect(6, top, w - 12, 6);
+  // Big sign with neon border.
+  ctx.fillStyle = '#120f1c';
+  ctx.fillRect(14, top + 12, w - 28, 30);
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = pink;
+  ctx.strokeStyle = pink;
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(15, top + 13, w - 30, 28);
+  ctx.shadowColor = accent;
+  ctx.fillStyle = accent;
+  ctx.font = 'bold 14px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ARCADE', w / 2, top + 28);
+  ctx.shadowBlur = 0;
+  // Windows with screen glow and a lit door.
+  for (const x of [16, w - 36]) {
+    ctx.fillStyle = '#5ff2ff';
+    ctx.globalAlpha = 0.6;
+    ctx.fillRect(x, top + 52, 20, 16);
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = '#ffe2f2';
+  ctx.fillRect(w / 2 - 10, bottom - 34, 20, 30);
+  ctx.strokeStyle = pink;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(6, top, w - 12, bottom - top);
+}
+
+/** Taisho-style brick hotel with a central tower. */
+function drawGrandHotel(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  const footH = def.h * TILE;
+  footShadow(ctx, w / 2, w, h, footH);
+  const { main, roof: slate, accent } = def.colors;
+  const bottom = h - 3;
+  const bodyTop = bottom - 190;
+
+  // Central tower behind the main body.
+  const tw = 56;
+  ctx.fillStyle = shade(main, -0.08);
+  ctx.fillRect(w / 2 - tw / 2, 40, tw, bodyTop - 40 + 10);
+  ctx.fillStyle = slate;
+  ctx.beginPath();
+  ctx.moveTo(w / 2 - tw / 2 - 6, 42);
+  ctx.lineTo(w / 2, 6);
+  ctx.lineTo(w / 2 + tw / 2 + 6, 42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#f4ead2';
+  ctx.beginPath();
+  ctx.arc(w / 2, 62, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#2a2226';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 62);
+  ctx.lineTo(w / 2, 55);
+  ctx.moveTo(w / 2, 62);
+  ctx.lineTo(w / 2 + 5, 64);
+  ctx.stroke();
+
+  // Main brick body with white cornices.
+  ctx.fillStyle = main;
+  ctx.fillRect(8, bodyTop, w - 16, bottom - bodyTop);
+  ctx.fillStyle = slate;
+  ctx.fillRect(2, bodyTop - 10, w - 4, 12);
+  const floors = 4;
+  const fh = (bottom - bodyTop - 8) / floors;
+  for (let f = 0; f < floors; f++) {
+    const y = bodyTop + 6 + f * fh;
+    ctx.fillStyle = '#efe4cc';
+    ctx.fillRect(8, y + fh - 3, w - 16, 3);
+    for (let x = 18; x < w - 26; x += 22) {
+      if (f === floors - 1 && Math.abs(x + 6 - w / 2) < 26) continue;
+      ctx.fillStyle = '#efe4cc';
+      ctx.fillRect(x - 2, y + 6, 16, fh - 14);
+      ctx.fillStyle = (x + f * 3) % 5 === 0 ? shade(accent, -0.5) : accent;
+      ctx.fillRect(x, y + 8, 12, fh - 18);
+    }
+  }
+  // Arched entrance.
+  ctx.fillStyle = '#efe4cc';
+  ctx.beginPath();
+  ctx.arc(w / 2, bottom - 30, 22, Math.PI, 0);
+  ctx.lineTo(w / 2 + 22, bottom - 4);
+  ctx.lineTo(w / 2 - 22, bottom - 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.arc(w / 2, bottom - 30, 17, Math.PI, 0);
+  ctx.lineTo(w / 2 + 17, bottom - 4);
+  ctx.lineTo(w / 2 - 17, bottom - 4);
+  ctx.closePath();
+  ctx.fill();
+  hangingLantern(ctx, w / 2 - 34, bottom - 40, 6);
+  hangingLantern(ctx, w / 2 + 34, bottom - 40, 6);
+}
+
+/** Neon-age tower hotel with a glowing rooftop sign. */
+function drawSkyHotel(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  const footH = def.h * TILE;
+  footShadow(ctx, w / 2, w, h, footH);
+  const { main, roof: dark, accent } = def.colors;
+  const rand = rng(23);
+  const bottom = h - 3;
+  const towerTop = 54;
+  const tx0 = 30;
+  const tx1 = w - 30;
+
+  // Antenna and rooftop sign.
+  ctx.fillStyle = dark;
+  ctx.fillRect(w / 2 - 1, 4, 2, 30);
+  ctx.fillStyle = '#ff4f6a';
+  ctx.beginPath();
+  ctx.arc(w / 2, 4, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#120f1c';
+  ctx.fillRect(w / 2 - 50, 28, 100, 24);
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = '#ff6fc0';
+  ctx.fillStyle = '#ff8fd0';
+  ctx.font = 'bold 16px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('HOTEL', w / 2, 41);
+  ctx.shadowBlur = 0;
+
+  // Glass tower with a grid of lit windows.
+  ctx.fillStyle = main;
+  ctx.fillRect(tx0, towerTop, tx1 - tx0, bottom - towerTop);
+  for (let y = towerTop + 8; y < bottom - 70; y += 14) {
+    for (let x = tx0 + 8; x < tx1 - 10; x += 12) {
+      const lit = rand();
+      ctx.fillStyle = lit < 0.6 ? accent : lit < 0.75 ? '#ffd9a0' : shade(main, -0.3);
+      ctx.fillRect(x, y, 8, 9);
+    }
+  }
+  // Neon edge stripes.
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#5ff2ff';
+  ctx.fillStyle = '#5ff2ff';
+  ctx.fillRect(tx0, towerTop, 3, bottom - towerTop - 60);
+  ctx.fillRect(tx1 - 3, towerTop, 3, bottom - towerTop - 60);
+  ctx.shadowBlur = 0;
+
+  // Wide podium with the lobby.
+  ctx.fillStyle = dark;
+  ctx.fillRect(6, bottom - 62, w - 12, 62);
+  ctx.fillStyle = '#ff4fa3';
+  ctx.fillRect(6, bottom - 62, w - 12, 3);
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = 0.85;
+  ctx.fillRect(16, bottom - 48, w - 32, 34);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = dark;
+  for (let x = 16 + 26; x < w - 16; x += 26) ctx.fillRect(x, bottom - 48, 2, 34);
+  ctx.fillStyle = '#fff4e0';
+  ctx.fillRect(w / 2 - 14, bottom - 40, 28, 36);
 }
 
 function drawBrazier(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
@@ -556,11 +956,17 @@ function drawRestroom(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
 function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   switch (def.style) {
     case 'path':
-      return drawPath(ctx, w, h, def);
+      return drawPath(ctx, w, h, def.era);
     case 'bridge':
       return drawBridge(ctx, w, h, def);
+    case 'ferry':
+      return drawFerryDock(ctx, w, h, def);
     case 'lantern':
       return drawLantern(ctx, w, h, def);
+    case 'gaslamp':
+      return drawGasLamp(ctx, w, h, def);
+    case 'neon':
+      return drawNeon(ctx, w, h, def);
     case 'stall':
       return drawStall(ctx, w, h, def);
     case 'house':
@@ -571,7 +977,13 @@ function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
       return drawBrazier(ctx, w, h, def);
     case 'restroom':
       return drawRestroom(ctx, w, h, def);
+    case 'vending':
+      return drawVending(ctx, w, h, def);
+    case 'arcade':
+      return drawArcade(ctx, w, h, def);
     case 'hotel':
+      if (def.id === 'hotel_grand') return drawGrandHotel(ctx, w, h, def);
+      if (def.id === 'hotel_sky') return drawSkyHotel(ctx, w, h, def);
       return drawHotel(ctx, w, h, def);
   }
 }
@@ -720,6 +1132,12 @@ export function createTextures(scene: Phaser.Scene): void {
     const w = def.w * TILE;
     const h = def.h * TILE + def.rise;
     makeCanvas(scene, TEX.building(def.id), w, h, (ctx) => drawBuilding(ctx, w, h, def));
+    if (def.crossing?.kind === 'boat') {
+      makeCanvas(scene, TEX.boat(def.id), 36, 58, (ctx) => drawBoat(ctx, 36, 58, def));
+    }
+  }
+  for (let era = 0; era < 3; era++) {
+    makeCanvas(scene, TEX.path(era), TILE, TILE, (ctx) => drawPath(ctx, TILE, TILE, era));
   }
 
   const gw = GATE.w * TILE;

@@ -2,6 +2,18 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-08 – Entspannter Modus, Wege-Pflicht, Brücken, Fähren und Zeitalter
+- **Kein Game Over** mehr: Ruf sinkt nur, dann kommen weniger Gäste
+- **Zeitsteuerung**: Pause (Leertaste), Tempo 1×/2×/4× (Taste F), „Start night“ (Taste N); erster Tag 90 s, weitere 45 s
+- **Geister laufen nur auf Wegen**, Wege sind nicht mehr schneller; Startweg vom Tor zur Holzbrücke
+- **Brücken mit Kapazität**: Holz 3, Stein 6, Stahl 10 Geister gleichzeitig; Wartende stellen sich an, die Wegfindung weicht auf andere Übergänge aus
+- **Fähren**: Dampffähre (12 pro Fahrt) und Motorfähre (20, schneller) pendeln zwischen den Ufern
+- **Zeitalter**: Laternenzeit → Dampfzeit (Ruf 60, 1200) → Neon-Zeit (Ruf 75, 3000), Kaufknopf oben links
+- Neue Gebäude: Steinbrücke, Stahlbrücke, Dampf- und Motorfähre, Grand Hotel (24 Betten), Sky Hotel (40), Café, Getränkeautomat, Spielhalle, Gaslaterne, Neonschild; Hotel heißt jetzt Inn
+- Wege sehen je Zeitalter anders aus (Erde → Stein → Asphalt)
+- Bauleiste mit Reitern (Transport, Market, Services, Hotels, Decor), Hinweistext beim Darüberfahren
+- Fluss 3 Felder breit; Brücken und Fähren dürfen nicht direkt nebeneinander stehen
+
 ## 2026-11-08 – Phase 2: Hotel, Tag/Nacht und Sonnenaufgang (Branch `feature/core-loop`)
 - Neue Karte (32 × 24): Hotel-Viertel oben, Fluss in der Mitte, Markt unten mit Tor; Bauregeln je Bereich
 - Badehaus entfernt, dafür **Hotel** (4 × 3, 12 Betten, 8 Münzen pro Nacht)

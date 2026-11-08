@@ -1,7 +1,9 @@
 import {
+  BRIDGE_QUEUE_COST,
   DAWN_WARNING_MS,
   DAY_MS,
   DEMOLISH_REFUND,
+  FERRY_CELL_COST,
   FIRST_DAY_MS,
   GRID_H,
   GRID_W,
@@ -9,17 +11,18 @@ import {
   GUESTS_PER_REPUTATION,
   HAPPY_THRESHOLD,
   NIGHT_MS,
-  PATH_SPEED_FACTOR,
   REP_HAPPY,
   REP_LOST,
   REP_UNHAPPY,
   REPUTATION_MAX,
   REPUTATION_START,
-  RIVER_ROWS,
   RIVER_TOP,
+  RIVER_ROWS,
+  SPEEDS,
   START_MONEY,
 } from '../config';
 import { GATE, getBuilding, type BuildingDef, type BuildingId, type Need, type Zone } from '../data/buildings';
+import { ERAS, type Era } from '../data/eras';
 import { Emitter } from './Emitter';
 import type { Cell } from './pathfinding';
 
@@ -33,7 +36,7 @@ export interface PlacedBuilding {
   ty: number;
 }
 
-export type PlaceResult = 'ok' | 'blocked' | 'zone' | 'money';
+export type PlaceResult = 'ok' | 'blocked' | 'zone' | 'adjacent' | 'locked' | 'money';
 export type Phase = 'day' | 'night';
 export type Terrain = 'hotel' | 'river' | 'market';
 
@@ -54,8 +57,9 @@ type StateEvents = {
   tool: [Tool];
   placed: [PlacedBuilding];
   removed: [PlacedBuilding];
-  spirits: [number];
   reputation: [number];
+  speed: [number];
+  era: [Era];
   /** Night starts / day starts. */
   phase: [Phase];
   /** The dawn warning begins: everyone hurries home. */
@@ -64,7 +68,6 @@ type StateEvents = {
   sunrise: [];
   report: [NightReport];
   earned: [number, Cell];
-  gameover: [];
 };
 
 /** Cell values in the occupancy grid. Positive numbers are building uids. */
@@ -96,13 +99,15 @@ export class GameState extends Emitter<StateEvents> {
   tool: Tool = null;
   spiritCount = 0;
   reputation = REPUTATION_START;
-  gameOver = false;
+  era: Era = 0;
 
   // --- clock ---
   phase: Phase = 'day';
   day = 1;
   /** Milliseconds until the phase changes. */
   timeLeft = FIRST_DAY_MS;
+  /** Game speed multiplier, 0 = paused. */
+  speed: number = 1;
   private dawnStarted = false;
 
   readonly buildings = new Map<number, PlacedBuilding>();
@@ -113,6 +118,10 @@ export class GameState extends Emitter<StateEvents> {
   // --- hotels: uid -> count ---
   private sleepers = new Map<number, number>();
   private reserved = new Map<number, number>();
+
+  // --- bridges: uid -> spirits on it / waiting in front of it ---
+  private onBridge = new Map<number, number>();
+  private waitingAt = new Map<number, number>();
 
   private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, earned: 0 };
 
@@ -137,8 +146,11 @@ export class GameState extends Emitter<StateEvents> {
     }
     this.gateCells = front;
 
-    // A first bridge, so the hotel district can be reached from the start.
-    this.place('bridge', Math.floor(GRID_W / 2), RIVER_TOP, true);
+    // Starter infrastructure: a path from the gate up to a wooden bridge and one step beyond.
+    const cx = this.gate.tx + 1;
+    this.place('bridge', cx, RIVER_TOP, true);
+    for (let y = RIVER_TOP + RIVER_ROWS; y < this.gate.ty - 1; y++) this.place('path', cx, y, true);
+    this.place('path', cx, RIVER_TOP - 1, true);
   }
 
   // ---------------------------------------------------------------------------
@@ -161,25 +173,25 @@ export class GameState extends Emitter<StateEvents> {
     return TERRAIN[this.terrain[ty * GRID_W + tx]];
   }
 
-  /** Cost of stepping onto a cell for pathfinding (Infinity = impossible). */
+  /**
+   * Cost of stepping onto a cell for pathfinding (Infinity = impossible).
+   * Spirits only walk on paths, bridges, ferry lanes and the cells at the gate.
+   */
   readonly travelCost = (tx: number, ty: number): number => {
     if (!this.inBounds(tx, ty)) return Infinity;
     const c = this.cell(tx, ty);
-    if (c === BLOCKED) return Infinity;
-    if (c > 0) return this.buildings.get(c)?.def.walkable ? 1 / PATH_SPEED_FACTOR : Infinity;
-    if (this.terrainAt(tx, ty) === 'river') return Infinity;
+    if (c === RESERVED) return 1;
+    if (c <= 0) return Infinity;
+    const b = this.buildings.get(c);
+    if (!b?.def.walkable) return Infinity;
+    const crossing = b.def.crossing;
+    if (crossing?.kind === 'walk') return 1 + (this.waitingAt.get(c) ?? 0) * BRIDGE_QUEUE_COST;
+    if (crossing?.kind === 'boat') return FERRY_CELL_COST;
     return 1;
   };
 
   isWalkable(tx: number, ty: number): boolean {
     return this.travelCost(tx, ty) !== Infinity;
-  }
-
-  /** Walking speed multiplier on a cell. */
-  speedAt(tx: number, ty: number): number {
-    if (!this.inBounds(tx, ty)) return 1;
-    const c = this.cell(tx, ty);
-    return c > 0 && this.buildings.get(c)?.def.walkable ? PATH_SPEED_FACTOR : 1;
   }
 
   /** Building standing on a cell, if any. */
@@ -195,10 +207,18 @@ export class GameState extends Emitter<StateEvents> {
     const { tx, ty, def } = b;
     for (let x = tx; x < tx + def.w; x++) out.push({ tx: x, ty: ty + def.h }, { tx: x, ty: ty - 1 });
     for (let y = ty; y < ty + def.h; y++) out.push({ tx: tx - 1, ty: y }, { tx: tx + def.w, ty: y });
-    return out.filter((c) => this.isWalkable(c.tx, c.ty));
+    return out.filter((c) => {
+      if (!this.isWalkable(c.tx, c.ty)) return false;
+      // Standing on a bridge or ferry lane does not count as being at a building.
+      return !this.buildingAt(c.tx, c.ty)?.def.crossing;
+    });
   }
 
-  checkPlace(def: BuildingDef, tx: number, ty: number): 'ok' | 'blocked' | 'zone' {
+  isUnlocked(def: BuildingDef): boolean {
+    return def.era <= this.era;
+  }
+
+  checkPlace(def: BuildingDef, tx: number, ty: number): 'ok' | 'blocked' | 'zone' | 'adjacent' {
     let zoneOk = true;
     for (let x = 0; x < def.w; x++) {
       for (let y = 0; y < def.h; y++) {
@@ -207,7 +227,16 @@ export class GameState extends Emitter<StateEvents> {
         if (!zoneAllows(def.zone, this.terrainAt(tx + x, ty + y))) zoneOk = false;
       }
     }
-    return zoneOk ? 'ok' : 'zone';
+    if (!zoneOk) return 'zone';
+    // Crossings need a free column on both sides, so spirits can't hop between them.
+    if (def.crossing) {
+      for (let y = 0; y < def.h; y++) {
+        for (const nx of [tx - 1, tx + def.w]) {
+          if (this.buildingAt(nx, ty + y)?.def.crossing) return 'adjacent';
+        }
+      }
+    }
+    return 'ok';
   }
 
   // ---------------------------------------------------------------------------
@@ -230,6 +259,7 @@ export class GameState extends Emitter<StateEvents> {
 
   place(id: BuildingId, tx: number, ty: number, free = false): PlaceResult {
     const def = getBuilding(id);
+    if (!free && !this.isUnlocked(def)) return 'locked';
     const check = this.checkPlace(def, tx, ty);
     if (check !== 'ok') return check;
     if (!free && !this.canAfford(def.cost)) return 'money';
@@ -256,6 +286,8 @@ export class GameState extends Emitter<StateEvents> {
     // Sleeping guests simply move out; they are not lost.
     this.sleepers.delete(uid);
     this.reserved.delete(uid);
+    this.onBridge.delete(uid);
+    this.waitingAt.delete(uid);
     const refund = Math.floor(def.cost * DEMOLISH_REFUND);
     this.addMoney(refund);
     this.emit('removed', building);
@@ -265,6 +297,35 @@ export class GameState extends Emitter<StateEvents> {
   /** Buildings that satisfy a need. */
   providersOf(need: Need): PlacedBuilding[] {
     return [...this.buildings.values()].filter((b) => b.def.provides?.need === need);
+  }
+
+  // ---------------------------------------------------------------------------
+  // bridges
+  // ---------------------------------------------------------------------------
+
+  /** Try to step onto a bridge; false if it is full. */
+  tryEnterBridge(uid: number): boolean {
+    const b = this.buildings.get(uid);
+    if (b?.def.crossing?.kind !== 'walk') return true;
+    const n = this.onBridge.get(uid) ?? 0;
+    if (n >= b.def.crossing.capacity) return false;
+    this.onBridge.set(uid, n + 1);
+    return true;
+  }
+
+  leaveBridge(uid: number): void {
+    const n = this.onBridge.get(uid) ?? 0;
+    if (n > 0) this.onBridge.set(uid, n - 1);
+  }
+
+  bridgeLoad(uid: number): number {
+    return this.onBridge.get(uid) ?? 0;
+  }
+
+  /** Spirits waiting in front of a bridge make pathfinding prefer other crossings. */
+  setWaiting(uid: number, delta: 1 | -1): void {
+    const n = (this.waitingAt.get(uid) ?? 0) + delta;
+    this.waitingAt.set(uid, Math.max(0, n));
   }
 
   // ---------------------------------------------------------------------------
@@ -322,9 +383,7 @@ export class GameState extends Emitter<StateEvents> {
   // ---------------------------------------------------------------------------
 
   setSpiritCount(n: number): void {
-    if (n === this.spiritCount) return;
     this.spiritCount = n;
-    this.emit('spirits', n);
   }
 
   /** A spirit paid at a building. */
@@ -351,6 +410,31 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   // ---------------------------------------------------------------------------
+  // eras
+  // ---------------------------------------------------------------------------
+
+  /** The next era, if there is one. */
+  get nextEra(): { era: Era; reputation: number; cost: number } | null {
+    const next = this.era + 1;
+    if (next >= ERAS.length) return null;
+    return { era: next as Era, ...ERAS[next] };
+  }
+
+  canAdvanceEra(): boolean {
+    const n = this.nextEra;
+    return !!n && this.reputation >= n.reputation && this.money >= n.cost;
+  }
+
+  advanceEra(): boolean {
+    const n = this.nextEra;
+    if (!n || !this.canAdvanceEra()) return false;
+    this.addMoney(-n.cost);
+    this.era = n.era;
+    this.emit('era', this.era);
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
   // clock
   // ---------------------------------------------------------------------------
 
@@ -358,10 +442,32 @@ export class GameState extends Emitter<StateEvents> {
     return this.phase === 'night' && this.timeLeft <= DAWN_WARNING_MS;
   }
 
-  /** Advances game time. Called every frame by the market scene. */
-  tick(delta: number): void {
-    if (this.gameOver) return;
-    this.timeLeft -= delta;
+  setSpeed(speed: number): void {
+    this.speed = speed;
+    this.emit('speed', speed);
+  }
+
+  /** Space bar: pause, or resume at normal speed. */
+  togglePause(): void {
+    this.setSpeed(this.speed === 0 ? 1 : 0);
+  }
+
+  /** Cycle through 1× → 2× → 4× → 1×. */
+  cycleSpeed(): void {
+    const steps = SPEEDS.filter((s) => s > 0);
+    const i = steps.indexOf(this.speed as (typeof steps)[number]);
+    this.setSpeed(steps[(i + 1) % steps.length]);
+  }
+
+  /** Skip the rest of the day. */
+  startNightNow(): void {
+    if (this.phase === 'day') this.timeLeft = 0;
+    if (this.speed === 0) this.setSpeed(1);
+  }
+
+  /** Advances game time by real milliseconds (scaled by the game speed). */
+  tick(realDelta: number): void {
+    this.timeLeft -= realDelta * this.speed;
 
     if (this.phase === 'night' && !this.dawnStarted && this.timeLeft <= DAWN_WARNING_MS) {
       this.dawnStarted = true;
@@ -385,6 +491,8 @@ export class GameState extends Emitter<StateEvents> {
     // Listeners count the spirits still outside via recordLost().
     this.emit('sunrise');
     this.reserved.clear();
+    this.onBridge.clear();
+    this.waitingAt.clear();
 
     const rooms = this.hotels().reduce((sum, h) => sum + (this.sleepers.get(h.uid) ?? 0) * h.def.hotel!.price, 0);
     if (rooms > 0) this.addMoney(rooms);
@@ -409,11 +517,6 @@ export class GameState extends Emitter<StateEvents> {
       repDelta,
       reputation: this.reputation,
     });
-
-    if (this.reputation <= 0) {
-      this.gameOver = true;
-      this.emit('gameover');
-    }
   }
 
   /** For testing in the browser console: jump close to the next phase change. */

@@ -22,9 +22,11 @@ import {
 } from '../config';
 import { GATE, getBuilding, type BuildingDef } from '../data/buildings';
 import { STR } from '../data/strings';
-import { Spirit } from '../entities/Spirit';
+import { Ferry } from '../entities/Ferry';
+import { Spirit, type SpiritWorld } from '../entities/Spirit';
 import { createTextures, TEX } from '../gfx/textures';
 import { state, type PlacedBuilding } from '../state/GameState';
+import type { UIScene } from './UIScene';
 import type { Cell } from '../state/pathfinding';
 
 interface BuildingView {
@@ -55,6 +57,8 @@ const LIGHT = {
 export class MarketScene extends Phaser.Scene {
   private views = new Map<number, BuildingView>();
   private spirits: Spirit[] = [];
+  private ferries = new Map<number, Ferry>();
+  private world!: SpiritWorld;
   private glowLayer!: Phaser.GameObjects.Layer;
   private nightOverlay!: Phaser.GameObjects.Rectangle;
   private sunOverlay!: Phaser.GameObjects.Rectangle;
@@ -77,6 +81,7 @@ export class MarketScene extends Phaser.Scene {
     this.addZoneLabels();
 
     this.glowLayer = this.add.layer().setDepth(DEPTH.glow);
+    this.world = { glowLayer: this.glowLayer, ferry: (uid) => this.ferries.get(uid) };
     const pad = WORLD_PADDING;
     this.nightOverlay = this.add
       .rectangle(-pad, -pad, WORLD_W + pad * 2, WORLD_H + pad * 2, COLORS.night)
@@ -104,6 +109,12 @@ export class MarketScene extends Phaser.Scene {
       state.on('phase', (p) => (p === 'night' ? this.onNightFalls() : this.setLight('day', 4000))),
       state.on('dawn', () => this.setLight('dawn', DAWN_WARNING_MS)),
       state.on('sunrise', () => this.onSunrise()),
+      state.on('speed', (speed) => (this.time.timeScale = speed)),
+      state.on('era', (era) => {
+        for (const [uid, view] of this.views) {
+          if (state.buildings.get(uid)?.def.id === 'path') view.image.setTexture(TEX.path(era));
+        }
+      }),
       state.on('earned', (amount, cell) =>
         this.floatText(cell.tx * TILE + TILE / 2, cell.ty * TILE - 6, STR.earn(amount), COLORS.uiGold, 12),
       ),
@@ -114,11 +125,14 @@ export class MarketScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    state.tick(delta);
+    // Camera and building work in real time; the world runs at the game speed.
     this.panWithKeys(delta);
     this.updateHover();
+    state.tick(delta);
+    const worldDelta = delta * state.speed;
 
-    for (const s of this.spirits) s.update(time, delta);
+    for (const f of this.ferries.values()) f.update(worldDelta);
+    for (const s of this.spirits) s.update(time, worldDelta);
     this.spirits = this.spirits.filter((s) => !s.isDone);
     state.setSpiritCount(this.spirits.length);
   }
@@ -185,7 +199,7 @@ export class MarketScene extends Phaser.Scene {
 
   private spawnSpirit(start: Cell, delayMs: number): void {
     if (this.spirits.length >= SPIRIT_HARD_CAP) return;
-    this.spirits.push(new Spirit(this, state, this.glowLayer, start, undefined, delayMs));
+    this.spirits.push(new Spirit(this, state, this.world, start, undefined, delayMs));
   }
 
   // ---------------------------------------------------------------------------
@@ -232,12 +246,15 @@ export class MarketScene extends Phaser.Scene {
     const bottom = (b.ty + def.h) * TILE;
     // Paths and bridges lie flat on the ground, below everything that stands.
     const depth = def.walkable ? DEPTH.flat + b.ty : bottom;
-    const image = this.add.image(b.tx * TILE, bottom, TEX.building(def.id)).setOrigin(0, 1).setDepth(depth);
+    const texture = def.id === 'path' ? TEX.path(state.era) : TEX.building(def.id);
+    const image = this.add.image(b.tx * TILE, bottom, texture).setOrigin(0, 1).setDepth(depth);
+    if (def.crossing?.kind === 'boat') this.ferries.set(b.uid, new Ferry(this, b));
 
     let glow: Phaser.GameObjects.Image | undefined;
     if (def.glow) {
       const texH = def.h * TILE + def.rise;
       glow = this.addGlow(b.tx * TILE + def.w * TILE * def.glow.x, bottom - texH + texH * def.glow.y, def.glow.radius);
+      if (def.glow.color !== undefined) glow.setTint(def.glow.color);
     }
 
     if (animate && !def.walkable) {
@@ -254,6 +271,8 @@ export class MarketScene extends Phaser.Scene {
     const view = this.views.get(b.uid);
     if (!view) return;
     this.views.delete(b.uid);
+    this.ferries.get(b.uid)?.destroy();
+    this.ferries.delete(b.uid);
     if (this.hoveredUid === b.uid) this.hoveredUid = null;
     view.glow?.destroy();
     this.tweens.add({
@@ -337,7 +356,7 @@ export class MarketScene extends Phaser.Scene {
     };
 
     this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer) => {
-      if (this.isOverUI(p) || state.gameOver) return;
+      if (this.isOverUI(p)) return;
       const cam = this.cameras.main;
       const tool = state.tool;
       const painting = p.button === 0 && tool?.kind === 'build' && !!getBuilding(tool.id).dragPlace;
@@ -379,6 +398,8 @@ export class MarketScene extends Phaser.Scene {
   }
 
   private isOverUI(p: Phaser.Input.Pointer): boolean {
+    const ui = this.scene.get('UIScene') as UIScene | null;
+    if (ui?.sys.isActive()) return ui.isOverUI(p.x, p.y);
     return p.y < HUD_HEIGHT || p.y > this.scale.height - BAR_HEIGHT;
   }
 
@@ -470,7 +491,7 @@ export class MarketScene extends Phaser.Scene {
 
   private handleClick(p: Phaser.Input.Pointer): void {
     const tool = state.tool;
-    if (!tool || state.gameOver) return;
+    if (!tool) return;
     const w = this.screenToWorld(p.x, p.y);
 
     if (tool.kind === 'build') {
@@ -482,6 +503,7 @@ export class MarketScene extends Phaser.Scene {
       if (result === 'ok') this.floatText(cx, top, STR.cost(def.cost), COLORS.uiGold);
       else if (result === 'money') this.floatText(w.x, w.y, STR.notEnoughCoins, COLORS.uiRed);
       else if (result === 'zone') this.floatText(w.x, w.y, STR.zoneOnly[def.zone], COLORS.uiRed);
+      else if (result === 'adjacent') this.floatText(w.x, w.y, STR.tooClose, COLORS.uiRed);
       else this.floatText(w.x, w.y, STR.cantBuildHere, COLORS.uiRed);
       return;
     }
@@ -495,7 +517,7 @@ export class MarketScene extends Phaser.Scene {
 
   private refreshGhost(): void {
     const tool = state.tool;
-    if (tool?.kind === 'build') this.ghost.setTexture(TEX.building(tool.id));
+    if (tool?.kind === 'build') this.ghost.setTexture(tool.id === 'path' ? TEX.path(state.era) : TEX.building(tool.id));
     this.ghost.setVisible(false);
     this.footprint.clear();
   }
@@ -510,7 +532,7 @@ export class MarketScene extends Phaser.Scene {
     hovered?.image.clearTint();
     this.hoveredUid = null;
 
-    if (!tool || state.gameOver || this.isOverUI(p) || this.drag?.panning) {
+    if (!tool || this.isOverUI(p) || this.drag?.panning) {
       this.ghost.setVisible(false);
       return;
     }

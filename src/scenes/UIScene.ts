@@ -1,41 +1,76 @@
 import * as Phaser from 'phaser';
-import { BAR_HEIGHT, COLORS, FONT_TITLE, FONT_UI, HUD_HEIGHT } from '../config';
-import { BUILDINGS, getBuilding } from '../data/buildings';
+import {
+  BAR_HEIGHT,
+  COLORS,
+  ERA_PANEL_HEIGHT,
+  ERA_PANEL_WIDTH,
+  FONT_TITLE,
+  FONT_UI,
+  HUD_HEIGHT,
+  SPEEDS,
+  TIME_PANEL_HALF_WIDTH,
+  TIME_PANEL_HEIGHT,
+} from '../config';
+import { BUILDINGS, CATEGORIES, getBuilding, type BuildingDef, type Category } from '../data/buildings';
 import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
 import { state, type NightReport, type Tool } from '../state/GameState';
 
-const BTN_W = 82;
+const BTN_W = 86;
 const BTN_H = 84;
 const BTN_GAP = 6;
+const TAB_H = 24;
 const REPORT_MS = 8000;
 
-interface Button {
-  tool: NonNullable<Tool>;
-  cost: number;
+interface ItemButton {
+  def: BuildingDef;
   container: Phaser.GameObjects.Container;
   bg: Phaser.GameObjects.Rectangle;
   icon: Phaser.GameObjects.Image;
-  costText?: Phaser.GameObjects.Text;
+  costText: Phaser.GameObjects.Text;
+  keyText: Phaser.GameObjects.Text;
+  lock: Phaser.GameObjects.Text;
   hovered: boolean;
 }
 
-const HOTKEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO'] as const;
-const HOTKEY_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+interface SmallButton {
+  bg: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+}
 
-/** Screen-space interface on top of the market: top bar, clock, hint line, build bar, reports. */
+const HOTKEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'] as const;
+
+/** Screen-space interface: top bar, time controls, era panel, build bar with tabs, reports. */
 export class UIScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Graphics;
-  private title!: Phaser.GameObjects.Text;
   private bar!: Phaser.GameObjects.Graphics;
-  private clockText!: Phaser.GameObjects.Text;
+  private title!: Phaser.GameObjects.Text;
   private moneyText!: Phaser.GameObjects.Text;
   private coinIcon!: Phaser.GameObjects.Image;
   private spiritText!: Phaser.GameObjects.Text;
   private repText!: Phaser.GameObjects.Text;
   private hint!: Phaser.GameObjects.Text;
+
+  // time panel
+  private timePanel!: Phaser.GameObjects.Container;
+  private clockText!: Phaser.GameObjects.Text;
+  private speedButtons: SmallButton[] = [];
+  private nightButton!: SmallButton;
+
+  // era panel
+  private eraPanel!: Phaser.GameObjects.Container;
+  private eraName!: Phaser.GameObjects.Text;
+  private eraInfo!: Phaser.GameObjects.Text;
+  private eraButton!: SmallButton;
+
+  // build bar
+  private category: Category = 'transport';
+  private tabs = new Map<Category, SmallButton>();
+  private demolishButton!: SmallButton;
+  private items: ItemButton[] = [];
+  private hoverInfo: string | null = null;
+
   private report?: Phaser.GameObjects.Container;
-  private buttons: Button[] = [];
   private unsubscribe: Array<() => void> = [];
 
   constructor() {
@@ -50,10 +85,6 @@ export class UIScene extends Phaser.Scene {
       .text(16, HUD_HEIGHT / 2, STR.title, { fontFamily: FONT_TITLE, fontSize: '19px', color: COLORS.uiText })
       .setOrigin(0, 0.5)
       .setShadow(0, 2, '#000000', 4, false, true);
-    this.clockText = this.add
-      .text(0, HUD_HEIGHT / 2, '', { fontFamily: FONT_UI, fontSize: '15px', fontStyle: 'bold', color: COLORS.uiText })
-      .setOrigin(0.5, 0.5);
-
     this.coinIcon = this.add.image(0, HUD_HEIGHT / 2, TEX.coin);
     this.moneyText = this.add
       .text(0, HUD_HEIGHT / 2, '', { fontFamily: FONT_UI, fontSize: '18px', fontStyle: 'bold', color: COLORS.uiGold })
@@ -70,129 +101,267 @@ export class UIScene extends Phaser.Scene {
         fontFamily: FONT_UI,
         fontSize: '13px',
         color: COLORS.uiText,
-        backgroundColor: 'rgba(11,15,26,0.72)',
+        backgroundColor: 'rgba(11,15,26,0.78)',
         padding: { x: 10, y: 5 },
       })
       .setOrigin(0.5, 1);
 
-    BUILDINGS.forEach((def, i) => {
-      this.buttons.push(
-        this.makeButton({ kind: 'build', id: def.id }, STR.buildings[def.id], def.cost, TEX.building(def.id), HOTKEY_LABELS[i] ?? ''),
-      );
-    });
-    this.buttons.push(this.makeButton({ kind: 'demolish' }, STR.demolish, 0, TEX.dust, 'X'));
-
+    this.createTimePanel();
+    this.createEraPanel();
+    this.createBuildBar();
     this.setupKeys();
 
     this.unsubscribe.push(
       state.on('money', () => this.refreshMoney(true)),
-      state.on('tool', () => this.refreshButtons()),
+      state.on('tool', () => this.refreshItems()),
+      state.on('speed', () => this.refreshTime()),
+      state.on('era', (era) => this.onEra(era)),
       state.on('report', (r) => this.showReport(r)),
-      state.on('gameover', () => this.showGameOver()),
     );
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe.forEach((u) => u()));
     this.scale.on(Phaser.Scale.Events.RESIZE, this.layout, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, this.layout, this));
 
     this.refreshMoney(false);
-    this.refreshButtons();
+    this.refreshTime();
     this.layout();
   }
 
-  /** Texts that change continuously (clock, counters, hint). */
+  /** Texts that change continuously. */
   update(): void {
     let clock: string;
     if (state.phase === 'day') clock = STR.clockDay(state.day, state.timeLeft);
     else if (state.isDawn) clock = STR.clockDawn(state.timeLeft);
     else clock = STR.clockNight(state.day, state.timeLeft);
+    if (state.speed === 0) clock = `${STR.paused} · ${clock}`;
     if (this.clockText.text !== clock) {
       this.clockText.setText(clock).setColor(state.isDawn ? COLORS.uiRed : COLORS.uiText);
-      this.layoutHud();
     }
+    const day = state.phase === 'day';
+    this.nightButton.bg.setVisible(day);
+    this.nightButton.label.setVisible(day);
 
     const rep = STR.reputation(state.reputation);
-    if (this.repText.text !== rep) {
-      this.repText.setText(rep).setColor(state.reputation <= 15 ? COLORS.uiRed : COLORS.uiText);
-      this.layoutHud();
-    }
     const spirits = STR.spirits(state.spiritCount);
-    if (this.spiritText.text !== spirits) {
+    if (this.repText.text !== rep || this.spiritText.text !== spirits) {
+      this.repText.setText(rep);
       this.spiritText.setText(spirits);
       this.layoutHud();
+      this.refreshEra();
     }
 
     const t = state.tool;
     let hint: string;
-    if (!t) hint = state.day === 1 && state.phase === 'day' ? STR.hintFirstDay : STR.hintIdle;
+    if (this.hoverInfo) hint = this.hoverInfo;
+    else if (!t) hint = state.day === 1 && state.phase === 'day' ? STR.hintFirstDay : STR.hintIdle;
     else if (t.kind === 'demolish') hint = STR.hintDemolish;
     else hint = getBuilding(t.id).dragPlace ? STR.hintPainting : STR.hintPlacing;
     if (this.hint.text !== hint) this.hint.setText(hint);
   }
 
   // ---------------------------------------------------------------------------
+  // small helpers
+  // ---------------------------------------------------------------------------
+
+  private smallButton(x: number, y: number, w: number, h: number, text: string, onClick: () => void): SmallButton {
+    const bg = this.add
+      .rectangle(x, y, w, h, COLORS.uiButton)
+      .setOrigin(0)
+      .setStrokeStyle(1, COLORS.uiPanelEdge)
+      .setInteractive({ useHandCursor: true });
+    const label = this.add
+      .text(x + w / 2, y + h / 2, text, { fontFamily: FONT_UI, fontSize: '12px', fontStyle: 'bold', color: COLORS.uiText })
+      .setOrigin(0.5);
+    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => bg.setStrokeStyle(1, COLORS.uiAccent));
+    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => bg.setStrokeStyle(1, COLORS.uiPanelEdge));
+    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, (p: Phaser.Input.Pointer) => {
+      if (p.button === 0) onClick();
+    });
+    return { bg, label };
+  }
+
+  private setActive(b: SmallButton, active: boolean): void {
+    b.bg.setFillStyle(active ? COLORS.uiButtonActive : COLORS.uiButton);
+  }
+
+  // ---------------------------------------------------------------------------
+  // time panel
+  // ---------------------------------------------------------------------------
+
+  private createTimePanel(): void {
+    const w = TIME_PANEL_HALF_WIDTH * 2;
+    const h = TIME_PANEL_HEIGHT;
+    const bg = this.add.rectangle(0, 0, w, h, COLORS.uiPanel, 0.92).setOrigin(0).setStrokeStyle(1, COLORS.uiPanelEdge);
+    this.clockText = this.add
+      .text(12, h / 2, '', { fontFamily: FONT_UI, fontSize: '13px', fontStyle: 'bold', color: COLORS.uiText })
+      .setOrigin(0, 0.5);
+    const parts: Phaser.GameObjects.GameObject[] = [bg, this.clockText];
+
+    // Speed buttons and "start night" on the right side of the panel.
+    const nightW = 104;
+    let x = w - 6 - nightW - 6 - SPEEDS.length * 32;
+    SPEEDS.forEach((speed, i) => {
+      const b = this.smallButton(x, 5, 30, h - 10, STR.speedLabels[i], () => state.setSpeed(speed));
+      this.speedButtons.push(b);
+      parts.push(b.bg, b.label);
+      x += 32;
+    });
+    this.nightButton = this.smallButton(w - 6 - nightW, 5, nightW, h - 10, STR.startNight, () => state.startNightNow());
+    parts.push(this.nightButton.bg, this.nightButton.label);
+
+    this.timePanel = this.add.container(0, HUD_HEIGHT, parts);
+  }
+
+  private refreshTime(): void {
+    SPEEDS.forEach((speed, i) => this.setActive(this.speedButtons[i], state.speed === speed));
+  }
+
+  // ---------------------------------------------------------------------------
+  // era panel
+  // ---------------------------------------------------------------------------
+
+  private createEraPanel(): void {
+    const w = ERA_PANEL_WIDTH;
+    const h = ERA_PANEL_HEIGHT;
+    const bg = this.add.rectangle(0, 0, w, h, COLORS.uiPanel, 0.92).setOrigin(0).setStrokeStyle(1, COLORS.uiPanelEdge);
+    this.eraName = this.add.text(10, 6, '', { fontFamily: FONT_TITLE, fontSize: '15px', color: COLORS.uiGold });
+    this.eraInfo = this.add.text(10, 34, '', { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiTextDim });
+    this.eraButton = this.smallButton(w - 168, 6, 160, 22, '', () => {
+      if (state.advanceEra()) this.refreshEra();
+    });
+    this.eraButton.label.setFontSize(11);
+    this.eraPanel = this.add.container(8, HUD_HEIGHT + 6, [bg, this.eraName, this.eraInfo, this.eraButton.bg, this.eraButton.label]);
+    this.refreshEra();
+  }
+
+  private refreshEra(): void {
+    this.eraName.setText(STR.eras[state.era]);
+    const next = state.nextEra;
+    if (!next) {
+      this.eraInfo.setText(STR.eraFinal);
+      this.eraButton.bg.setVisible(false);
+      this.eraButton.label.setVisible(false);
+      return;
+    }
+    const name = STR.eras[next.era];
+    this.eraInfo.setText(STR.eraNext(name, next.reputation, next.cost));
+    const ready = state.canAdvanceEra();
+    this.eraButton.label.setText(STR.eraBuy(name, next.cost)).setColor(ready ? COLORS.uiText : COLORS.uiTextDim);
+    this.eraButton.bg.setFillStyle(ready ? COLORS.uiButtonActive : COLORS.uiButton).setAlpha(ready ? 1 : 0.6);
+  }
+
+  private onEra(era: number): void {
+    this.refreshEra();
+    this.refreshItems();
+    this.items.find((i) => i.def.id === 'path')?.icon.setTexture(TEX.path(era));
+    this.toast(STR.eraStarted(STR.eras[era]));
+  }
+
+  private toast(text: string): void {
+    const y = this.scale.height * 0.4;
+    const t = this.add
+      .text(this.scale.width / 2, y, text, {
+        fontFamily: FONT_TITLE,
+        fontSize: '30px',
+        color: COLORS.uiGold,
+        stroke: '#0b0f1a',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setAlpha(0);
+    this.tweens.add({ targets: t, alpha: 1, y: y - 10, duration: 500 });
+    this.tweens.add({ targets: t, alpha: 0, y: y - 40, delay: 2800, duration: 700, onComplete: () => t.destroy() });
+  }
+
+  // ---------------------------------------------------------------------------
   // build bar
   // ---------------------------------------------------------------------------
 
-  private makeButton(tool: NonNullable<Tool>, label: string, cost: number, texture: string, hotkey: string): Button {
-    const container = this.add.container(0, 0);
-    const bg = this.add
-      .rectangle(0, 0, BTN_W, BTN_H, COLORS.uiButton)
-      .setOrigin(0)
-      .setStrokeStyle(1, COLORS.uiPanelEdge);
-
-    // Icon scaled to fit the upper part of the button.
-    const icon = this.add.image(BTN_W / 2, 46, texture).setOrigin(0.5, 1);
-    if (tool.kind === 'demolish') {
-      icon.setScale(2.2).setY(30).setOrigin(0.5).setTint(0xff8a7a);
-    } else {
-      icon.setScale(Math.min(54 / icon.width, 38 / icon.height, 1));
+  private createBuildBar(): void {
+    for (const cat of CATEGORIES) {
+      this.tabs.set(cat, this.smallButton(0, 0, 92, TAB_H - 4, STR.categories[cat], () => this.selectCategory(cat)));
     }
-
-    const name = this.add
-      .text(BTN_W / 2, 50, label, { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiText, align: 'center' })
-      .setOrigin(0.5, 0);
-    const key = this.add
-      .text(5, 3, hotkey, { fontFamily: FONT_UI, fontSize: '10px', color: COLORS.uiTextDim })
-      .setOrigin(0, 0);
-
-    const parts: Phaser.GameObjects.GameObject[] = [bg, icon, name, key];
-    let costText: Phaser.GameObjects.Text | undefined;
-    if (cost > 0) {
-      const coin = this.add.image(BTN_W / 2 - 11, 72, TEX.coin).setScale(0.55);
-      costText = this.add
-        .text(BTN_W / 2 - 4, 72, String(cost), { fontFamily: FONT_UI, fontSize: '11px', fontStyle: 'bold', color: COLORS.uiGold })
-        .setOrigin(0, 0.5);
-      parts.push(coin, costText);
-    }
-    container.add(parts);
-
-    const button: Button = { tool, cost, container, bg, icon, costText, hovered: false };
-
-    bg.setInteractive({ useHandCursor: true });
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
-      button.hovered = true;
-      this.styleButton(button);
-    });
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
-      button.hovered = false;
-      this.styleButton(button);
-    });
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, (p: Phaser.Input.Pointer) => {
-      if (p.button === 0) this.toggleTool(tool);
-    });
-
-    return button;
+    this.demolishButton = this.smallButton(0, 0, 110, TAB_H - 4, `✖ ${STR.demolish} (X)`, () =>
+      this.toggleTool({ kind: 'demolish' }),
+    );
+    for (const def of BUILDINGS) this.items.push(this.makeItem(def));
+    this.selectCategory(this.category);
   }
 
-  private isSelected(b: Button): boolean {
+  private makeItem(def: BuildingDef): ItemButton {
+    const container = this.add.container(0, 0);
+    const bg = this.add.rectangle(0, 0, BTN_W, BTN_H, COLORS.uiButton).setOrigin(0).setStrokeStyle(1, COLORS.uiPanelEdge);
+    const texture = def.id === 'path' ? TEX.path(state.era) : TEX.building(def.id);
+    const icon = this.add.image(BTN_W / 2, 46, texture).setOrigin(0.5, 1);
+    icon.setScale(Math.min(56 / icon.width, 40 / icon.height, 1));
+    const name = this.add
+      .text(BTN_W / 2, 50, STR.buildings[def.id], { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiText, align: 'center' })
+      .setOrigin(0.5, 0);
+    const coin = this.add.image(BTN_W / 2 - 12, 72, TEX.coin).setScale(0.55);
+    const costText = this.add
+      .text(BTN_W / 2 - 4, 72, String(def.cost), { fontFamily: FONT_UI, fontSize: '11px', fontStyle: 'bold', color: COLORS.uiGold })
+      .setOrigin(0, 0.5);
+    const keyText = this.add.text(5, 3, '', { fontFamily: FONT_UI, fontSize: '10px', color: COLORS.uiTextDim });
+    const lock = this.add
+      .text(BTN_W / 2, 28, `🔒 ${STR.eras[def.era]}`, {
+        fontFamily: FONT_UI,
+        fontSize: '10px',
+        color: COLORS.uiText,
+        backgroundColor: 'rgba(11,15,26,0.85)',
+        padding: { x: 4, y: 2 },
+      })
+      .setOrigin(0.5);
+    container.add([bg, icon, name, coin, costText, keyText, lock]);
+
+    const item: ItemButton = { def, container, bg, icon, costText, keyText, lock, hovered: false };
+    bg.setInteractive({ useHandCursor: true });
+    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      item.hovered = true;
+      this.hoverInfo = this.describe(def);
+      this.styleItem(item);
+    });
+    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      item.hovered = false;
+      this.hoverInfo = null;
+      this.styleItem(item);
+    });
+    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, (p: Phaser.Input.Pointer) => {
+      if (p.button === 0) this.toggleTool({ kind: 'build', id: def.id });
+    });
+    return item;
+  }
+
+  /** One-line description shown while hovering an item. */
+  private describe(def: BuildingDef): string {
+    const parts: string[] = [STR.buildings[def.id], `${def.cost} coins`];
+    if (def.crossing?.kind === 'walk') parts.push(STR.capacity(def.crossing.capacity));
+    if (def.crossing?.kind === 'boat') parts.push(STR.perTrip(def.crossing.capacity));
+    if (def.hotel) parts.push(STR.beds(def.hotel.beds));
+    if (def.provides) parts.push(`${STR.needIcons[def.provides.need]} +${def.provides.price}`);
+    if (!state.isUnlocked(def)) parts.push(`🔒 ${STR.eras[def.era]}`);
+    return parts.join('  ·  ');
+  }
+
+  private visibleItems(): ItemButton[] {
+    return this.items.filter((i) => i.def.category === this.category);
+  }
+
+  private selectCategory(cat: Category): void {
+    this.category = cat;
+    for (const [c, b] of this.tabs) this.setActive(b, c === cat);
+    for (const i of this.items) i.container.setVisible(i.def.category === cat);
+    this.visibleItems().forEach((i, n) => i.keyText.setText(n < 9 ? String(n + 1) : ''));
+    this.refreshItems();
+    this.layoutBar();
+  }
+
+  private isSelected(def: BuildingDef): boolean {
     const t = state.tool;
-    if (!t) return false;
-    if (t.kind === 'demolish') return b.tool.kind === 'demolish';
-    return b.tool.kind === 'build' && b.tool.id === t.id;
+    return t?.kind === 'build' && t.id === def.id;
   }
 
   private toggleTool(tool: NonNullable<Tool>): void {
-    if (state.gameOver) return;
+    if (tool.kind === 'build' && !state.isUnlocked(getBuilding(tool.id))) return;
     const current = state.tool;
     const same =
       current !== null &&
@@ -201,31 +370,47 @@ export class UIScene extends Phaser.Scene {
     state.setTool(same ? null : tool);
   }
 
-  private styleButton(b: Button): void {
-    const selected = this.isSelected(b);
-    const affordable = b.cost === 0 || state.canAfford(b.cost);
-    b.bg.setFillStyle(selected ? COLORS.uiButtonActive : b.hovered ? COLORS.uiButtonHover : COLORS.uiButton);
-    b.bg.setStrokeStyle(selected ? 2 : 1, selected ? COLORS.uiAccent : COLORS.uiPanelEdge);
-    b.icon.setAlpha(affordable ? 1 : 0.4);
-    b.costText?.setColor(affordable ? COLORS.uiGold : COLORS.uiRed);
+  private styleItem(item: ItemButton): void {
+    const unlocked = state.isUnlocked(item.def);
+    const selected = this.isSelected(item.def);
+    const affordable = state.canAfford(item.def.cost);
+    item.bg.setFillStyle(selected ? COLORS.uiButtonActive : item.hovered && unlocked ? COLORS.uiButtonHover : COLORS.uiButton);
+    item.bg.setStrokeStyle(selected ? 2 : 1, selected ? COLORS.uiAccent : COLORS.uiPanelEdge);
+    item.icon.setAlpha(!unlocked ? 0.25 : affordable ? 1 : 0.45);
+    item.costText.setColor(affordable ? COLORS.uiGold : COLORS.uiRed);
+    item.lock.setVisible(!unlocked);
+  }
+
+  private refreshItems(): void {
+    this.items.forEach((i) => this.styleItem(i));
+    this.setActive(this.demolishButton, state.tool?.kind === 'demolish');
   }
 
   private setupKeys(): void {
     const kb = this.input.keyboard!;
-    this.buttons.forEach((b, i) => {
-      if (b.tool.kind === 'build' && i < HOTKEYS.length) kb.on(`keydown-${HOTKEYS[i]}`, () => this.toggleTool(b.tool));
+    const K = Phaser.Input.Keyboard.KeyCodes;
+    kb.addCapture([K.SPACE, K.TAB]);
+    HOTKEYS.forEach((key, n) =>
+      kb.on(`keydown-${key}`, () => {
+        const item = this.visibleItems()[n];
+        if (item) this.toggleTool({ kind: 'build', id: item.def.id });
+      }),
+    );
+    kb.on('keydown-TAB', () => {
+      const i = CATEGORIES.indexOf(this.category);
+      this.selectCategory(CATEGORIES[(i + 1) % CATEGORIES.length]);
     });
     kb.on('keydown-X', () => this.toggleTool({ kind: 'demolish' }));
     kb.on('keydown-ESC', () => state.setTool(null));
-  }
-
-  private refreshButtons(): void {
-    this.buttons.forEach((b) => this.styleButton(b));
+    kb.on('keydown-SPACE', () => state.togglePause());
+    kb.on('keydown-F', () => state.cycleSpeed());
+    kb.on('keydown-N', () => state.startNightNow());
   }
 
   private refreshMoney(pop: boolean): void {
     this.moneyText.setText(String(state.money));
-    this.refreshButtons();
+    this.refreshItems();
+    this.refreshEra();
     if (pop) {
       this.tweens.killTweensOf(this.moneyText);
       this.moneyText.setScale(1.2);
@@ -235,7 +420,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // morning report and game over
+  // morning report
   // ---------------------------------------------------------------------------
 
   private showReport(r: NightReport): void {
@@ -261,45 +446,32 @@ export class UIScene extends Phaser.Scene {
         color: r.repDelta >= 0 ? COLORS.uiGreen : COLORS.uiRed,
       })
       .setOrigin(0.5, 0);
-    if (r.lost > 0) body.setColor(COLORS.uiText);
-
-    const w = 280;
     const h = rep.y + rep.height + 16;
-    const bg = this.add.rectangle(0, 0, w, h, COLORS.uiPanel, 0.94).setOrigin(0.5, 0).setStrokeStyle(2, COLORS.uiAccent);
-    this.report = this.add.container(this.scale.width / 2, HUD_HEIGHT + 16, [bg, title, body, rep]).setAlpha(0);
-    this.tweens.add({ targets: this.report, alpha: 1, duration: 400 });
-    const report = this.report;
+    const bg = this.add.rectangle(0, 0, 280, h, COLORS.uiPanel, 0.94).setOrigin(0.5, 0).setStrokeStyle(2, COLORS.uiAccent);
+    const report = this.add
+      .container(this.scale.width / 2, HUD_HEIGHT + TIME_PANEL_HEIGHT + 14, [bg, title, body, rep])
+      .setAlpha(0);
+    this.report = report;
+    this.tweens.add({ targets: report, alpha: 1, duration: 400 });
     this.time.delayedCall(REPORT_MS, () => {
       this.tweens.add({ targets: report, alpha: 0, duration: 600, onComplete: () => report.destroy() });
       if (this.report === report) this.report = undefined;
     });
   }
 
-  private showGameOver(): void {
-    state.setTool(null);
-    const w = this.scale.width;
-    const h = this.scale.height;
-    const shade = this.add.rectangle(0, 0, w, h, 0x05070f, 0.8).setOrigin(0).setInteractive();
-    const title = this.add
-      .text(w / 2, h / 2 - 50, STR.gameOverTitle, { fontFamily: FONT_TITLE, fontSize: '30px', color: COLORS.uiText })
-      .setOrigin(0.5);
-    const text = this.add
-      .text(w / 2, h / 2, STR.gameOverText(state.day - 1), { fontFamily: FONT_UI, fontSize: '16px', color: COLORS.uiTextDim })
-      .setOrigin(0.5);
-    const btn = this.add
-      .rectangle(w / 2, h / 2 + 56, 160, 40, COLORS.uiButtonActive)
-      .setStrokeStyle(2, COLORS.uiAccent)
-      .setInteractive({ useHandCursor: true });
-    const label = this.add
-      .text(w / 2, h / 2 + 56, STR.tryAgain, { fontFamily: FONT_UI, fontSize: '16px', fontStyle: 'bold', color: COLORS.uiText })
-      .setOrigin(0.5);
-    btn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => window.location.reload());
-    for (const o of [shade, title, text, btn, label]) o.setDepth(1000);
-  }
-
   // ---------------------------------------------------------------------------
   // layout
   // ---------------------------------------------------------------------------
+
+  /** True if a screen point lies on any UI element (so the world ignores the click). */
+  isOverUI(x: number, y: number): boolean {
+    const h = this.scale.height;
+    if (y < HUD_HEIGHT || y > h - BAR_HEIGHT) return true;
+    const inside = (cx: number, cy: number, w: number, hh: number) => x >= cx && x <= cx + w && y >= cy && y <= cy + hh;
+    if (inside(this.eraPanel.x, this.eraPanel.y, ERA_PANEL_WIDTH, ERA_PANEL_HEIGHT)) return true;
+    if (inside(this.timePanel.x, this.timePanel.y, TIME_PANEL_HALF_WIDTH * 2, TIME_PANEL_HEIGHT)) return true;
+    return false;
+  }
 
   private layoutHud(): void {
     const w = this.scale.width;
@@ -308,15 +480,34 @@ export class UIScene extends Phaser.Scene {
     this.coinIcon.setPosition(w - 16 - this.moneyText.width - 16, y);
     this.repText.setPosition(this.coinIcon.x - 22, y);
     this.spiritText.setPosition(this.repText.x - this.repText.width - 18, y);
-
-    // Narrow windows: drop the title, then move the clock below the top bar.
     const left = this.spiritText.x - this.spiritText.width;
-    this.title.setVisible(w >= 1100);
-    const fitsInBar = w / 2 + this.clockText.width / 2 + 16 < left && (this.title.visible ? w / 2 - this.clockText.width / 2 > 230 : true);
-    if (fitsInBar) {
-      this.clockText.setPosition(w / 2, y).setBackgroundColor('rgba(0,0,0,0)').setPadding(0, 0);
-    } else {
-      this.clockText.setPosition(w / 2, HUD_HEIGHT + 18).setBackgroundColor('rgba(11,15,26,0.8)').setPadding(10, 4);
+    this.title.setVisible(this.title.width + 32 < left);
+  }
+
+  private layoutBar(): void {
+    const w = this.scale.width;
+    const h = this.scale.height;
+    const top = h - BAR_HEIGHT;
+
+    // Tabs on the left, demolish on the right.
+    let tx = 10;
+    for (const b of this.tabs.values()) {
+      b.bg.setPosition(tx, top + 7);
+      b.label.setPosition(tx + 46, top + 7 + (TAB_H - 4) / 2);
+      tx += 96;
+    }
+    this.demolishButton.bg.setPosition(w - 10 - 110, top + 7);
+    this.demolishButton.label.setPosition(w - 10 - 55, top + 7 + (TAB_H - 4) / 2);
+
+    // Items of the current tab, centred.
+    const items = this.visibleItems();
+    const total = items.length * BTN_W + Math.max(0, items.length - 1) * BTN_GAP;
+    const s = Math.min(1, (w - 16) / Math.max(1, total));
+    let x = Math.round((w - total * s) / 2);
+    const y = top + TAB_H + 8 + Math.round((BAR_HEIGHT - TAB_H - 8 - BTN_H * s) / 2);
+    for (const i of items) {
+      i.container.setPosition(x, y).setScale(s);
+      x += (BTN_W + BTN_GAP) * s;
     }
   }
 
@@ -332,16 +523,13 @@ export class UIScene extends Phaser.Scene {
     this.bar.fillStyle(COLORS.uiPanel, 0.94).fillRect(0, h - BAR_HEIGHT, w, BAR_HEIGHT);
     this.bar.fillStyle(COLORS.uiAccent, 0.5).fillRect(0, h - BAR_HEIGHT, w, 2);
 
-    // Shrink the buttons if the window is too narrow for all of them.
-    const total = this.buttons.length * BTN_W + (this.buttons.length - 1) * BTN_GAP;
-    const s = Math.min(1, (w - 16) / total);
-    let x = Math.round((w - total * s) / 2);
-    const y = h - BAR_HEIGHT + Math.round((BAR_HEIGHT - BTN_H * s) / 2) + 1;
-    for (const b of this.buttons) {
-      b.container.setPosition(x, y).setScale(s);
-      x += (BTN_W + BTN_GAP) * s;
-    }
+    // Time panel centred under the top bar; on narrow screens it sits below the era panel.
+    const narrow = w < ERA_PANEL_WIDTH + TIME_PANEL_HALF_WIDTH * 2 + 40;
+    const tpX = narrow ? 8 : w / 2 - TIME_PANEL_HALF_WIDTH;
+    const tpY = narrow ? HUD_HEIGHT + ERA_PANEL_HEIGHT + 12 : HUD_HEIGHT;
+    this.timePanel.setPosition(tpX, tpY);
 
+    this.layoutBar();
     this.hint.setPosition(w / 2, h - BAR_HEIGHT - 10);
     this.report?.setX(w / 2);
     this.layoutHud();

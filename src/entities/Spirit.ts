@@ -5,6 +5,7 @@ import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
 import type { GameState } from '../state/GameState';
 import { cellsInRange, cheapest, costTo, pathTo, searchFrom, type Cell, type Field } from '../state/pathfinding';
+import type { Ferry } from './Ferry';
 
 export type SpiritKind = 'wisp' | 'elder' | 'sprite';
 
@@ -19,13 +20,19 @@ export function randomKind(): SpiritKind {
   return r < 0.6 ? 'wisp' : r < 0.85 ? 'elder' : 'sprite';
 }
 
+/** What the scene provides to spirits. */
+export interface SpiritWorld {
+  glowLayer: Phaser.GameObjects.Layer;
+  ferry(uid: number): Ferry | undefined;
+}
+
 type Goal =
   | { kind: 'visit'; uid: number; need: Need }
   | { kind: 'hotel'; uid: number }
   | { kind: 'gate' }
   | { kind: 'wander' };
 
-type Phase = 'waiting' | 'walking' | 'visiting' | 'safe' | 'lost';
+type Phase = 'waiting' | 'walking' | 'visiting' | 'riding' | 'safe' | 'lost';
 
 /** World position of a spirit's feet when standing on a cell. */
 function cellToWorld(c: Cell): { x: number; y: number } {
@@ -34,8 +41,9 @@ function cellToWorld(c: Cell): { x: number; y: number } {
 
 /**
  * A spirit guest. At night it works through its needs (visiting stalls and
- * paying), then heads for a hotel bed or the gate. At dawn it drops
- * everything and hurries home; if the sun catches it outside, it is lost.
+ * paying), then heads for a hotel bed or the gate. It only walks on paths,
+ * queues at full bridges and rides ferries. At dawn it drops everything and
+ * hurries home; if the sun catches it outside, it is lost.
  */
 export class Spirit {
   readonly kind: SpiritKind;
@@ -51,6 +59,13 @@ export class Spirit {
   private goal: Goal | null = null;
   private waitMs: number;
 
+  /** Bridge the spirit is currently on (counts towards its capacity). */
+  private bridgeUid: number | null = null;
+  /** Bridge the spirit is queueing for. */
+  private waitingFor: number | null = null;
+  /** On a ferry deck (true) or still waiting at the bank (false). */
+  private boarded = false;
+
   private needs: Need[];
   private readonly totalNeeds: number;
   private met = 0;
@@ -61,7 +76,7 @@ export class Spirit {
   constructor(
     private scene: Phaser.Scene,
     private state: GameState,
-    glowLayer: Phaser.GameObjects.Layer,
+    private world: SpiritWorld,
     start: Cell,
     kind: SpiritKind = randomKind(),
     delayMs = 600,
@@ -92,7 +107,7 @@ export class Spirit {
       .setTint(0x9fc4ff)
       .setScale(0.32 * k.scale)
       .setAlpha(0);
-    glowLayer.add(this.aura);
+    world.glowLayer.add(this.aura);
     this.bubble = scene.add
       .text(this.x, this.y, '', {
         fontFamily: FONT_UI,
@@ -127,10 +142,12 @@ export class Spirit {
 
   // ---------------------------------------------------------------------------
 
+  /** `delta` is already scaled by the game speed. */
   update(time: number, delta: number): void {
     if (this.isDone) return;
 
-    if (this.state.isDawn && !this.headingHome && this.phase !== 'visiting') this.goHome();
+    const busy = this.phase === 'visiting' || this.phase === 'riding';
+    if (this.state.isDawn && !this.headingHome && !busy) this.goHome();
 
     if (this.phase === 'waiting') {
       this.waitMs -= delta;
@@ -149,26 +166,35 @@ export class Spirit {
     const bob = Math.sin(time / 320 + this.seed) * 3;
     const k = KINDS[this.kind].scale;
     this.body.setPosition(this.x, this.y - 4 + bob).setDepth(this.y);
-    this.shadow.setPosition(this.x, this.y).setScale(k * (1 - bob * 0.04)).setDepth(this.y - 0.5);
+    this.shadow
+      .setPosition(this.x, this.y)
+      .setScale(k * (1 - bob * 0.04))
+      .setDepth(this.y - 0.5)
+      .setVisible(!this.boarded);
     this.aura.setPosition(this.x, this.y - 20 * k + bob);
 
     let icon = '';
-    if (this.headingHome) icon = STR.homeIcon;
+    const queueing = this.waitingFor !== null || (this.phase === 'riding' && !this.boarded);
+    if (queueing) icon = STR.waitIcon;
+    else if (this.headingHome) icon = STR.homeIcon;
     else if (this.needs.length > 0) icon = STR.needIcons[this.needs[0]];
     this.bubble.setText(icon).setVisible(icon !== '').setPosition(this.x, this.y - 44 * k + bob);
   }
 
-  /** Called whenever buildings change, so spirits never walk through new ones. */
+  /** Called whenever buildings change, so spirits never walk through removed paths. */
   onGridChanged(): void {
-    if (this.isDone || !this.goal) return;
+    if (this.isDone || !this.goal || this.phase === 'riding') return;
     const goal = this.goal;
     const targetGone = (goal.kind === 'visit' || goal.kind === 'hotel') && !this.state.buildings.has(goal.uid);
     const blocked = this.path.some((c) => !this.state.isWalkable(c.tx, c.ty));
     if (!targetGone && !blocked) return;
-
     if (this.phase === 'visiting' && !targetGone) return;
+    this.replan();
+  }
+
+  private replan(): void {
     this.path = [];
-    if (goal.kind === 'hotel' || goal.kind === 'gate') this.goHome();
+    if (this.headingHome) this.goHome();
     else this.decide();
   }
 
@@ -185,9 +211,17 @@ export class Spirit {
     this.waitMs = ms;
   }
 
+  private setWaitingFor(uid: number | null): void {
+    if (this.waitingFor === uid) return;
+    if (this.waitingFor !== null) this.state.setWaiting(this.waitingFor, -1);
+    if (uid !== null) this.state.setWaiting(uid, 1);
+    this.waitingFor = uid;
+  }
+
   private walkTo(goal: Goal, field: Field, target: Cell): boolean {
     const path = pathTo(field, target);
     if (!path) return false;
+    this.setWaitingFor(null);
     this.goal = goal;
     this.path = path;
     this.phase = 'walking';
@@ -245,12 +279,13 @@ export class Spirit {
     }
     if (gateCell && this.walkTo({ kind: 'gate' }, field, gateCell)) return;
 
-    // Trapped: try again soon.
+    // No way home right now (e.g. a path was removed): try again soon.
+    this.goal = { kind: 'gate' };
     this.wait(1000);
   }
 
   // ---------------------------------------------------------------------------
-  // movement and arrival
+  // movement, bridges, ferries
   // ---------------------------------------------------------------------------
 
   private walk(delta: number): void {
@@ -259,21 +294,85 @@ export class Spirit {
       this.arrive();
       return;
     }
+
+    const here = this.cell;
+    const hereB = this.state.buildingAt(here.tx, here.ty);
+    const nextB = this.state.buildingAt(next.tx, next.ty);
+    const crossing = nextB?.def.crossing;
+    if (nextB && crossing && nextB.uid !== hereB?.uid && nextB.uid !== this.bridgeUid) {
+      if (crossing.kind === 'walk') {
+        // Full bridge: stand in line.
+        if (!this.state.tryEnterBridge(nextB.uid)) {
+          this.setWaitingFor(nextB.uid);
+          return;
+        }
+        this.setWaitingFor(null);
+        this.bridgeUid = nextB.uid;
+      } else {
+        const ferry = this.world.ferry(nextB.uid);
+        if (!ferry) {
+          this.replan();
+          return;
+        }
+        // Skip the lane cells; the ferry drops us at the other bank.
+        while (this.path.length && this.state.buildingAt(this.path[0].tx, this.path[0].ty)?.uid === nextB.uid) {
+          this.path.shift();
+        }
+        this.phase = 'riding';
+        this.boarded = false;
+        ferry.request(this, here.ty < nextB.ty ? 'north' : 'south');
+        return;
+      }
+    }
+
     const target = cellToWorld(next);
     const dx = target.x - this.x;
     const dy = target.y - this.y;
     const dist = Math.hypot(dx, dy);
-    const here = this.cell;
-    const step = (this.speed * this.state.speedAt(here.tx, here.ty) * delta) / 1000;
+    const step = (this.speed * delta) / 1000;
     if (Math.abs(dx) > 0.5) this.body.setFlipX(dx < 0);
     if (dist <= step) {
       this.x = target.x;
       this.y = target.y;
       this.path.shift();
+      if (this.bridgeUid !== null && this.state.buildingAt(next.tx, next.ty)?.uid !== this.bridgeUid) {
+        this.state.leaveBridge(this.bridgeUid);
+        this.bridgeUid = null;
+      }
     } else {
       this.x += (dx / dist) * step;
       this.y += (dy / dist) * step;
     }
+  }
+
+  /** Called by a ferry when the spirit steps onto the deck. */
+  startRide(): void {
+    this.boarded = true;
+  }
+
+  /** Called by a ferry while sailing. */
+  setRidePosition(x: number, y: number): void {
+    this.x = x;
+    this.y = y;
+  }
+
+  /** Called by a ferry at the other bank (or when the ferry is removed). */
+  endRide(bank: Cell, stranded = false): void {
+    if (this.isDone) return;
+    const p = cellToWorld(bank);
+    this.x = p.x;
+    this.y = p.y;
+    this.boarded = false;
+    this.phase = 'walking';
+    if (stranded || this.path.length === 0) this.replan();
+  }
+
+  /** The ferry we were waiting for is gone. */
+  cancelRide(): void {
+    if (this.isDone) return;
+    this.boarded = false;
+    this.phase = 'walking';
+    this.replan();
   }
 
   private arrive(): void {
@@ -316,8 +415,18 @@ export class Spirit {
     this.wait(250);
   }
 
+  private releaseAll(): void {
+    this.setWaitingFor(null);
+    if (this.bridgeUid !== null) this.state.leaveBridge(this.bridgeUid);
+    this.bridgeUid = null;
+    if (this.goal?.kind === 'hotel' && this.phase !== 'safe') this.state.releaseBed(this.goal.uid);
+  }
+
   /** Fade out safely (into a hotel or through the gate). */
   private leave(): void {
+    this.setWaitingFor(null);
+    if (this.bridgeUid !== null) this.state.leaveBridge(this.bridgeUid);
+    this.bridgeUid = null;
     this.phase = 'safe';
     this.bubble.setVisible(false);
     this.scene.tweens.add({
@@ -331,7 +440,7 @@ export class Spirit {
   /** Caught by the sun. */
   burn(): void {
     if (this.isDone) return;
-    if (this.goal?.kind === 'hotel') this.state.releaseBed(this.goal.uid);
+    this.releaseAll();
     this.phase = 'lost';
     this.bubble.setVisible(false);
     this.body.setTint(0xffb070);
