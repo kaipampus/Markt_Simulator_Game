@@ -61,8 +61,11 @@ Jeder Geistertyp hat eigene Bedürfnisse und Vorlieben. Ideen:
 - Laternenfest: doppelte Gäste, hohe Erwartungen
 - Besuch eines mächtigen Gastes mit Sonderwunsch
 
+## Rahmen
+- **Ansicht:** schräg von oben (3/4)
+- **Plattform:** PC/Mac mit Maus und Tastatur
+- **Spielsprache:** Englisch (Begründungen in [[Entscheidungen]])
+
 ## Offene Fragen
-- [ ] Ansicht: isometrisch oder direkt von oben?
 - [ ] Gibt es ein Spielziel (Kampagne, Stufen) oder nur Endlos-Modus?
-- [ ] Sprache im Spiel: Deutsch, Englisch oder beides?
 - [ ] Spielname

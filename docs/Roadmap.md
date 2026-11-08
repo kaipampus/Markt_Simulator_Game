@@ -9,16 +9,16 @@ Konzept: [[Spielkonzept]] · Entscheidungen: [[Entscheidungen]] · Verlauf: [[Ch
 ## Phase 0 – Setup
 - [x] GitHub-Repo anlegen und auf den Mac klonen
 - [x] Obsidian-Vault, `CLAUDE.md`, `docs/`, `.gitignore`
-- [ ] Ansicht festlegen (isometrisch / von oben)
-- [ ] Projektgerüst: Phaser 3 + TypeScript + Vite
-- [ ] Erster Commit und Push
+- [x] Ansicht festlegen: schräg von oben (3/4)
+- [x] Projektgerüst: Phaser 4 + TypeScript + Vite
+- [x] Erster Commit und Push
 - [ ] (später) Server: nginx, HTTPS, Deploy per GitHub Actions
 
 ## Phase 1 – Prototyp (Platzhalter-Grafik)
-- [ ] Spielfeld-Raster und Kamera (scrollen, zoomen)
-- [ ] Gebäude auswählen und setzen
-- [ ] Geld anzeigen, Baukosten abziehen
-- [ ] Geister erscheinen und laufen herum
+- [x] Spielfeld-Raster (28 × 20 Felder) und Kamera (ziehen, WASD/Pfeiltasten, Mausrad-Zoom)
+- [x] Gebäude auswählen (Leiste oder Tasten 1–6) und setzen, mit Vorschau grün/rot
+- [x] Geld anzeigen, Baukosten abziehen, Abreißen mit 50 % Erstattung (Taste X)
+- [x] Geister erscheinen am Tor, laufen per Wegfindung zu Gebäuden und gehen wieder
 
 ## Phase 2 – Kern-Spielschleife
 - [ ] Bedürfnisse der Geister und Gebäude, die sie erfüllen
@@ -50,4 +50,6 @@ Konzept: [[Spielkonzept]] · Entscheidungen: [[Entscheidungen]] · Verlauf: [[Ch
 - [ ] Version 1.0 auf dem Server
 
 ## Ideen-Parkplatz
-- 
+- Geister zahlen beim Besuch eines Stands (gehört zu Phase 2, Wegfindung ist schon da)
+- Mehrere Gebäude am Stück setzen, indem man die Maustaste gedrückt hält
+- Gebäude drehen oder spiegeln

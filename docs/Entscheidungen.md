@@ -13,6 +13,22 @@ Vorlage:
 
 ---
 
+## 2026-11-08 – Ansicht: schräg von oben (3/4)
+**Status:** entschieden
+**Entscheidung:** Quadratisches Raster, Gebäude werden leicht von vorn gezeigt und ragen nach oben über ihr Feld hinaus. Was weiter unten steht, wird davor gezeichnet (Tiefe nach y-Position).
+**Warum:** Wirkt räumlicher als reine Draufsicht, ist aber einfacher zu bauen und zu zeichnen als isometrisch.
+**Verworfen:** Isometrisch (aufwendigere Grafik und Klick-Erkennung), direkt von oben (zu flach für die Stimmung).
+
+## 2026-11-08 – Plattform: nur PC/Mac
+**Status:** entschieden
+**Entscheidung:** Steuerung mit Maus und Tastatur, ausgelegt für Desktop-Bildschirme. Keine Touch- oder Handy-Bedienung.
+**Warum:** Einfachste Bedienung für ein Aufbauspiel, weniger Aufwand bei der Oberfläche.
+
+## 2026-11-08 – Spielsprache: Englisch
+**Status:** entschieden
+**Entscheidung:** Alle Texte im Spiel sind Englisch und stehen gesammelt in `src/data/strings.ts`. Doku und Absprachen bleiben Deutsch.
+**Warum:** Erreicht mehr Spieler. Durch die zentrale Textdatei wäre eine Übersetzung später trotzdem möglich.
+
 ## 2026-11-08 – Doku im Repo als Obsidian-Vault
 **Status:** entschieden
 **Entscheidung:** Der Repo-Ordner ist zugleich Obsidian-Vault. Notizen liegen in `docs/`, Projektregeln für Claude in `CLAUDE.md`.
@@ -36,11 +52,8 @@ Vorlage:
 **Entscheidung:** Die Stimmung ist an Chihiro angelehnt, alle Figuren, Namen, Orte, Grafiken und Musik sind eigene Inhalte.
 **Warum:** Urheberrecht. Außerdem wird es so ein eigenständiges Spiel.
 
-## 2026-11-08 – Technik: Phaser 3 + TypeScript + Vite
-**Status:** vorgeschlagen (bisher kein Widerspruch)
-**Entscheidung:** Browser-Spiel mit Phaser 3, TypeScript und Vite. Kein Backend, Spielstand im Browser, später PWA.
-**Warum:** Läuft überall im Browser, lässt sich als statische Dateien auf dem eigenen Server hosten, ist komplett in Code beschreibbar (kein grafischer Editor nötig).
-**Verworfen:** Godot (stärker für große Spiele, aber stark editorgebunden).
-
-## Offen
-- Ansicht: isometrisch oder direkt von oben
+## 2026-11-08 – Technik: Phaser 4 + TypeScript + Vite
+**Status:** entschieden
+**Entscheidung:** Browser-Spiel mit Phaser 4 (4.2.1), TypeScript 7 und Vite 8. Kein Backend, Spielstand im Browser, später PWA.
+**Warum:** Läuft im Browser, lässt sich als statische Dateien auf dem eigenen Server hosten und ist komplett in Code beschreibbar. Claude kann das Spiel selbst im Browser starten, testen und Fehler finden. Phaser 4 statt 3, weil es die aktuelle stabile Version ist und das Projekt neu beginnt.
+**Verworfen:** Godot. Nach einem Vergleich kurz gewählt, dann verworfen: Es hätte starke Licht- und Effektwerkzeuge und echte Mac-Programme gebracht, aber Claude kann das laufende Spiel und den Editor kaum bedienen, sodass der Nutzer deutlich mehr selbst testen müsste.

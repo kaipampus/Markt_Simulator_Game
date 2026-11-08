@@ -21,6 +21,9 @@ coverage/
 .obsidian/cache
 .trash/
 
+# --- Claude Code: lokale Einstellungen (launch.json wird geteilt) ---
+.claude/settings.local.json
+
 # --- Editor ---
 .vscode/*
 !.vscode/extensions.json

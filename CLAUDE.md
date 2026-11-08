@@ -6,13 +6,30 @@ Details: [[docs/Spielkonzept]] · Fahrplan: [[docs/Roadmap]] · Entscheidungen: 
 
 ## Sprache
 - Mit dem Nutzer und in `docs/` immer **Deutsch**.
+- **Texte im Spiel: Englisch**, gesammelt in `src/data/strings.ts` (keine Texte verstreut im Code).
 - Code, Bezeichner, Commit-Messages: **Englisch** (Commit-Text kurz, im Imperativ, z. B. `Add building placement grid`).
 
 ## Technik
-- **Phaser 3 + TypeScript + Vite**, reines Frontend, kein Backend.
+- **Phaser 4 + TypeScript + Vite**, reines Frontend, kein Backend.
+- **Ansicht 3/4 (schräg von oben):** quadratisches Raster, Gebäude ragen nach oben über ihr Feld, Zeichen-Reihenfolge über `depth = y` (weiter unten = davor).
+- **Nur PC/Mac:** Maus und Tastatur, keine Touch-Bedienung nötig.
 - Spielstände im Browser (`localStorage`/IndexedDB), später als **PWA** offline installierbar.
 - Hosting: statische Dateien (`dist/`) per nginx auf dem eigenen Linux-Server, Deploy später über GitHub Actions.
-- Spielwerte (Gebäude, Geister, Zauber, Preise) als **Daten** (TS/JSON) getrennt von der Logik halten, damit Balancing ohne Code-Umbau geht.
+- Spielwerte (Gebäude, Geister, Zauber, Preise) als **Daten** in `src/data/` getrennt von der Logik halten, damit Balancing ohne Code-Umbau geht.
+
+## Befehle
+- `npm run dev`: lokaler Entwicklungsserver (http://localhost:5173)
+- `npm run build`: Typprüfung + Produktions-Build nach `dist/`
+- `npm run typecheck`: nur Typprüfung
+
+## Aufbau von `src/`
+- `main.ts`: Phaser-Konfiguration und Start
+- `config.ts`: feste Werte (Feldgröße, Kartengröße, Farben)
+- `data/`: Spielwerte und Texte (Gebäude, Strings)
+- `state/`: Spielzustand (Geld, belegte Felder), unabhängig von der Darstellung
+- `scenes/`: `MarketScene` (Spielwelt, Kamera, Bauen) und `UIScene` (Anzeige und Baumenü, liegt darüber)
+- `entities/`: Spielfiguren wie Geister
+- `gfx/`: Platzhalter-Grafiken, die per Code erzeugt werden
 
 ## Arbeitsablauf
 - Entwickelt wird **lokal auf dem Mac** in diesem Ordner. Auf dem Server wird nicht entwickelt.
