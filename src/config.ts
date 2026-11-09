@@ -10,7 +10,7 @@ export const GRID_H = 24;
  * Rows [0, RIVER_TOP) = hotel district, [RIVER_TOP, RIVER_TOP + RIVER_ROWS) = river, rest = market.
  */
 export const RIVER_TOP = 8;
-export const RIVER_ROWS = 2;
+export const RIVER_ROWS = 3;
 
 export const WORLD_W = GRID_W * TILE;
 export const WORLD_H = GRID_H * TILE;
@@ -25,8 +25,8 @@ export const DEMOLISH_REFUND = 0.5;
 
 // --- Time (milliseconds) -----------------------------------------------------
 
-export const FIRST_DAY_MS = 45_000;
-export const DAY_MS = 35_000;
+export const FIRST_DAY_MS = 90_000;
+export const DAY_MS = 45_000;
 export const NIGHT_MS = 150_000;
 /** Last part of the night in which every spirit hurries home. */
 export const DAWN_WARNING_MS = 35_000;
@@ -37,10 +37,16 @@ export const ARRIVAL_WINDOW = 0.45;
 
 /** Base walking speed in pixels per second (multiplied by spirit kind and terrain). */
 export const SPIRIT_SPEED = 52;
-/** Speed multiplier on paths and bridges. */
-export const PATH_SPEED_FACTOR = 2;
 /** How long a spirit spends at a stall (ms). */
 export const VISIT_MS = 1400;
+/** Game speed steps (0 = paused). */
+export const SPEEDS = [0, 1, 2, 4] as const;
+
+/** Extra pathfinding cost per spirit waiting at a bridge (spreads crowds over crossings). */
+export const BRIDGE_QUEUE_COST = 0.5;
+/** Pathfinding cost of one ferry lane cell (slightly less attractive than a free bridge). */
+export const FERRY_CELL_COST = 2;
+
 /** Hard upper limit of spirits on the map. */
 export const SPIRIT_HARD_CAP = 45;
 
@@ -67,13 +73,20 @@ export const PAN_SPEED = 700;
 // --- UI layout (screen pixels) ------------------------------------------------
 
 export const HUD_HEIGHT = 44;
-export const BAR_HEIGHT = 100;
+export const BAR_HEIGHT = 122;
+/** Time controls panel right below the top bar (centred). */
+export const TIME_PANEL_HEIGHT = 34;
+export const TIME_PANEL_HALF_WIDTH = 230;
+/** Era panel below the top bar (left). */
+export const ERA_PANEL_WIDTH = 330;
+export const ERA_PANEL_HEIGHT = 58;
 
 // --- Depth layers ----------------------------------------------------------------
 
 export const DEPTH = {
   ground: -1000,
   flat: -500, // paths, bridges
+  boat: -300,
   nightOverlay: 150_000,
   glow: 150_001,
   preview: 160_000,

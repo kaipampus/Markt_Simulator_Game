@@ -13,6 +13,62 @@ Vorlage:
 
 ---
 
+## 2026-11-09 – Tagsüber bauen, nachts verwalten
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Bauen und Abreißen gehen nur am Tag. Nachts ist die Bauleiste gesperrt; man kümmert sich um Personal und Sauberkeit (Arbeiter umsetzen, Putzkräfte schicken, einstellen, entlassen).
+**Warum:** Beide Tageshälften haben eine eigene Aufgabe, so hat man immer etwas zu tun.
+**Verworfen:** Bauen nachts nur teurer; nachts nur kleine Bauten erlaubt.
+
+## 2026-11-09 – Personal: Stände und Hotels brauchen Arbeiter
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Jobs Koch, Verkäufer, Gastgeber und Putzkraft. Nudelbude, Teehaus und Café brauchen einen Koch, Glücksbringer-Stand und Spielhalle einen Verkäufer, Hotels einen Gastgeber. Ein Gebäude ist nur geöffnet, solange sein Arbeiter davor steht; Gäste warten kurz (⏳) und geben dann auf. Toilette, Feuerschale, Schrein, Getränkeautomat und Mülleimer brauchen niemanden. Je Gebäude ein Arbeiter. Neue Arbeiter und neue Gebäude werden automatisch zugeteilt, umsetzen geht per Klick. Einstellungsgebühr plus Lohn jeden Morgen (Geld darf ins Minus).
+**Warum:** Arbeiter sind die Aufgabe für die Nacht und machen jeden neuen Stand zu einer kleinen Entscheidung.
+**Verworfen:** Personal nur als Bonus (Stände laufen auch ohne).
+
+## 2026-11-09 – Personalhaus auf der Marktseite, Sonnenregel auch für Arbeiter
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Arbeiter wohnen im Personalhaus (Staff Lodge 6 Betten, Staff Dormitory 14 Betten ab Dampfzeit), das nur auf den Markt darf. Die Bettenzahl begrenzt, wie viele man einstellen kann. Bei Morgengrauen gehen Arbeiter ins nächste Personalhaus; wer bei Sonnenaufgang draußen ist, vergeht und fehlt dann. Gastgeber bleiben im Hotel und schlafen dort. Eine Lodge steht zu Beginn neben dem Startweg.
+**Warum:** Kurze Wege zu den Ständen; gleiche Regel wie für Gäste, damit Infrastruktur auch für das Personal zählt.
+**Verworfen:** Personalhaus im Hotel-Viertel; Arbeiter ohne Sonnenregel.
+
+## 2026-11-09 – Sauberkeit: Müll, Schleim, Mülleimer, Putzkräfte
+**Status:** entschieden (Idee des Nutzers)
+**Entscheidung:** Gäste lassen nach Essen oder Trinken manchmal Müll fallen, außer ein Mülleimer steht in der Nähe (3 Felder). Der neue Schleimgeist (Ooze) hinterlässt Schleimspuren, gegen die nur Putzkräfte helfen. Jedes schmutzige Feld, über das ein Gast läuft, senkt seine Zufriedenheit (bis höchstens −30 %). Putzkräfte suchen selbst den nächsten Schmutz; schickt man sie per Klick an eine Stelle, putzen sie dort zuerst. Schmutz bleibt über den Tag liegen.
+**Warum:** Gibt Putzkräften und Mülleimern einen klaren Zweck und der Nacht etwas zu tun.
+**Verworfen:** Putzen nur per Klick (zu viel Klickarbeit); feste Putzbereiche.
+
+## 2026-11-09 – Gemeinsame Laufklasse für Geister und Arbeiter
+**Status:** entschieden
+**Entscheidung:** Laufen auf Wegen, Anstehen an Brücken und Fährfahren stecken in einer Basisklasse `Walker` (`src/entities/Walker.ts`), von der `Spirit` und `Worker` erben.
+**Warum:** Arbeiter müssen dieselben Regeln einhalten wie Gäste; doppelter Code würde schnell auseinanderlaufen.
+
+## 2026-11-08 – Entspannt statt stressig: kein Game Over, Zeitsteuerung
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Kein Game Over mehr. Vom Sonnenaufgang erwischte Geister vergehen weiterhin, das kostet aber nur Ruf (weniger Gäste). Die Zeit läuft automatisch, der Spieler hat Pause, Tempo 1×/2×/4× und „Nacht jetzt starten“.
+**Warum:** Es soll ein entspanntes Indie-Spiel sein, ohne Zeitdruck.
+**Ersetzt:** „Ruf mit Game Over bei 0“ und „Zeit läuft automatisch“ (ohne Steuerung).
+
+## 2026-11-08 – Geister laufen nur auf Wegen
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Geister bewegen sich nur auf Wegen, Brücken und Fähren. Wege sind nicht schneller. Zum Start liegt ein kurzer Weg vom Tor zur ersten Brücke.
+**Ersetzt:** „Wege beschleunigen, sind aber keine Pflicht“.
+
+## 2026-11-08 – Brücken mit Kapazität, Fähren als Massentransport
+**Status:** entschieden
+**Entscheidung:** Brücken lassen nur eine begrenzte Zahl Geister gleichzeitig darauf (Holz 3, Stein 6, Stahl 10), der Rest wartet. Fähren pendeln und nehmen viele Geister auf einmal mit (12 bzw. 20). Die Wegfindung rechnet Wartende als Zusatzkosten ein. Der Fluss ist 3 Felder breit.
+**Verworfen:** Begrenzung pro Nacht statt gleichzeitig.
+
+## 2026-11-08 – Zeitalter: Ruf schaltet frei, Münzen kaufen
+**Status:** entschieden (Idee des Nutzers)
+**Entscheidung:** Drei Zeitalter: Laternenzeit → Dampfzeit (Ruf 60, 1200 Münzen) → Neon-Zeit (Ruf 75, 3000 Münzen). Jedes bringt neue, teurere Gebäude, vor allem größere Hotels und bessere Übergänge. Wege ändern mit dem Zeitalter ihr Aussehen.
+**Warum:** Langfristiges Ziel und das Gefühl, dass sich die Welt von altmodisch zu modern entwickelt.
+**Verworfen:** Fortschritt nur nach Anzahl der Nächte, Fortschritt bis in die Gegenwart.
+
+## 2026-11-08 – Baumenü mit Kategorien
+**Status:** entschieden
+**Entscheidung:** Die Bauleiste hat Reiter (Transport, Market, Services, Hotels, Decor). Gebäude späterer Zeitalter sind gesperrt sichtbar.
+**Warum:** Mit den Zeitaltern gibt es zu viele Gebäude für eine Reihe.
+
 ## 2026-11-08 – Kernregel: vor Sonnenaufgang in Sicherheit
 **Status:** entschieden (Idee des Nutzers)
 **Entscheidung:** Geister müssen vor Sonnenaufgang ein Hotel mit freiem Bett oder das Tor erreichen, sonst vergehen sie. Die Infrastruktur (Wege, Brücken, später Transport) dient vor allem diesem Ziel.
@@ -29,17 +85,17 @@ Vorlage:
 **Verworfen:** Zonen ohne Fluss, völlig freies Bauen.
 
 ## 2026-11-08 – Zeit läuft automatisch
-**Status:** entschieden
+**Status:** ersetzt (siehe „Entspannt statt stressig“)
 **Entscheidung:** Tag und Nacht wechseln in festem Takt (Werte in `src/config.ts`). Gebaut werden kann jederzeit.
 **Verworfen:** Nacht per Knopf starten, automatisch mit Pause.
 
 ## 2026-11-08 – Wege beschleunigen, sind aber keine Pflicht
-**Status:** entschieden
+**Status:** ersetzt (siehe „Geister laufen nur auf Wegen“)
 **Entscheidung:** Geister laufen überall, auf Wegen und Brücken doppelt so schnell. Die Wegfindung sucht den schnellsten, nicht den kürzesten Weg.
 **Warum:** Einsteigerfreundlich, trotzdem sind Wege wegen der Sonnenaufgangs-Regel wichtig. Später auf „nur auf Wegen“ umstellbar.
 
 ## 2026-11-08 – Ruf mit Game Over bei 0
-**Status:** entschieden
+**Status:** ersetzt (siehe „Entspannt statt stressig“)
 **Entscheidung:** Ruf 0–100 (Start 50). Zufriedene sichere Geister +1, unzufriedene −1, vom Sonnenaufgang erwischte −5. Der Ruf bestimmt die Gästezahl. Bei 0 ist das Spiel verloren.
 
 ## 2026-11-08 – Ansicht: schräg von oben (3/4)

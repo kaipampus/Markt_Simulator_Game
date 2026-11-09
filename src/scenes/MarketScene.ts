@@ -7,6 +7,7 @@ import {
   DEPTH,
   FONT_TITLE,
   FONT_UI,
+  GRID_W,
   HUD_HEIGHT,
   NIGHT_MS,
   PAN_SPEED,
@@ -22,14 +23,25 @@ import {
 } from '../config';
 import { GATE, getBuilding, type BuildingDef } from '../data/buildings';
 import { STR } from '../data/strings';
+import { Ferry } from '../entities/Ferry';
 import { Spirit } from '../entities/Spirit';
+import type { WalkerWorld } from '../entities/Walker';
+import { Worker } from '../entities/Worker';
 import { createTextures, TEX } from '../gfx/textures';
 import { state, type PlacedBuilding } from '../state/GameState';
+import type { UIScene } from './UIScene';
 import type { Cell } from '../state/pathfinding';
 
 interface BuildingView {
   image: Phaser.GameObjects.Image;
   glow?: Phaser.GameObjects.Image;
+  /** Status icon above staffed buildings (no staff / staff on the way). */
+  badge?: Phaser.GameObjects.Text;
+}
+
+interface DirtView {
+  litter?: Phaser.GameObjects.Image;
+  slime?: Phaser.GameObjects.Image;
 }
 
 interface DragState {
@@ -55,6 +67,11 @@ const LIGHT = {
 export class MarketScene extends Phaser.Scene {
   private views = new Map<number, BuildingView>();
   private spirits: Spirit[] = [];
+  private ferries = new Map<number, Ferry>();
+  private workers = new Map<number, Worker>();
+  private dirtViews = new Map<number, DirtView>();
+  private selectionGfx!: Phaser.GameObjects.Graphics;
+  private world!: WalkerWorld;
   private glowLayer!: Phaser.GameObjects.Layer;
   private nightOverlay!: Phaser.GameObjects.Rectangle;
   private sunOverlay!: Phaser.GameObjects.Rectangle;
@@ -77,6 +94,7 @@ export class MarketScene extends Phaser.Scene {
     this.addZoneLabels();
 
     this.glowLayer = this.add.layer().setDepth(DEPTH.glow);
+    this.world = { glowLayer: this.glowLayer, ferry: (uid) => this.ferries.get(uid) };
     const pad = WORLD_PADDING;
     this.nightOverlay = this.add
       .rectangle(-pad, -pad, WORLD_W + pad * 2, WORLD_H + pad * 2, COLORS.night)
@@ -94,6 +112,8 @@ export class MarketScene extends Phaser.Scene {
 
     this.setupCamera();
     this.footprint = this.add.graphics().setDepth(DEPTH.preview);
+    this.selectionGfx = this.add.graphics().setDepth(DEPTH.preview - 1);
+    for (const m of state.staff.values()) this.workers.set(m.id, new Worker(this, state, this.world, m));
     this.ghost = this.add.image(0, 0, TEX.building('lantern')).setOrigin(0, 1).setAlpha(0.7).setVisible(false).setDepth(DEPTH.preview + 1);
     this.setupInput();
 
@@ -104,6 +124,23 @@ export class MarketScene extends Phaser.Scene {
       state.on('phase', (p) => (p === 'night' ? this.onNightFalls() : this.setLight('day', 4000))),
       state.on('dawn', () => this.setLight('dawn', DAWN_WARNING_MS)),
       state.on('sunrise', () => this.onSunrise()),
+      state.on('speed', (speed) => (this.time.timeScale = speed)),
+      state.on('era', (era) => {
+        for (const [uid, view] of this.views) {
+          if (state.buildings.get(uid)?.def.id === 'path') view.image.setTexture(TEX.path(era));
+        }
+      }),
+      state.on('hired', (m) => {
+        this.workers.set(m.id, new Worker(this, state, this.world, m));
+      }),
+      state.on('fired', (m) => {
+        this.workers.get(m.id)?.dismiss();
+        this.workers.delete(m.id);
+      }),
+      state.on('staff', () => {
+        for (const w of this.workers.values()) w.onStaffChanged();
+      }),
+      state.on('dirt', (cell) => this.refreshDirt(cell)),
       state.on('earned', (amount, cell) =>
         this.floatText(cell.tx * TILE + TILE / 2, cell.ty * TILE - 6, STR.earn(amount), COLORS.uiGold, 12),
       ),
@@ -114,13 +151,33 @@ export class MarketScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    state.tick(delta);
+    // Camera and building work in real time; the world runs at the game speed.
     this.panWithKeys(delta);
     this.updateHover();
+    state.tick(delta);
+    const worldDelta = delta * state.speed;
 
-    for (const s of this.spirits) s.update(time, delta);
+    for (const f of this.ferries.values()) f.update(worldDelta);
+    for (const s of this.spirits) s.update(time, worldDelta);
     this.spirits = this.spirits.filter((s) => !s.isDone);
     state.setSpiritCount(this.spirits.length);
+    for (const w of this.workers.values()) w.update(time, worldDelta);
+    this.updateBadges();
+    this.drawSelection();
+  }
+
+  /** Icons above staffed buildings: nobody assigned, or the worker is still on the way. */
+  private updateBadges(): void {
+    for (const [uid, view] of this.views) {
+      if (!view.badge) continue;
+      const b = state.buildings.get(uid);
+      if (!b) continue;
+      let icon = '';
+      if (!state.isServed(b)) icon = STR.noStaffIcon;
+      else if (state.phase === 'night' && !state.isOpen(b)) icon = STR.staffComingIcon;
+      if (view.badge.text !== icon) view.badge.setText(icon);
+      view.badge.setVisible(icon !== '');
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -143,6 +200,7 @@ export class MarketScene extends Phaser.Scene {
 
   private onNightFalls(): void {
     this.setLight('night', 4000);
+    for (const w of this.workers.values()) w.wake();
 
     // Last night's hotel guests wake up first.
     let woken = 0;
@@ -181,11 +239,41 @@ export class MarketScene extends Phaser.Scene {
       state.recordLost();
       this.floatText(p.x, p.y - 40, STR.lostSpirit, COLORS.uiRed, 12);
     }
+    for (const [id, w] of [...this.workers]) {
+      const p = w.position;
+      if (w.sunrise()) continue;
+      this.workers.delete(id);
+      state.loseStaff(id);
+      this.floatText(p.x, p.y - 40, STR.lostSpirit, COLORS.uiRed, 12);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // litter and slime
+  // ---------------------------------------------------------------------------
+
+  private refreshDirt(cell: Cell): void {
+    const key = cell.ty * GRID_W + cell.tx;
+    const d = state.dirtAt(cell.tx, cell.ty);
+    const view = this.dirtViews.get(key) ?? {};
+    const depth = DEPTH.flat + cell.ty + 0.5;
+    const set = (img: Phaser.GameObjects.Image | undefined, amount: number, tex: string, flip: boolean) => {
+      if (amount <= 0) {
+        img?.destroy();
+        return undefined;
+      }
+      const out = img ?? this.add.image(cell.tx * TILE, cell.ty * TILE, tex).setOrigin(0).setDepth(depth).setFlipX(flip);
+      return out.setAlpha(0.45 + 0.55 * (amount / 3));
+    };
+    view.litter = set(view.litter, d.litter, TEX.litter, (cell.tx + cell.ty) % 2 === 0);
+    view.slime = set(view.slime, d.slime, TEX.slime, cell.tx % 2 === 0);
+    if (!view.litter && !view.slime) this.dirtViews.delete(key);
+    else this.dirtViews.set(key, view);
   }
 
   private spawnSpirit(start: Cell, delayMs: number): void {
     if (this.spirits.length >= SPIRIT_HARD_CAP) return;
-    this.spirits.push(new Spirit(this, state, this.glowLayer, start, undefined, delayMs));
+    this.spirits.push(new Spirit(this, state, this.world, start, undefined, delayMs));
   }
 
   // ---------------------------------------------------------------------------
@@ -232,12 +320,29 @@ export class MarketScene extends Phaser.Scene {
     const bottom = (b.ty + def.h) * TILE;
     // Paths and bridges lie flat on the ground, below everything that stands.
     const depth = def.walkable ? DEPTH.flat + b.ty : bottom;
-    const image = this.add.image(b.tx * TILE, bottom, TEX.building(def.id)).setOrigin(0, 1).setDepth(depth);
+    const texture = def.id === 'path' ? TEX.path(state.era) : TEX.building(def.id);
+    const image = this.add.image(b.tx * TILE, bottom, texture).setOrigin(0, 1).setDepth(depth);
+    if (def.crossing?.kind === 'boat') this.ferries.set(b.uid, new Ferry(this, b));
 
     let glow: Phaser.GameObjects.Image | undefined;
     if (def.glow) {
       const texH = def.h * TILE + def.rise;
       glow = this.addGlow(b.tx * TILE + def.w * TILE * def.glow.x, bottom - texH + texH * def.glow.y, def.glow.radius);
+      if (def.glow.color !== undefined) glow.setTint(def.glow.color);
+    }
+
+    let badge: Phaser.GameObjects.Text | undefined;
+    if (def.staff) {
+      badge = this.add
+        .text(b.tx * TILE + (def.w * TILE) / 2, bottom - def.h * TILE - def.rise + 4, '', {
+          fontFamily: FONT_UI,
+          fontSize: '14px',
+          backgroundColor: 'rgba(16,18,32,0.75)',
+          padding: { x: 3, y: 1 },
+        })
+        .setOrigin(0.5, 1)
+        .setDepth(DEPTH.glow + 8)
+        .setVisible(false);
     }
 
     if (animate && !def.walkable) {
@@ -246,16 +351,19 @@ export class MarketScene extends Phaser.Scene {
       this.puff(b.tx * TILE + (def.w * TILE) / 2, bottom - 6, def.w * 6);
     }
 
-    this.views.set(b.uid, { image, glow });
-    for (const s of this.spirits) s.onGridChanged();
+    this.views.set(b.uid, { image, glow, badge });
+    this.gridChanged();
   }
 
   private removeBuildingView(b: PlacedBuilding): void {
     const view = this.views.get(b.uid);
     if (!view) return;
     this.views.delete(b.uid);
+    this.ferries.get(b.uid)?.destroy();
+    this.ferries.delete(b.uid);
     if (this.hoveredUid === b.uid) this.hoveredUid = null;
     view.glow?.destroy();
+    view.badge?.destroy();
     this.tweens.add({
       targets: view.image,
       alpha: 0,
@@ -264,7 +372,12 @@ export class MarketScene extends Phaser.Scene {
       onComplete: () => view.image.destroy(),
     });
     this.puff(b.tx * TILE + (b.def.w * TILE) / 2, (b.ty + b.def.h) * TILE - 6, b.def.w * 8);
+    this.gridChanged();
+  }
+
+  private gridChanged(): void {
     for (const s of this.spirits) s.onGridChanged();
+    for (const w of this.workers.values()) w.onGridChanged();
   }
 
   /** Little dust cloud when building or demolishing. */
@@ -337,7 +450,7 @@ export class MarketScene extends Phaser.Scene {
     };
 
     this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer) => {
-      if (this.isOverUI(p) || state.gameOver) return;
+      if (this.isOverUI(p)) return;
       const cam = this.cameras.main;
       const tool = state.tool;
       const painting = p.button === 0 && tool?.kind === 'build' && !!getBuilding(tool.id).dragPlace;
@@ -366,7 +479,10 @@ export class MarketScene extends Phaser.Scene {
       const d = this.drag;
       this.drag = null;
       if (!d || d.panning || d.painting) return;
-      if (d.button === 2) state.setTool(null);
+      if (d.button === 2) {
+        state.setTool(null);
+        state.select(null);
+      }
       else if (d.button === 0) this.handleClick(p);
     };
     this.input.on(Phaser.Input.Events.POINTER_UP, onUp);
@@ -379,6 +495,8 @@ export class MarketScene extends Phaser.Scene {
   }
 
   private isOverUI(p: Phaser.Input.Pointer): boolean {
+    const ui = this.scene.get('UIScene') as UIScene | null;
+    if (ui?.sys.isActive()) return ui.isOverUI(p.x, p.y);
     return p.y < HUD_HEIGHT || p.y > this.scale.height - BAR_HEIGHT;
   }
 
@@ -451,8 +569,8 @@ export class MarketScene extends Phaser.Scene {
     let err = dx + dy;
     for (;;) {
       const result = state.place(tool.id, tx, ty);
-      if (result === 'money') {
-        this.floatText(w.x, w.y, STR.notEnoughCoins, COLORS.uiRed);
+      if (result === 'money' || result === 'night') {
+        this.floatText(w.x, w.y, result === 'money' ? STR.notEnoughCoins : STR.nightNoBuild, COLORS.uiRed);
         return;
       }
       if (tx === to.tx && ty === to.ty) break;
@@ -470,8 +588,11 @@ export class MarketScene extends Phaser.Scene {
 
   private handleClick(p: Phaser.Input.Pointer): void {
     const tool = state.tool;
-    if (!tool || state.gameOver) return;
     const w = this.screenToWorld(p.x, p.y);
+    if (!tool) {
+      this.handleSelectClick(w.x, w.y);
+      return;
+    }
 
     if (tool.kind === 'build') {
       const def = getBuilding(tool.id);
@@ -482,20 +603,111 @@ export class MarketScene extends Phaser.Scene {
       if (result === 'ok') this.floatText(cx, top, STR.cost(def.cost), COLORS.uiGold);
       else if (result === 'money') this.floatText(w.x, w.y, STR.notEnoughCoins, COLORS.uiRed);
       else if (result === 'zone') this.floatText(w.x, w.y, STR.zoneOnly[def.zone], COLORS.uiRed);
+      else if (result === 'adjacent') this.floatText(w.x, w.y, STR.tooClose, COLORS.uiRed);
+      else if (result === 'night') this.floatText(w.x, w.y, STR.nightNoBuild, COLORS.uiRed);
       else this.floatText(w.x, w.y, STR.cantBuildHere, COLORS.uiRed);
       return;
     }
 
     const b = state.buildingAt(Math.floor(w.x / TILE), Math.floor(w.y / TILE));
     if (b) {
-      const refund = state.demolish(b.uid);
-      this.floatText((b.tx + b.def.w / 2) * TILE, b.ty * TILE - b.def.rise, STR.refund(refund), COLORS.uiGold);
+      const res = state.demolish(b.uid);
+      const x = (b.tx + b.def.w / 2) * TILE;
+      const y = b.ty * TILE - b.def.rise;
+      if (res.result === 'ok') this.floatText(x, y, STR.refund(res.refund), COLORS.uiGold);
+      else this.floatText(x, y, res.result === 'night' ? STR.nightNoBuild : STR.staffHomeNeeded, COLORS.uiRed);
     }
+  }
+
+  /** Front-most building whose picture covers the world point. */
+  private buildingUnder(x: number, y: number): PlacedBuilding | undefined {
+    let best: PlacedBuilding | undefined;
+    for (const b of state.buildings.values()) {
+      const { def } = b;
+      if (def.walkable) continue;
+      const bottom = (b.ty + def.h) * TILE;
+      const top = bottom - def.h * TILE - def.rise;
+      if (x < b.tx * TILE || x > (b.tx + def.w) * TILE || y < top || y > bottom) continue;
+      if (!best || bottom > (best.ty + best.def.h) * TILE) best = b;
+    }
+    return best;
+  }
+
+  private workerUnder(x: number, y: number): Worker | undefined {
+    let best: Worker | undefined;
+    for (const w of this.workers.values()) {
+      if (w.hitTest(x, y) && (!best || w.position.y > best.position.y)) best = w;
+    }
+    return best;
+  }
+
+  /**
+   * Without a build tool, clicks select things. With a worker selected,
+   * clicking a matching building moves them there; cleaners are sent to the
+   * clicked path.
+   */
+  private handleSelectClick(x: number, y: number): void {
+    const worker = this.workerUnder(x, y);
+    const building = worker ? undefined : this.buildingUnder(x, y);
+    const sel = state.selection;
+    const member = sel?.kind === 'staff' ? state.staff.get(sel.id) : undefined;
+
+    if (member && !worker) {
+      if (member.role === 'cleaner') {
+        const cell = { tx: Math.floor(x / TILE), ty: Math.floor(y / TILE) };
+        if (state.isWalkable(cell.tx, cell.ty) && !building) {
+          state.setFocus(member.id, cell);
+          this.floatText(x, y, STR.cleanHere, COLORS.uiGreen, 13);
+          return;
+        }
+      } else if (building?.def.staff === member.role) {
+        state.assign(member.id, building.uid);
+        this.floatText(x, y, STR.assigned, COLORS.uiGreen, 13);
+        return;
+      }
+    }
+
+    if (worker) state.select({ kind: 'staff', id: worker.id });
+    else if (building) state.select({ kind: 'building', uid: building.uid });
+    else state.select(null);
+  }
+
+  /** Outline of the selected building, ring under the selected worker. */
+  private drawSelection(): void {
+    const g = this.selectionGfx;
+    g.clear();
+    const sel = state.selection;
+    if (!sel) return;
+    if (sel.kind === 'building') {
+      const b = state.buildings.get(sel.uid);
+      if (!b) return;
+      g.lineStyle(2, COLORS.uiAccent, 0.95).strokeRect(b.tx * TILE, b.ty * TILE, b.def.w * TILE, b.def.h * TILE);
+      return;
+    }
+    const m = state.staff.get(sel.id);
+    const w = this.workers.get(sel.id);
+    if (w?.isAwake) {
+      const p = w.position;
+      g.lineStyle(2, COLORS.uiAccent, 0.95).strokeEllipse(p.x, p.y, 34, 14);
+    }
+    // Show where the worker belongs.
+    const post = m?.post != null ? state.buildings.get(m.post) : undefined;
+    if (post) g.lineStyle(2, COLORS.valid, 0.7).strokeRect(post.tx * TILE, post.ty * TILE, post.def.w * TILE, post.def.h * TILE);
+    if (m?.focus) {
+      const r = 3;
+      g.lineStyle(2, COLORS.valid, 0.6).strokeRect((m.focus.tx - r) * TILE, (m.focus.ty - r) * TILE, (2 * r + 1) * TILE, (2 * r + 1) * TILE);
+    }
+  }
+
+  /** Centre the camera on a worker (used by the staff panel). */
+  focusWorker(id: number): void {
+    const w = this.workers.get(id);
+    if (w?.isAwake) this.cameras.main.pan(w.position.x, w.position.y, 400, 'Sine.InOut');
   }
 
   private refreshGhost(): void {
     const tool = state.tool;
-    if (tool?.kind === 'build') this.ghost.setTexture(TEX.building(tool.id));
+    if (tool?.kind === 'build') this.ghost.setTexture(tool.id === 'path' ? TEX.path(state.era) : TEX.building(tool.id));
     this.ghost.setVisible(false);
     this.footprint.clear();
   }
@@ -510,8 +722,14 @@ export class MarketScene extends Phaser.Scene {
     hovered?.image.clearTint();
     this.hoveredUid = null;
 
-    if (!tool || state.gameOver || this.isOverUI(p) || this.drag?.panning) {
+    if (!tool || this.isOverUI(p) || this.drag?.panning) {
       this.ghost.setVisible(false);
+      if (!tool && !this.isOverUI(p) && !this.drag?.panning) {
+        // Hint at what can be clicked.
+        const w = this.screenToWorld(p.x, p.y);
+        const b = this.workerUnder(w.x, w.y) ? undefined : this.buildingUnder(w.x, w.y);
+        if (b) this.footprint.lineStyle(1, COLORS.uiAccent, 0.5).strokeRect(b.tx * TILE, b.ty * TILE, b.def.w * TILE, b.def.h * TILE);
+      }
       return;
     }
     const w = this.screenToWorld(p.x, p.y);

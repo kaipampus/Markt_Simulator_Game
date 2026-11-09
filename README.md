@@ -1,6 +1,6 @@
 # Spirit Night Market
 
-A management game set in a world of spirits: run a hotel district and a lantern-lit night market. Each night spirit guests arrive, look for food, tea, warmth and luck, and pay for it. Before the sun rises every spirit must reach a hotel bed or the gate, or it fades away in the light. Build paths, bridges and stalls so that everyone gets home in time.
+A management game set in a world of spirits: run a hotel district and a lantern-lit night market. Each night spirit guests arrive, look for food, tea, warmth and luck, and pay for it. Before the sun rises every spirit should reach a hotel bed or the gate, or it fades away in the light. Spirits only walk on paths, bridges hold only a few at once, and as your reputation grows you can buy your way from the Lantern Age through the Steam Age into the Neon Age, with ferries, grand hotels and neon signs. A relaxed builder: no game over, and you control the time.
 
 Built with [Phaser 4](https://phaser.io), TypeScript and Vite. Runs in the browser, no server logic needed.
 
@@ -17,13 +17,21 @@ Then open http://localhost:5173.
 
 | Action | Input |
 |---|---|
-| Pick a building | Click in the bottom bar or press `1`–`9`, `0` |
+| Pick a building | Click in the bottom bar or press `1`–`9`; `Tab` switches the category |
 | Build | Left-click on the map |
 | Lay paths | Hold the left mouse button and drag |
 | Demolish (50 % refund) | `X`, then click a building |
 | Cancel | Right-click or `Esc` |
 | Move the view | Drag with the mouse, or `WASD` / arrow keys |
 | Zoom | Mouse wheel |
+| Pause / resume | `Space` |
+| Game speed 1× / 2× / 4× | `F` |
+| Start the night now | `N` |
+| Staff panel (hire, dismiss) | `P` or the **Staff** button |
+| Select a stall, hotel or worker | Left-click (no tool selected) |
+| Move a worker / send a cleaner | Select the worker, then click a building or a path |
+
+Building only works during the day; at night you manage the market and your staff.
 
 ## Build
 

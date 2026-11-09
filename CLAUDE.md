@@ -25,10 +25,10 @@ Details: [[docs/Spielkonzept]] · Fahrplan: [[docs/Roadmap]] · Entscheidungen: 
 ## Aufbau von `src/`
 - `main.ts`: Phaser-Konfiguration und Start
 - `config.ts`: feste Werte (Feldgröße, Kartengröße, Farben)
-- `data/`: Spielwerte und Texte (Gebäude, Strings)
+- `data/`: Spielwerte und Texte (Gebäude, Personal und Sauberkeit, Zeitalter, Strings)
 - `state/`: Spielzustand (Geld, belegte Felder), unabhängig von der Darstellung
-- `scenes/`: `MarketScene` (Spielwelt, Kamera, Bauen) und `UIScene` (Anzeige und Baumenü, liegt darüber)
-- `entities/`: Spielfiguren wie Geister
+- `scenes/`: `MarketScene` (Spielwelt, Kamera, Bauen) und `UIScene` (Anzeige, Baumenü, Personal- und Infofenster, liegt darüber)
+- `entities/`: Spielfiguren (Geister, Arbeiter, Fähren); `Walker` ist die gemeinsame Laufklasse
 - `gfx/`: Platzhalter-Grafiken, die per Code erzeugt werden
 
 ## Arbeitsablauf
