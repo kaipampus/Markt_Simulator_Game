@@ -53,10 +53,44 @@ Konzept: [[Spielkonzept]] · Entscheidungen: [[Entscheidungen]] · Verlauf: [[Ch
 - [x] Personalhaus (Lodge, Dormitory) auf der Marktseite; Sonnenaufgangs-Regel auch für Arbeiter
 - [x] Arbeiter per Klick umsetzen, Putzkräfte an eine Stelle schicken
 - [x] Müll (nach Essen/Trinken), Schleimspuren (Ooze), Mülleimer
+- [x] Workers-Reiter in der Bauleiste, Finanz-Fenster mit Verkäufen, Löhnen und Gewinn
 - [ ] Balancing: Löhne, Müllmenge, Zahl der nötigen Putzkräfte
 - [ ] Mehr zu tun in der Nacht: Arbeiter werden müde und brauchen Pausen
 - [ ] Mülleimer laufen voll und müssen geleert werden
 - [ ] Fährleute für Fähren, Personalhaus der Neon-Zeit
+
+## Phase 3c – Volle Nächte, Bereiche und große Gästezahlen
+Schritt 1 – Nachtleben:
+- [x] Gäste kommen in Wellen über die ganze Nacht, bleiben länger, mehr Wünsche
+- [x] Warteschlangen an Ständen (begrenzte Plätze), Geduld, wütende Gäste (😠)
+- [x] Geistertypen mit eigener Geduld und Vorlieben (neu: Vielfraß)
+- [x] Knopf „Zum Morgen springen“, höheres Startgeld, längere Nacht
+- [ ] Balancing: Einnahmen sind mit längeren Nächten deutlich höher, Preise und Kosten anpassen
+
+Schritt 1b – Restaurants, Vielfalt, Geld:
+- [x] Restaurants mit Küche, Tischen, Koch und Kellner (Gäste sichtbar am Tisch)
+- [x] Sieben Küchen (japanisch, vietnamesisch, chinesisch, thailändisch, koreanisch, Hexenküche), Gelüste der Gäste
+- [x] Acht neue Stände, neues Bedürfnis Spaß, Reiter Food und Fun
+- [x] Gebäude mit mehreren Jobs (z. B. 2 Köche + 2 Kellner)
+- [x] Beliebtheit bestimmt die Gästezahl, Startgeld 650
+- [ ] Gebäude-Stufen (mehr Tische, höhere Preise)
+- [ ] Noch mehr Stände und Küchen (z. B. indisch, Street-Food-Wagen, Zauberbuden)
+- [ ] Eigene Grafiken statt Platzhaltern für Restaurants
+
+Schritt 2 – Level und Bereiche:
+- [x] Level mit Balken, Erfahrung aus Einnahmen und zufriedenen Gästen
+- [x] Gebäude nach Level freischalten, Hotel-Viertel gesperrt bis Level 6 + 2000 Münzen
+- [x] Türen und Drehen (R), Gästezahl nach Kapazität
+- [x] Sichtbare Küche, Personal hinter Theken, Anzeige Tische/Warteschlange
+- [ ] Zeitalter-Code und alte Weg-Grafiken aufräumen
+- [x] Beliebtheitswert für Stände und Deko bestimmt die Gästezahl (vorgezogen)
+- [x] Bereich 1 Nachtmarkt (ohne Hotel), Bereich 2 Hotel-Viertel gesperrt bis Level + Münzen
+- [x] Zeitalter-Kauf entfernt, Gebäude nach Level verteilt (moderne Gebäude vorerst Level 10)
+
+Schritt 3 – Neon-Viertel und Größe:
+- [ ] Karte nach rechts erweitern, Bereich 3 Neon-Viertel mit modernen Gebäuden
+- [ ] Größere Hotels und Übergänge für hunderte Gäste
+- [ ] Technik für tausende Gäste: Belastungstest, gemeinsame Wegkarten, vereinfachte Darstellung
 
 ## Phase 4 – Magie
 - [ ] Mana und Schreine

@@ -86,7 +86,7 @@ export class Worker extends Walker {
 
   /** Is the world point (x, y) on this worker? */
   hitTest(x: number, y: number): boolean {
-    return this.isAwake && Math.abs(x - this.x) <= 14 && y >= this.y - 42 && y <= this.y + 6;
+    return this.isAwake && this.body.visible && Math.abs(x - this.x) <= 14 && y >= this.y - 42 && y <= this.y + 6;
   }
 
   protected face(left: boolean): void {
@@ -303,6 +303,7 @@ export class Worker extends Walker {
   }
 
   protected replan(): void {
+    if (!this.isAwake) return;
     this.path = [];
     if (this.mode === 'toHome' || (this.state.isDawn && !this.staysAtPost)) this.goHome();
     else this.goToWork();
@@ -341,6 +342,12 @@ export class Worker extends Walker {
 
   private render(time: number): void {
     if (!this.isAwake) return;
+    // Inside a restaurant the restaurant draws its own cook and waiter figures.
+    const m0 = this.member;
+    const postDef = m0?.post != null ? this.state.buildings.get(m0.post)?.def : undefined;
+    const inside = this.mode === 'onDuty' && !!postDef && (!!postDef.restaurant || postDef.style === 'stall');
+    for (const o of [this.body, this.shadow, this.badge]) o.setVisible(!inside);
+    if (inside) return;
     const moving = this.mode === 'toPost' || this.mode === 'toHome' || this.mode === 'roam';
     const bob = Math.sin(time / (moving ? 160 : 400) + this.seed) * (moving ? 2 : 1);
     this.body.setPosition(this.x, this.y - 3 + bob).setDepth(this.y);
@@ -392,6 +399,18 @@ export class Worker extends Walker {
     const homeGone = this.mode === 'toHome' && (this.homeUid === null || !this.state.buildings.has(this.homeUid));
     const moving = this.mode === 'toPost' || this.mode === 'toHome' || this.mode === 'roam';
     if (homeGone || (moving && this.pathBlocked())) this.replan();
+  }
+
+  /** Skipping to the morning: go to bed right away (hosts sleep in their hotel). */
+  goHomeNow(): void {
+    if (!this.isAwake) return;
+    const m = this.member;
+    if (m && m.role === 'host' && this.mode === 'onDuty' && m.post !== null) {
+      this.sleep(m.post);
+      return;
+    }
+    const home = (m?.restAt != null ? this.state.buildings.get(m.restAt) : undefined) ?? this.state.staffHouses()[0];
+    if (home) this.sleep(home.uid);
   }
 
   /** The sun rises. Returns false if the worker was caught outside. */

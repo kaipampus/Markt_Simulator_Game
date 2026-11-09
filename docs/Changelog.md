@@ -2,6 +2,49 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-09 – Türen, Drehen, Level statt Zeitalter, sichtbare Küche
+- **Türen**: Gebäude mit Gästen oder Personal haben feste Türen (Matte vor der Tür). Restaurants haben zwei gegenüberliegende, alle anderen eine. Gäste und Arbeiter nutzen nur die Türen; die Tür muss an einem Weg liegen
+- **Drehen** mit R beim Bauen (Vorschau zeigt die Türen grün/orange) oder tagsüber für ein ausgewähltes Gebäude (auch Knopf im Infofenster)
+- **Level mit Erfahrungsbalken** oben links statt Zeitalter-Kauf; Erfahrung aus Einnahmen und zufriedenen Gästen; Gebäude werden nach und nach freigeschaltet (🔒 Lv)
+- **Hotel-Viertel gesperrt** (abgedunkelt) bis Level 6, dann für 2000 Münzen zu öffnen; Startbrücke entfällt
+- **Gästezahl folgt der Kapazität**: Tische und Bedienplätze bestimmen, wie viele Gäste kommen; Markt bis 100, mit Hotel-Viertel bis 400
+- Restaurants größer (4 × 4, 5 × 5) mit **eigener Küche** (Fliesen, Herde, Ausgabe): Der Koch kocht am Herd und trägt das Essen zur Ausgabe, der Kellner bringt es zum Tisch
+- An Ständen steht der Arbeiter **sichtbar hinter der Theke**
+- Über Restaurants nachts **„🪑 belegt/Tische ⏳ Wartende“**
+- Werte für Level und Freischaltungen in `src/data/levels.ts`
+
+## 2026-11-09 – Restaurants, viele neue Stände, Geld-Wachstum
+- **Restaurants** als offene Räume: Küche mit Koch, Tische, Kellner trägt das Essen, Gäste sitzen sichtbar und essen ca. 15 s
+- Sieben Restaurants: Moonbroth Ramen, Mistleaf Pho, Floating Dumpling House, Firefly Curry House, Ember Grill, Starfish Sushi Bar, Bubbling Cauldron Hot Pot
+- Neuer Job **Kellner** (Waiter); Gebäude können mehrere Jobs und Plätze haben
+- Acht neue Stände: Firefly Skewers, Moon Mochi, Dream Floss, Cauldron Bubble Tea, Ghost Goldfish Scooping, Spirit Mask Stand, Lantern Ring Toss, Paper Crane Fortunes
+- Neues Bedürfnis **Spaß** 🎏, neue Reiter **Food** und **Fun**
+- **Gelüste**: Gäste wollen oft eine bestimmte Küche
+- **Beliebtheit** (★ oben) bestimmt die Gästezahl; Startgeld 650 statt 2500
+- Gäste-Laune: nur noch erfüllte gegen gescheiterte Wünsche; fehlende Angebote kosten Geld statt Ruf; Essen und Trinken sind häufigere Wünsche
+- Gäste verteilen sich zufälliger auf mehrere Stände
+
+## 2026-11-09 – Volle Nächte: Wellen, Schlangen, Geduld (Branch `feature/night-life`)
+- Neues Konzept dokumentiert: Bereiche mit Level statt Zeitalter, Beliebtheit, Gästezahlen bis in die Tausende (Umsetzung folgt)
+- **Gäste kommen in drei Wellen** über die ganze Nacht (Abendansturm, Mitternacht, Nachzügler) statt alle am Anfang
+- Gäste haben **3–6 Wünsche**, Wünsche können sich wiederholen; zwischen den Käufen bummeln sie ein Stück
+- **Warteschlangen**: Jeder Stand bedient nur wenige Gäste gleichzeitig (z. B. Nudelbude 1, Teehaus 2, Spielhalle 4) mit eigener Bedienzeit; Gäste stellen sich an und wählen Stände mit kürzerer Schlange
+- **Geduld**: Wer zu lange wartet, wird ungeduldig (😤), dann wütend (😠), verlässt die Schlange und ist unzufriedener
+- **Geistertypen** mit eigener Geduld und Vorlieben: Elder geduldig, muss oft aufs Klo; Sprite ungeduldig, mag Glück; neu der **Vielfraß** (Glutton), immer hungrig und schnell sauer
+- Über Ständen mit langer Schlange steht 👥 und die Anzahl
+- Knopf **„☀ Skip to morning“** (Taste N), sobald alle Gäste weg sind; Arbeiter gehen dabei sofort ins Bett
+- Nacht dauert 4 Minuten, Startgeld 2500, Grundzahl der Gäste höher (20 + Ruf/2)
+- Ruf ändert sich jetzt nach Anteilen statt pro Gast, damit er auch bei vielen Gästen sinnvoll bleibt
+- Das Leuchten der Gäste ist schwächer, damit viele Gäste keinen weißen Fleck ergeben
+- Daten der Geistertypen und Wellen in `src/data/spirits.ts`
+
+## 2026-11-09 – Übersichtlichere Oberfläche: Workers-Reiter und Finanzen
+- Personal hat jetzt einen eigenen Reiter **Workers** in der Bauleiste (neben Decor) statt eines schwebenden Fensters: links eine Karte pro Job (Bild, Einstellungspreis, Lohn pro Nacht, Anzahl), Klick stellt ein; rechts alle Arbeiter als Namensschilder mit Statuspunkt, Klick wählt aus und zeigt sie auf der Karte
+- Neues Fenster **Finances** (Knopf oben oder Taste I): Lohnkosten pro Job und Nacht, was Gäste heute Nacht und letzte Nacht bei welchem Gebäude gekauft haben, Zimmergeld, gezahlte Löhne und Gewinn
+- Morgenbericht kürzer, mit Gewinn und Verweis auf die Finanzen
+- Infofenster mit Schließen-Knopf, zeigt Preise von Ständen und Hotels
+- Hinweistext bricht auf schmalen Bildschirmen um; Hinweise beim Darüberfahren bleiben beim Aktualisieren stabil
+
 ## 2026-11-09 – Tag bauen, Nacht verwalten: Personal und Sauberkeit (Branch `feature/staff`)
 - **Bauen und Abreißen nur tagsüber**; nachts ist die Bauleiste gesperrt, man verwaltet den Markt
 - **Personal**: Koch (Nudelbude, Teehaus, Café), Verkäufer (Glücksbringer-Stand, Spielhalle), Gastgeber (alle Hotels), Putzkraft; Einstellungsgebühr und Lohn pro Nacht

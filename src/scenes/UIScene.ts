@@ -14,8 +14,10 @@ import {
 import { BUILDINGS, CATEGORIES, getBuilding, type BuildingDef, type Category } from '../data/buildings';
 import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
-import { state, type NightReport, type Tool } from '../state/GameState';
+import { AREAS, LEVEL_XP } from '../data/levels';
+import { state, unlockLevel, type NightReport, type Tool } from '../state/GameState';
 import type { MarketScene } from './MarketScene';
+import { FinanceUI } from './FinanceUI';
 import { StaffUI } from './StaffUI';
 
 const BTN_W = 86;
@@ -39,6 +41,10 @@ interface SmallButton {
   bg: Phaser.GameObjects.Rectangle;
   label: Phaser.GameObjects.Text;
 }
+
+/** Bottom bar tabs: building categories plus the workers. */
+type Tab = Category | 'workers';
+const TABS: readonly Tab[] = [...CATEGORIES, 'workers'];
 
 const HOTKEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'] as const;
 
@@ -64,13 +70,16 @@ export class UIScene extends Phaser.Scene {
   private eraName!: Phaser.GameObjects.Text;
   private eraInfo!: Phaser.GameObjects.Text;
   private eraButton!: SmallButton;
+  private xpBar!: Phaser.GameObjects.Graphics;
+  private xpText!: Phaser.GameObjects.Text;
 
   // build bar
-  private category: Category = 'transport';
-  private tabs = new Map<Category, SmallButton>();
+  private category: Tab = 'transport';
+  private tabs = new Map<Tab, SmallButton>();
   private demolishButton!: SmallButton;
-  private staffButton!: SmallButton;
+  private financeButton!: SmallButton;
   private staffUI!: StaffUI;
+  private financeUI!: FinanceUI;
   /** Short message in the hint line (e.g. "building resumes at daybreak"). */
   private flash: { text: string; until: number } | null = null;
   private items: ItemButton[] = [];
@@ -114,25 +123,30 @@ export class UIScene extends Phaser.Scene {
 
     this.createTimePanel();
     this.createEraPanel();
+    this.staffUI = new StaffUI(this, {
+      hover: (text) => (this.hoverInfo = text),
+      flash: (text) => this.flashHint(text),
+      focusWorker: (id) => (this.scene.get('MarketScene') as MarketScene).focusWorker(id),
+    });
+    this.financeUI = new FinanceUI(this, (x, w) => {
+      // Below the time panel if they would overlap.
+      const tp = this.timePanel;
+      const overlaps = x < tp.x + TIME_PANEL_HALF_WIDTH * 2 && x + w > tp.x;
+      return overlaps ? tp.y + TIME_PANEL_HEIGHT + 6 : HUD_HEIGHT + 6;
+    });
+    this.financeButton = this.smallButton(0, 8, 110, HUD_HEIGHT - 16, `${STR.financeButton} (I)`, () => this.toggleFinance());
     this.createBuildBar();
-    this.staffUI = new StaffUI(
-      this,
-      (text) => (this.hoverInfo = text),
-      (id) => (this.scene.get('MarketScene') as MarketScene).focusWorker(id),
-      (x, w) => {
-        // Below the time panel if they would overlap.
-        const tp = this.timePanel;
-        const overlaps = x < tp.x + TIME_PANEL_HALF_WIDTH * 2 && x + w > tp.x;
-        return overlaps ? tp.y + TIME_PANEL_HEIGHT + 6 : HUD_HEIGHT + 6;
-      },
-    );
     this.setupKeys();
 
     this.unsubscribe.push(
       state.on('money', () => this.refreshMoney(true)),
       state.on('tool', () => this.refreshItems()),
       state.on('speed', () => this.refreshTime()),
-      state.on('era', (era) => this.onEra(era)),
+      state.on('level', (level) => this.onLevel(level)),
+      state.on('area', () => {
+        this.refreshEra();
+        this.toast(STR.areaOpened);
+      }),
       state.on('report', (r) => this.showReport(r)),
       state.on('phase', () => {
         this.refreshItems();
@@ -160,12 +174,16 @@ export class UIScene extends Phaser.Scene {
     if (this.clockText.text !== clock) {
       this.clockText.setText(clock).setColor(state.isDawn ? COLORS.uiRed : COLORS.uiText);
     }
+    // Day: start the night. Night: skip to the morning once everyone is gone.
     const day = state.phase === 'day';
-    this.nightButton.bg.setVisible(day);
-    this.nightButton.label.setVisible(day);
+    const show = day || state.canSkipNight;
+    this.nightButton.bg.setVisible(show);
+    this.nightButton.label.setVisible(show);
+    const label = day ? STR.startNight : STR.skipNight;
+    if (this.nightButton.label.text !== label) this.nightButton.label.setText(label);
 
     const rep = STR.reputation(state.reputation);
-    const spirits = STR.spirits(state.spiritCount);
+    const spirits = `${STR.spirits(state.spiritCount)}  ·  ${STR.popularity(state.popularity(), state.guestsTonight())}`;
     if (this.repText.text !== rep || this.spiritText.text !== spirits) {
       this.repText.setText(rep);
       this.spiritText.setText(spirits);
@@ -227,7 +245,7 @@ export class UIScene extends Phaser.Scene {
     const parts: Phaser.GameObjects.GameObject[] = [bg, this.clockText];
 
     // Speed buttons and "start night" on the right side of the panel.
-    const nightW = 104;
+    const nightW = 128;
     let x = w - 6 - nightW - 6 - SPEEDS.length * 32;
     SPEEDS.forEach((speed, i) => {
       const b = this.smallButton(x, 5, 30, h - 10, STR.speedLabels[i], () => state.setSpeed(speed));
@@ -235,7 +253,7 @@ export class UIScene extends Phaser.Scene {
       parts.push(b.bg, b.label);
       x += 32;
     });
-    this.nightButton = this.smallButton(w - 6 - nightW, 5, nightW, h - 10, STR.startNight, () => state.startNightNow());
+    this.nightButton = this.smallButton(w - 6 - nightW, 5, nightW, h - 10, STR.startNight, () => this.nightOrMorning());
     parts.push(this.nightButton.bg, this.nightButton.label);
 
     this.timePanel = this.add.container(0, HUD_HEIGHT, parts);
@@ -246,44 +264,67 @@ export class UIScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // era panel
+  // level panel (top left): level, experience bar, next unlocks, opening areas
   // ---------------------------------------------------------------------------
 
   private createEraPanel(): void {
     const w = ERA_PANEL_WIDTH;
     const h = ERA_PANEL_HEIGHT;
     const bg = this.add.rectangle(0, 0, w, h, COLORS.uiPanel, 0.92).setOrigin(0).setStrokeStyle(1, COLORS.uiPanelEdge);
-    this.eraName = this.add.text(10, 6, '', { fontFamily: FONT_TITLE, fontSize: '15px', color: COLORS.uiGold });
-    this.eraInfo = this.add.text(10, 34, '', { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiTextDim });
-    this.eraButton = this.smallButton(w - 168, 6, 160, 22, '', () => {
-      if (state.advanceEra()) this.refreshEra();
+    this.eraName = this.add.text(10, 5, '', { fontFamily: FONT_TITLE, fontSize: '15px', color: COLORS.uiGold });
+    this.xpBar = this.add.graphics();
+    this.xpText = this.add.text(w - 10, 8, '', { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiTextDim }).setOrigin(1, 0);
+    this.eraInfo = this.add.text(10, 32, '', { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiTextDim }).setWordWrapWidth(w - 20);
+    this.eraButton = this.smallButton(w - 178, 30, 170, 22, '', () => {
+      if (state.openArea('hotel')) this.refreshEra();
     });
     this.eraButton.label.setFontSize(11);
-    this.eraPanel = this.add.container(8, HUD_HEIGHT + 6, [bg, this.eraName, this.eraInfo, this.eraButton.bg, this.eraButton.label]);
+    this.eraPanel = this.add.container(8, HUD_HEIGHT + 6, [
+      bg,
+      this.eraName,
+      this.xpBar,
+      this.xpText,
+      this.eraInfo,
+      this.eraButton.bg,
+      this.eraButton.label,
+    ]);
     this.refreshEra();
   }
 
   private refreshEra(): void {
-    this.eraName.setText(STR.eras[state.era]);
-    const next = state.nextEra;
-    if (!next) {
-      this.eraInfo.setText(STR.eraFinal);
-      this.eraButton.bg.setVisible(false);
-      this.eraButton.label.setVisible(false);
+    const w = ERA_PANEL_WIDTH;
+    this.eraName.setText(STR.level(state.level));
+    const next = state.nextLevelXp;
+    const prev = LEVEL_XP[state.level - 1] ?? 0;
+    const share = next === null ? 1 : Phaser.Math.Clamp((state.xp - prev) / (next - prev), 0, 1);
+    this.xpText.setText(STR.levelXp(state.xp, next));
+    const bx = 90;
+    const bw = w - bx - 10 - this.xpText.width - 8;
+    this.xpBar.clear();
+    this.xpBar.fillStyle(0x0b0f1a, 1).fillRect(bx, 11, bw, 8);
+    this.xpBar.fillStyle(COLORS.uiAccent, 1).fillRect(bx, 11, bw * share, 8);
+
+    // The hotel district can be opened once the level is reached.
+    const area = AREAS.hotel;
+    const canOpen = !state.areas.has('hotel') && state.level >= area.level;
+    this.eraButton.bg.setVisible(canOpen);
+    this.eraButton.label.setVisible(canOpen);
+    if (canOpen) {
+      const ready = state.canOpenArea('hotel');
+      this.eraButton.label.setText(STR.areaOpen(area.cost)).setColor(ready ? COLORS.uiText : COLORS.uiTextDim);
+      this.eraButton.bg.setFillStyle(ready ? COLORS.uiButtonActive : COLORS.uiButton).setAlpha(ready ? 1 : 0.6);
+      this.eraInfo.setText('');
       return;
     }
-    const name = STR.eras[next.era];
-    this.eraInfo.setText(STR.eraNext(name, next.reputation, next.cost));
-    const ready = state.canAdvanceEra();
-    this.eraButton.label.setText(STR.eraBuy(name, next.cost)).setColor(ready ? COLORS.uiText : COLORS.uiTextDim);
-    this.eraButton.bg.setFillStyle(ready ? COLORS.uiButtonActive : COLORS.uiButton).setAlpha(ready ? 1 : 0.6);
+    const unlocks = BUILDINGS.filter((d) => unlockLevel(d) === state.level + 1).map((d) => STR.buildings[d.id]);
+    if (state.level + 1 === area.level) unlocks.unshift(STR.areaName);
+    this.eraInfo.setText(unlocks.length ? STR.levelNext(unlocks.slice(0, 4).join(', ') + (unlocks.length > 4 ? ' …' : '')) : '');
   }
 
-  private onEra(era: number): void {
+  private onLevel(level: number): void {
     this.refreshEra();
     this.refreshItems();
-    this.items.find((i) => i.def.id === 'path')?.icon.setTexture(TEX.path(era));
-    this.toast(STR.eraStarted(STR.eras[era]));
+    this.toast(STR.levelUp(level));
   }
 
   private toast(text: string): void {
@@ -307,13 +348,13 @@ export class UIScene extends Phaser.Scene {
   // ---------------------------------------------------------------------------
 
   private createBuildBar(): void {
-    for (const cat of CATEGORIES) {
-      this.tabs.set(cat, this.smallButton(0, 0, 92, TAB_H - 4, STR.categories[cat], () => this.selectCategory(cat)));
+    for (const tab of TABS) {
+      const label = tab === 'workers' ? STR.workersTab : STR.categories[tab];
+      this.tabs.set(tab, this.smallButton(0, 0, 92, TAB_H - 4, label, () => this.selectCategory(tab)));
     }
     this.demolishButton = this.smallButton(0, 0, 110, TAB_H - 4, `✖ ${STR.demolish} (X)`, () =>
       this.toggleTool({ kind: 'demolish' }),
     );
-    this.staffButton = this.smallButton(0, 0, 110, TAB_H - 4, STR.staffButton, () => this.toggleStaff());
     for (const def of BUILDINGS) this.items.push(this.makeItem(def));
     this.selectCategory(this.category);
   }
@@ -333,7 +374,7 @@ export class UIScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
     const keyText = this.add.text(5, 3, '', { fontFamily: FONT_UI, fontSize: '10px', color: COLORS.uiTextDim });
     const lock = this.add
-      .text(BTN_W / 2, 28, `🔒 ${STR.eras[def.era]}`, {
+      .text(BTN_W / 2, 28, STR.lockedLevel(unlockLevel(def)), {
         fontFamily: FONT_UI,
         fontSize: '10px',
         color: COLORS.uiText,
@@ -368,10 +409,11 @@ export class UIScene extends Phaser.Scene {
     if (def.crossing?.kind === 'boat') parts.push(STR.perTrip(def.crossing.capacity));
     if (def.hotel) parts.push(STR.beds(def.hotel.beds));
     if (def.staffBeds) parts.push(STR.staffBeds(def.staffBeds));
-    if (def.staff) parts.push(STR.needsStaff(STR.roles[def.staff].toLowerCase()));
+    if (def.restaurant && def.cuisine) parts.push(STR.restaurantInfo(STR.cuisines[def.cuisine], def.restaurant.tables));
+    if (def.staff) parts.push(STR.needsJobs([...new Set(def.staff)].map((r) => STR.roles[r].toLowerCase()).join(' + ')));
     if (def.bin) parts.push(STR.catchesLitter);
     if (def.provides) parts.push(`${STR.needIcons[def.provides.need]} +${def.provides.price}`);
-    if (!state.isUnlocked(def)) parts.push(`🔒 ${STR.eras[def.era]}`);
+    if (!state.isUnlocked(def)) parts.push(STR.lockedLevel(unlockLevel(def)));
     return parts.join('  ·  ');
   }
 
@@ -379,10 +421,11 @@ export class UIScene extends Phaser.Scene {
     return this.items.filter((i) => i.def.category === this.category);
   }
 
-  private selectCategory(cat: Category): void {
+  private selectCategory(cat: Tab): void {
     this.category = cat;
     for (const [c, b] of this.tabs) this.setActive(b, c === cat);
     for (const i of this.items) i.container.setVisible(i.def.category === cat);
+    this.staffUI.showBar(cat === 'workers');
     this.visibleItems().forEach((i, n) => i.keyText.setText(n < 9 ? String(n + 1) : ''));
     this.refreshItems();
     this.layoutBar();
@@ -395,7 +438,7 @@ export class UIScene extends Phaser.Scene {
 
   private toggleTool(tool: NonNullable<Tool>): void {
     if (!state.canBuild) {
-      this.flash = { text: STR.nightNoBuild, until: this.time.now + 2000 };
+      this.flashHint(STR.nightNoBuild);
       return;
     }
     if (tool.kind === 'build' && !state.isUnlocked(getBuilding(tool.id))) return;
@@ -434,23 +477,40 @@ export class UIScene extends Phaser.Scene {
       }),
     );
     kb.on('keydown-TAB', () => {
-      const i = CATEGORIES.indexOf(this.category);
-      this.selectCategory(CATEGORIES[(i + 1) % CATEGORIES.length]);
+      const i = TABS.indexOf(this.category);
+      this.selectCategory(TABS[(i + 1) % TABS.length]);
     });
     kb.on('keydown-X', () => this.toggleTool({ kind: 'demolish' }));
     kb.on('keydown-ESC', () => {
       state.setTool(null);
       state.select(null);
+      if (this.financeUI.isOpen) this.toggleFinance();
     });
-    kb.on('keydown-P', () => this.toggleStaff());
+    kb.on('keydown-P', () => this.selectCategory('workers'));
+    kb.on('keydown-R', () => {
+      // Turn the building being placed, or the selected one (by day).
+      if (state.tool?.kind === 'build') state.rotateBuild();
+      else if (state.selection?.kind === 'building') state.rotate(state.selection.uid);
+    });
+    kb.on('keydown-I', () => this.toggleFinance());
     kb.on('keydown-SPACE', () => state.togglePause());
     kb.on('keydown-F', () => state.cycleSpeed());
-    kb.on('keydown-N', () => state.startNightNow());
+    kb.on('keydown-N', () => this.nightOrMorning());
   }
 
-  private toggleStaff(): void {
-    this.staffUI.toggle();
-    this.setActive(this.staffButton, this.staffUI.isOpen);
+  /** "Start night" by day, "skip to morning" once the night is over. */
+  private nightOrMorning(): void {
+    if (state.phase === 'day') state.startNightNow();
+    else (this.scene.get('MarketScene') as MarketScene).skipToMorning();
+  }
+
+  private toggleFinance(): void {
+    this.financeUI.toggle();
+    this.setActive(this.financeButton, this.financeUI.isOpen);
+  }
+
+  private flashHint(text: string): void {
+    this.flash = { text, until: this.time.now + 2500 };
   }
 
   private refreshMoney(pop: boolean): void {
@@ -471,16 +531,11 @@ export class UIScene extends Phaser.Scene {
 
   private showReport(r: NightReport): void {
     this.report?.destroy();
-    const lines = [
-      STR.report.safe(r.safe),
-      STR.report.lost(r.lost),
-      STR.report.happy(r.happy, r.unhappy),
-      STR.report.income(r.earned),
-      STR.report.rooms(r.rooms),
-      STR.report.wages(r.wages),
-      STR.report.cleaned(r.cleaned, r.dirty),
-    ];
-    if (r.staffLost > 0) lines.splice(2, 0, STR.report.staffLost(r.staffLost));
+    const lines = [STR.report.guests(r.safe, r.lost), STR.report.happy(r.happy, r.unhappy)];
+    if (r.angry > 0) lines.push(STR.report.angry(r.angry));
+    lines.push(STR.report.xp(r.xp, r.level));
+    if (r.staffLost > 0) lines.push(STR.report.staffLost(r.staffLost));
+    lines.push(STR.report.cleaned(r.cleaned, r.dirty), STR.report.profit(r.net));
     const title = this.add
       .text(0, 14, STR.report.title(r.day), { fontFamily: FONT_TITLE, fontSize: '20px', color: COLORS.uiText })
       .setOrigin(0.5, 0);
@@ -519,7 +574,7 @@ export class UIScene extends Phaser.Scene {
     const inside = (cx: number, cy: number, w: number, hh: number) => x >= cx && x <= cx + w && y >= cy && y <= cy + hh;
     if (inside(this.eraPanel.x, this.eraPanel.y, ERA_PANEL_WIDTH, ERA_PANEL_HEIGHT)) return true;
     if (inside(this.timePanel.x, this.timePanel.y, TIME_PANEL_HALF_WIDTH * 2, TIME_PANEL_HEIGHT)) return true;
-    return this.staffUI.rects().some((r) => inside(r.x, r.y, r.w, r.h));
+    return [...this.staffUI.rects(), ...this.financeUI.rects()].some((r) => inside(r.x, r.y, r.w, r.h));
   }
 
   private layoutHud(): void {
@@ -529,8 +584,10 @@ export class UIScene extends Phaser.Scene {
     this.coinIcon.setPosition(w - 16 - this.moneyText.width - 16, y);
     this.repText.setPosition(this.coinIcon.x - 22, y);
     this.spiritText.setPosition(this.repText.x - this.repText.width - 18, y);
-    const left = this.spiritText.x - this.spiritText.width;
-    this.title.setVisible(this.title.width + 32 < left);
+    const fx = this.spiritText.x - this.spiritText.width - 18 - 110;
+    this.financeButton.bg.setPosition(fx, 8);
+    this.financeButton.label.setPosition(fx + 55, HUD_HEIGHT / 2);
+    this.title.setVisible(this.title.width + 32 < fx);
   }
 
   private layoutBar(): void {
@@ -538,8 +595,8 @@ export class UIScene extends Phaser.Scene {
     const h = this.scale.height;
     const top = h - BAR_HEIGHT;
 
-    // Tabs on the left (narrower on small screens), staff and demolish on the right.
-    const tabW = Math.max(56, Math.min(92, Math.floor((w - 20 - 236) / CATEGORIES.length) - 4));
+    // Tabs on the left (narrower on small screens), demolish on the right.
+    const tabW = Math.max(56, Math.min(104, Math.floor((w - 20 - 124) / TABS.length) - 4));
     let tx = 10;
     for (const b of this.tabs.values()) {
       b.bg.setPosition(tx, top + 7).setSize(tabW, TAB_H - 4);
@@ -549,9 +606,7 @@ export class UIScene extends Phaser.Scene {
     }
     this.demolishButton.bg.setPosition(w - 10 - 110, top + 7);
     this.demolishButton.label.setPosition(w - 10 - 55, top + 7 + (TAB_H - 4) / 2);
-    this.staffButton.bg.setPosition(w - 10 - 226, top + 7);
-    this.staffButton.label.setPosition(w - 10 - 171, top + 7 + (TAB_H - 4) / 2);
-    this.setActive(this.staffButton, this.staffUI?.isOpen ?? false);
+    this.staffUI.setBarArea({ x: 0, y: top + TAB_H + 8, w, h: BAR_HEIGHT - TAB_H - 12 });
 
     // Items of the current tab, centred.
     const items = this.visibleItems();
@@ -584,9 +639,10 @@ export class UIScene extends Phaser.Scene {
     this.timePanel.setPosition(tpX, tpY);
 
     this.layoutBar();
-    this.hint.setPosition(w / 2, h - BAR_HEIGHT - 10);
+    this.hint.setPosition(w / 2, h - BAR_HEIGHT - 10).setWordWrapWidth(w - 40);
+    this.hint.setAlign('center');
     this.report?.setX(w / 2);
     this.layoutHud();
-    this.staffUI.refresh();
+    this.financeUI.build();
   }
 }

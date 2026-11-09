@@ -3,8 +3,8 @@
  */
 
 /** Jobs a worker can have. Cooks, clerks and hosts work at one building each. */
-export type Role = 'cook' | 'clerk' | 'host' | 'cleaner';
-export const ROLES: readonly Role[] = ['cook', 'clerk', 'host', 'cleaner'];
+export type Role = 'cook' | 'waiter' | 'clerk' | 'host' | 'cleaner';
+export const ROLES: readonly Role[] = ['cook', 'waiter', 'clerk', 'host', 'cleaner'];
 
 export interface RoleDef {
   /** One-time cost when hiring. */
@@ -20,6 +20,7 @@ export interface RoleDef {
 
 export const STAFF: Record<Role, RoleDef> = {
   cook: { hire: 40, wage: 6, speed: 1, coat: '#efe6d2', band: '#c8372d' },
+  waiter: { hire: 35, wage: 5, speed: 1.15, coat: '#2a2a33', band: '#f3e9d2' },
   clerk: { hire: 30, wage: 5, speed: 1, coat: '#6b4aa0', band: '#f2c46a' },
   host: { hire: 50, wage: 8, speed: 1, coat: '#7a2e2a', band: '#f2c46a' },
   cleaner: { hire: 30, wage: 4, speed: 1.1, coat: '#3d6b8a', band: '#e8dcc0' },

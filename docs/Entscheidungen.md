@@ -13,6 +13,51 @@ Vorlage:
 
 ---
 
+## 2026-11-09 – Feste Türen und Drehen
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Gebäude mit Gästen oder Personal haben feste Türen: Restaurants zwei gegenüberliegende, alle anderen eine in der Mitte einer Seite. Nur über die Türen kommt man hinein; ein Weg, der irgendwo an der Seite vorbeiführt, reicht nicht. Mit R dreht man beim Bauen (oder tagsüber nachträglich) die Türen um 90°. Bei Restaurants ändert sich die Grafik (Türen vorn/hinten oder links/rechts), bei anderen Gebäuden zeigt eine Türmatte die Tür (echte Grafiken folgen in Phase 5).
+**Warum:** Klare Eingänge machen Wege und Platz zur echten Planungsaufgabe.
+
+## 2026-11-09 – Level statt Zeitalter umgesetzt, Gästezahl nach Kapazität
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Das Zeitalter-Kaufen ist ersetzt durch ein Level mit Erfahrung (0,2 XP pro verdiente Münze, 2 XP pro zufriedenem Gast). Jedes Gebäude hat eine Freischalt-Stufe (Tabelle in `data/levels.ts`). Das Hotel-Viertel öffnet ab Level 6 für 2000 Münzen. Die Gästezahl richtet sich nach der Kapazität (Tische × 2,5, Bedienplätze × 2, Deko 0,5) plus 6 Grundgäste, mal Ruf-Faktor, gedeckelt (Markt 100, mit Hotel-Viertel 400). Damit wächst die Menge der Gäste mit dem, was man sich leisten kann, bleibt aber leicht fordernd.
+**Verworfen:** Alle Restaurants von Anfang an; Gästezahl unabhängig von der Kapazität.
+
+## 2026-11-09 – Restaurants mit Koch und Kellner, viele Küchen
+**Status:** entschieden (Idee des Nutzers; Detailfragen mit den empfohlenen Varianten beantwortet)
+**Entscheidung:** Neue Gebäudeart **Restaurant**: offener Raum mit Küche und Tischen, Gäste sichtbar am Tisch, Koch kocht, Kellner (neuer Job) serviert, Essen dauert ca. 15 s. Koch und Kellner sind Pflicht. Sieben Restaurants verschiedener asiatischer Küchen mit Zauber-Einschlag, dazu acht neue Stände und das neue Bedürfnis **Spaß**. Die Nudelbude bleibt als billiger Imbiss. Gäste haben oft **Gelüste** nach einer Küche. Platzmangel und ein chaotischer Markt sind gewollt.
+**Warum:** Mehr Tiefe und Vielfalt, mehr zu verwalten in der Nacht, größere Gebäude für einen größeren Markt.
+**Verworfen:** Geschlossene Restaurants mit Zahlenanzeige; Kellner nur als Beschleuniger; Essen nur noch im Restaurant.
+
+## 2026-11-09 – Wenig Startgeld, Wachstum über Beliebtheit
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Start mit 650 Münzen. Jedes Gebäude hat einen Beliebtheitswert; die Summe bestimmt die Gästezahl (mal Ruf-Faktor, gedeckelt je Bereich). Fehlende Angebote kosten Einnahmen, aber keinen Ruf. Gebäude-Stufen folgen später.
+**Warum:** Man soll klein anfangen und spürbar schneller wachsen, statt am Anfang zu viel Geld zu haben.
+**Verworfen (vorerst):** Jedes weitere gleiche Gebäude teurer; reichere Gäste bei hohem Ruf.
+
+## 2026-11-09 – Bereiche mit Level statt Zeitalter
+**Status:** entschieden (Idee des Nutzers), Umsetzung geplant
+**Entscheidung:** Die Karte wird in Bereiche geteilt, die mit **Level + Münzen** freigeschaltet werden (wie in Hay Day): 1. Nachtmarkt (Start, ohne Hotel, bis 100 Gäste), 2. Hotel-Viertel jenseits des Flusses (Hotelgäste kommen in der nächsten Nacht dazu, bis ca. 500), 3. modernes Neon-Viertel rechts daneben (2000–3000 Gäste). Das Level ist **sichtbar mit Balken**. Die **Zeitalter entfallen**: Moderne Gebäude gibt es nur im Neon-Viertel, der alte Markt bleibt traditionell.
+**Warum:** Das Alte bleibt erhalten statt ersetzt zu werden; Wachstum fühlt sich räumlich an; klares Ziel für jedes Level.
+**Verworfen:** Zeitalter zusätzlich behalten; Bereich = Zeitalter; Level versteckt; Bereiche öffnen automatisch; Bereiche nebeneinander oder Moderne im Norden.
+**Ersetzt (später):** „Zeitalter: Ruf schaltet frei, Münzen kaufen“.
+
+## 2026-11-09 – Beliebtheit bestimmt die Gästezahl
+**Status:** vorgeschlagen
+**Entscheidung:** Stände und Dekoration haben einen Beliebtheitswert. Die Summe bestimmt, wie viele Gäste kommen, begrenzt durch die freigeschalteten Bereiche. Der Ruf (Zufriedenheit) wirkt als Verstärker. Erfahrung für das Level kommt aus zufriedenen Gästen und neuen Gebäuden.
+**Warum:** Wunsch des Nutzers: Je mehr Stände und Deko, desto mehr Gäste.
+
+## 2026-11-09 – Volle Nächte: Wellen, Schlangen, Geduld, Charaktere
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Gäste kommen über die ganze Nacht in Wellen, bleiben länger und haben mehr Wünsche. Stände bedienen nur wenige Gäste gleichzeitig, dahinter bilden sich Schlangen. Jeder Gast hat eine Geduld; wird sie überschritten, wird er wütend (😠), verlässt die Schlange und ist unzufrieden. Geistertypen unterscheiden sich in Geduld und Vorlieben. Dazu: höheres Startgeld, längere Nacht, Knopf „Zum Morgen springen“.
+**Warum:** Bisher war die Nacht nach einer halben Minute vorbei und der Rest leer.
+
+## 2026-11-09 – Personal als Reiter in der Bauleiste, Finanzen als eigenes Fenster
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Arbeiter werden über einen Reiter **Workers** in der Bauleiste eingestellt und ausgewählt, genauso wie Gebäude. Ein Klick auf eine Job-Karte stellt sofort ein (wie ein Gebäude kaufen); Entlassen geht über das Infofenster des Arbeiters. Ein Fenster **Finances** zeigt Lohnkosten, Verkäufe pro Gebäude, Zimmergeld und Gewinn.
+**Warum:** Übersichtlicher: alles Kaufbare an einer Stelle, Geldfragen an einer anderen.
+**Verworfen:** Schwebendes Personal-Fenster rechts oben (verdeckte die Karte und war vom Rest getrennt).
+
 ## 2026-11-09 – Tagsüber bauen, nachts verwalten
 **Status:** entschieden (Wunsch des Nutzers)
 **Entscheidung:** Bauen und Abreißen gehen nur am Tag. Nachts ist die Bauleiste gesperrt; man kümmert sich um Personal und Sauberkeit (Arbeiter umsetzen, Putzkräfte schicken, einstellen, entlassen).
@@ -59,7 +104,7 @@ Vorlage:
 **Verworfen:** Begrenzung pro Nacht statt gleichzeitig.
 
 ## 2026-11-08 – Zeitalter: Ruf schaltet frei, Münzen kaufen
-**Status:** entschieden (Idee des Nutzers)
+**Status:** wird ersetzt durch „Bereiche mit Level statt Zeitalter“ (2026-11-09)
 **Entscheidung:** Drei Zeitalter: Laternenzeit → Dampfzeit (Ruf 60, 1200 Münzen) → Neon-Zeit (Ruf 75, 3000 Münzen). Jedes bringt neue, teurere Gebäude, vor allem größere Hotels und bessere Übergänge. Wege ändern mit dem Zeitalter ihr Aussehen.
 **Warum:** Langfristiges Ziel und das Gefühl, dass sich die Welt von altmodisch zu modern entwickelt.
 **Verworfen:** Fortschritt nur nach Anzahl der Nächte, Fortschritt bis in die Gegenwart.

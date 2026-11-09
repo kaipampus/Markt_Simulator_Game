@@ -7,13 +7,13 @@ import {
   FIRST_DAY_MS,
   GRID_H,
   GRID_W,
+  GUEST_CAP,
   GUESTS_BASE,
-  GUESTS_PER_REPUTATION,
+  GUESTS_PER_POPULARITY,
   HAPPY_THRESHOLD,
   NIGHT_MS,
-  REP_HAPPY,
   REP_LOST,
-  REP_UNHAPPY,
+  REP_MOOD,
   REPUTATION_MAX,
   REPUTATION_START,
   RIVER_TOP,
@@ -23,6 +23,7 @@ import {
 } from '../config';
 import { GATE, getBuilding, type BuildingDef, type BuildingId, type Need, type Zone } from '../data/buildings';
 import { ERAS, type Era } from '../data/eras';
+import { AREAS, LEVEL_XP, MARKET_GUEST_CAP, UNLOCK_LEVEL, XP_PER_COIN, XP_PER_HAPPY, type AreaId } from '../data/levels';
 import { DIRT, ROLES, STAFF, type Role } from '../data/staff';
 import { STR } from '../data/strings';
 import { Emitter } from './Emitter';
@@ -31,14 +32,23 @@ import type { Cell } from './pathfinding';
 /** What the player currently has selected in the build bar. */
 export type Tool = { kind: 'build'; id: BuildingId } | { kind: 'demolish' } | null;
 
+/** Which side the (main) door faces: 0 = front/south, 1 = west, 2 = back/north, 3 = east. */
+export type Rot = 0 | 1 | 2 | 3;
+
 export interface PlacedBuilding {
   uid: number;
   def: BuildingDef;
   tx: number;
   ty: number;
+  rot: Rot;
 }
 
-export type PlaceResult = 'ok' | 'blocked' | 'zone' | 'adjacent' | 'locked' | 'money' | 'night';
+/** Buildings guests or workers go into have doors; restaurants have two opposite ones. */
+export function hasDoors(def: BuildingDef): boolean {
+  return !!(def.provides || def.hotel || def.staffBeds || def.staff);
+}
+
+export type PlaceResult = 'ok' | 'blocked' | 'zone' | 'adjacent' | 'locked' | 'money' | 'night' | 'area';
 export type DemolishResult = { result: 'ok'; refund: number } | { result: 'night' | 'occupied' };
 export type HireResult = 'ok' | 'beds' | 'money';
 
@@ -67,18 +77,32 @@ export type DirtKind = 'litter' | 'slime';
 export type Phase = 'day' | 'night';
 export type Terrain = 'hotel' | 'river' | 'market';
 
+/** What guests bought at one kind of building during a night. */
+export interface Sale {
+  id: BuildingId;
+  count: number;
+  coins: number;
+}
+
 export interface NightReport {
   day: number;
   safe: number;
   lost: number;
   happy: number;
   unhappy: number;
+  angry: number;
   earned: number;
   rooms: number;
   wages: number;
   staffLost: number;
   cleaned: number;
   dirty: number;
+  xp: number;
+  level: number;
+  /** Guest spending per kind of building, biggest first. */
+  sales: Sale[];
+  /** earned + rooms - wages */
+  net: number;
   repDelta: number;
   reputation: number;
 }
@@ -106,7 +130,38 @@ type StateEvents = {
   selection: [Selection];
   /** Dirt on a cell changed. */
   dirt: [Cell];
+  /** Reached a new level. */
+  level: [number];
+  /** An area was opened. */
+  area: [AreaId];
 };
+
+/**
+ * How many guests a building draws per night. Follows its capacity, so the
+ * crowd grows with what the market can actually serve: restaurants per
+ * table, stalls per service place, decoration a little.
+ */
+export function popularityOf(def: BuildingDef): number {
+  if (def.popularity !== undefined) return def.popularity;
+  if (def.restaurant) return def.restaurant.tables * 2.5;
+  if (def.provides) return (def.service?.slots ?? 1) * 2;
+  if (def.category === 'decor') return 0.5;
+  return 0;
+}
+
+export function unlockLevel(def: BuildingDef): number {
+  return UNLOCK_LEVEL[def.id] ?? 1;
+}
+
+/** Door cells of a building placed at (tx, ty) with rotation `rot` (also used for previews). */
+export function doorCellsFor(def: BuildingDef, tx: number, ty: number, rot: Rot): Cell[] {
+  if (!hasDoors(def)) return [];
+  const mx = tx + Math.floor(def.w / 2);
+  const my = ty + Math.floor(def.h / 2);
+  const side = (r: number): Cell =>
+    r === 0 ? { tx: mx, ty: ty + def.h } : r === 1 ? { tx: tx - 1, ty: my } : r === 2 ? { tx: mx, ty: ty - 1 } : { tx: tx + def.w, ty: my };
+  return def.restaurant ? [side(rot), side((rot + 2) % 4)] : [side(rot)];
+}
 
 /** Cell values in the occupancy grid. Positive numbers are building uids. */
 const FREE = 0;
@@ -135,9 +190,14 @@ function zoneAllows(zone: Zone, terrain: Terrain): boolean {
 export class GameState extends Emitter<StateEvents> {
   money = START_MONEY;
   tool: Tool = null;
+  /** Rotation for the next building to place (R). */
+  buildRot: Rot = 0;
   spiritCount = 0;
   reputation = REPUTATION_START;
   era: Era = 0;
+  level = 1;
+  xp = 0;
+  readonly areas = new Set<AreaId>();
 
   // --- clock ---
   phase: Phase = 'day';
@@ -170,7 +230,16 @@ export class GameState extends Emitter<StateEvents> {
   private litter = new Uint8Array(GRID_W * GRID_H);
   private slime = new Uint8Array(GRID_W * GRID_H);
 
-  private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, earned: 0, staffLost: 0, cleaned: 0 };
+  private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0 };
+  /** Guests the scene still plans to let in tonight. */
+  pendingArrivals = 0;
+
+  // --- queues at buildings: uid -> spirit ids in line / guests being served ---
+  private lines = new Map<number, number[]>();
+  private serving = new Map<number, number>();
+  private sales = new Map<BuildingId, Sale>();
+  /** The last morning report (for the finances panel). */
+  lastReport: NightReport | null = null;
 
   /** Top-left cell of the gate (bottom centre of the market). */
   readonly gate = { tx: Math.floor(GRID_W / 2) - 1, ty: GRID_H - GATE.h };
@@ -193,13 +262,11 @@ export class GameState extends Emitter<StateEvents> {
     }
     this.gateCells = front;
 
-    // Starter infrastructure: a path from the gate up to a wooden bridge and one step beyond.
+    // Starter infrastructure: a path from the gate up through the market.
     const cx = this.gate.tx + 1;
-    this.place('bridge', cx, RIVER_TOP, true);
     for (let y = RIVER_TOP + RIVER_ROWS; y < this.gate.ty - 1; y++) this.place('path', cx, y, true);
-    this.place('path', cx, RIVER_TOP - 1, true);
     // A small staff lodge next to the path, so the first workers have a home.
-    this.place('staff_lodge', cx + 1, this.gate.ty - 3, true);
+    this.place('staff_lodge', cx + 1, this.gate.ty - 3, true, 1); // door faces the path
   }
 
   // ---------------------------------------------------------------------------
@@ -250,8 +317,19 @@ export class GameState extends Emitter<StateEvents> {
     return c > 0 ? this.buildings.get(c) : undefined;
   }
 
-  /** Walkable cells around a building, where spirits stand to use it. */
+  /**
+   * Cells right outside the doors of a building. Restaurants have two opposite
+   * doors, everything else one, in the middle of the side the rotation points to.
+   */
+  doorCells(b: PlacedBuilding): Cell[] {
+    return doorCellsFor(b.def, b.tx, b.ty, b.rot);
+  }
+
+  /** Walkable cells where spirits stand to use a building (its doors, if it has any). */
   entranceCells(b: PlacedBuilding): Cell[] {
+    if (hasDoors(b.def)) {
+      return this.doorCells(b).filter((c) => this.isWalkable(c.tx, c.ty) && !this.buildingAt(c.tx, c.ty)?.def.crossing);
+    }
     const out: Cell[] = [];
     const { tx, ty, def } = b;
     for (let x = tx; x < tx + def.w; x++) out.push({ tx: x, ty: ty + def.h }, { tx: x, ty: ty - 1 });
@@ -264,19 +342,28 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   isUnlocked(def: BuildingDef): boolean {
-    return def.era <= this.era;
+    return unlockLevel(def) <= this.level;
   }
 
-  checkPlace(def: BuildingDef, tx: number, ty: number): 'ok' | 'blocked' | 'zone' | 'adjacent' {
+  /** Is the area this cell belongs to open? (The market is always open.) */
+  isAreaOpen(tx: number, ty: number): boolean {
+    const t = this.terrainAt(tx, ty);
+    return t === 'market' || this.areas.has('hotel');
+  }
+
+  checkPlace(def: BuildingDef, tx: number, ty: number): 'ok' | 'blocked' | 'zone' | 'adjacent' | 'area' {
     let zoneOk = true;
+    let areaOk = true;
     for (let x = 0; x < def.w; x++) {
       for (let y = 0; y < def.h; y++) {
         if (!this.inBounds(tx + x, ty + y)) return 'blocked';
         if (this.cell(tx + x, ty + y) !== FREE) return 'blocked';
         if (!zoneAllows(def.zone, this.terrainAt(tx + x, ty + y))) zoneOk = false;
+        if (!this.isAreaOpen(tx + x, ty + y)) areaOk = false;
       }
     }
     if (!zoneOk) return 'zone';
+    if (!areaOk) return 'area';
     // Crossings need a free column on both sides, so spirits can't hop between them.
     if (def.crossing) {
       for (let y = 0; y < def.h; y++) {
@@ -298,6 +385,12 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('tool', tool);
   }
 
+  /** R while placing: turn the next building. */
+  rotateBuild(): void {
+    this.buildRot = ((this.buildRot + 1) % 4) as Rot;
+    this.emit('tool', this.tool);
+  }
+
   /** Building and demolishing only happen during the day. */
   get canBuild(): boolean {
     return this.phase === 'day';
@@ -312,7 +405,7 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('money', this.money);
   }
 
-  place(id: BuildingId, tx: number, ty: number, free = false): PlaceResult {
+  place(id: BuildingId, tx: number, ty: number, free = false, rot: Rot = 0): PlaceResult {
     const def = getBuilding(id);
     if (!free && !this.canBuild) return 'night';
     if (!free && !this.isUnlocked(def)) return 'locked';
@@ -320,7 +413,7 @@ export class GameState extends Emitter<StateEvents> {
     if (check !== 'ok') return check;
     if (!free && !this.canAfford(def.cost)) return 'money';
 
-    const building: PlacedBuilding = { uid: this.nextUid++, def, tx, ty };
+    const building: PlacedBuilding = { uid: this.nextUid++, def, tx, ty, rot };
     this.buildings.set(building.uid, building);
     for (let x = 0; x < def.w; x++) {
       for (let y = 0; y < def.h; y++) this.setCell(tx + x, ty + y, building.uid);
@@ -329,6 +422,49 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('placed', building);
     if (def.staff) this.autoAssign(building);
     return 'ok';
+  }
+
+  /** Turn a building so its door(s) face the next side (by day only). */
+  rotate(uid: number): boolean {
+    const b = this.buildings.get(uid);
+    if (!b || !this.canBuild || !hasDoors(b.def)) return false;
+    this.emit('removed', b);
+    b.rot = ((b.rot + 1) % 4) as Rot;
+    this.emit('placed', b);
+    if (this.selection?.kind === 'building' && this.selection.uid === uid) this.emit('selection', this.selection);
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // level and areas
+  // ---------------------------------------------------------------------------
+
+  /** Experience needed for the next level (null at the top). */
+  get nextLevelXp(): number | null {
+    return LEVEL_XP[this.level] ?? null;
+  }
+
+  addXp(amount: number): void {
+    this.xp += Math.round(amount);
+    let up = false;
+    while (this.nextLevelXp !== null && this.xp >= this.nextLevelXp) {
+      this.level++;
+      up = true;
+    }
+    if (up) this.emit('level', this.level);
+  }
+
+  canOpenArea(id: AreaId): boolean {
+    const a = AREAS[id];
+    return !this.areas.has(id) && this.level >= a.level && this.money >= a.cost;
+  }
+
+  openArea(id: AreaId): boolean {
+    if (!this.canOpenArea(id)) return false;
+    this.addMoney(-AREAS[id].cost);
+    this.areas.add(id);
+    this.emit('area', id);
+    return true;
   }
 
   /** Removes a building and refunds part of its cost. */
@@ -350,6 +486,8 @@ export class GameState extends Emitter<StateEvents> {
     this.reserved.delete(uid);
     this.onBridge.delete(uid);
     this.waitingAt.delete(uid);
+    this.lines.delete(uid);
+    this.serving.delete(uid);
     const refund = Math.floor(def.cost * DEMOLISH_REFUND);
     this.addMoney(refund);
     this.emit('removed', building);
@@ -424,6 +562,7 @@ export class GameState extends Emitter<StateEvents> {
       const target = post ?? this.unstaffed(role)[0]?.uid;
       if (target !== undefined) this.assign(member.id, target);
     }
+    if (this.selection?.kind === 'building' && post !== undefined) this.emit('selection', this.selection);
     this.emit('staff');
     return member;
   }
@@ -446,17 +585,25 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('staff');
   }
 
-  /** Move a worker to a building (null = no job). Whoever worked there before loses the job. */
+  /** How many places for a job a building has. */
+  slotsFor(b: PlacedBuilding, role: Role): number {
+    return b.def.staff?.filter((r) => r === role).length ?? 0;
+  }
+
+  /**
+   * Move a worker to a building (null = no job). If all places for that job
+   * are taken, the worker who was there first loses the job.
+   */
   assign(id: number, uid: number | null): boolean {
     const m = this.staff.get(id);
     if (!m || m.role === 'cleaner') return false;
     if (uid !== null) {
       const b = this.buildings.get(uid);
-      if (b?.def.staff !== m.role) return false;
-      const previous = this.staffAt(uid);
-      if (previous && previous.id !== id) {
-        previous.post = null;
-        previous.onDuty = false;
+      if (!b || this.slotsFor(b, m.role) === 0) return false;
+      const same = this.staffOf(uid).filter((o) => o.role === m.role && o.id !== id);
+      if (m.post !== uid && same.length >= this.slotsFor(b, m.role)) {
+        same[0].post = null;
+        same[0].onDuty = false;
       }
     }
     if (m.post !== uid) {
@@ -467,10 +614,16 @@ export class GameState extends Emitter<StateEvents> {
     return true;
   }
 
-  /** Worker assigned to a building. */
-  staffAt(uid: number): StaffMember | undefined {
-    for (const m of this.staff.values()) if (m.post === uid) return m;
-    return undefined;
+  /** Workers assigned to a building. */
+  staffOf(uid: number): StaffMember[] {
+    return [...this.staff.values()].filter((m) => m.post === uid);
+  }
+
+  /** Jobs at a building that have nobody yet (each job listed once). */
+  missingRoles(b: PlacedBuilding): Role[] {
+    const roles = [...new Set(b.def.staff ?? [])];
+    const here = this.staffOf(b.uid);
+    return roles.filter((r) => !here.some((m) => m.role === r));
   }
 
   /** Workers of a role without a job. */
@@ -478,26 +631,42 @@ export class GameState extends Emitter<StateEvents> {
     return [...this.staff.values()].filter((m) => m.role === role && m.post === null);
   }
 
-  /** Buildings that need a worker of this role and have none. */
+  /**
+   * Buildings with a free place for this job: first those that lack the job
+   * completely (they are closed without it), then those with extra places.
+   */
   unstaffed(role: Role): PlacedBuilding[] {
-    return [...this.buildings.values()].filter((b) => b.def.staff === role && !this.staffAt(b.uid));
+    const list = [...this.buildings.values()].filter(
+      (b) => this.staffOf(b.uid).filter((m) => m.role === role).length < this.slotsFor(b, role),
+    );
+    const lacking = (b: PlacedBuilding) => (this.missingRoles(b).includes(role) ? 0 : 1);
+    return list.sort((a, b) => lacking(a) - lacking(b));
   }
 
+  /** Fill the places of a new building with workers who have no job. */
   private autoAssign(b: PlacedBuilding): void {
-    const role = b.def.staff;
-    if (!role || this.staffAt(b.uid)) return;
-    const idle = this.idleStaff(role)[0];
-    if (idle) this.assign(idle.id, b.uid);
+    for (const role of b.def.staff ?? []) {
+      if (this.staffOf(b.uid).filter((m) => m.role === role).length >= this.slotsFor(b, role)) continue;
+      const idle = this.idleStaff(role)[0];
+      if (idle) this.assign(idle.id, b.uid);
+    }
   }
 
-  /** Someone is (or will be) working here, or nobody is needed. */
+  /** Every job here has someone (who may still be on the way), or nobody is needed. */
   isServed(b: PlacedBuilding): boolean {
-    return !b.def.staff || this.staffAt(b.uid) !== undefined;
+    return this.missingRoles(b).length === 0;
   }
 
-  /** Staffed buildings only work while their worker stands at the post. */
+  /** Staffed buildings only work while at least one worker of every job is on duty. */
   isOpen(b: PlacedBuilding): boolean {
-    return !b.def.staff || this.staffAt(b.uid)?.onDuty === true;
+    if (!b.def.staff) return true;
+    const here = this.staffOf(b.uid);
+    return [...new Set(b.def.staff)].every((r) => here.some((m) => m.role === r && m.onDuty));
+  }
+
+  /** Workers of a job on duty at a building. */
+  onDutyCount(uid: number, role: Role): number {
+    return this.staffOf(uid).filter((m) => m.role === role && m.onDuty).length;
   }
 
   setOnDuty(id: number, onDuty: boolean): void {
@@ -600,6 +769,61 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   // ---------------------------------------------------------------------------
+  // queues
+  // ---------------------------------------------------------------------------
+
+  /** Get in line at a building. */
+  joinQueue(uid: number, spiritId: number): void {
+    const line = this.lines.get(uid) ?? [];
+    if (!line.includes(spiritId)) line.push(spiritId);
+    this.lines.set(uid, line);
+  }
+
+  leaveQueue(uid: number, spiritId: number): void {
+    const line = this.lines.get(uid);
+    if (!line) return;
+    const i = line.indexOf(spiritId);
+    if (i >= 0) line.splice(i, 1);
+  }
+
+  /** Place in line (0 = next), or -1. */
+  queuePosition(uid: number, spiritId: number): number {
+    return this.lines.get(uid)?.indexOf(spiritId) ?? -1;
+  }
+
+  queueLength(uid: number): number {
+    return this.lines.get(uid)?.length ?? 0;
+  }
+
+  /** The first guest in line gets served if the building is open and has a free place. */
+  tryServe(uid: number, spiritId: number): boolean {
+    const b = this.buildings.get(uid);
+    if (!b || !this.isOpen(b)) return false;
+    const line = this.lines.get(uid);
+    if (!line || line[0] !== spiritId) return false;
+    const busy = this.serving.get(uid) ?? 0;
+    if (busy >= (b.def.restaurant?.tables ?? b.def.service?.slots ?? 1)) return false;
+    line.shift();
+    this.serving.set(uid, busy + 1);
+    return true;
+  }
+
+  /** Guests being served right now (taken tables in a restaurant). */
+  servingCount(uid: number): number {
+    return this.serving.get(uid) ?? 0;
+  }
+
+  endServe(uid: number): void {
+    const n = this.serving.get(uid) ?? 0;
+    if (n > 0) this.serving.set(uid, n - 1);
+  }
+
+  /** A guest gave up waiting. */
+  recordAngry(): void {
+    this.night.angry++;
+  }
+
+  // ---------------------------------------------------------------------------
   // bridges
   // ---------------------------------------------------------------------------
 
@@ -691,8 +915,14 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   /** A spirit paid at a building. */
-  earn(amount: number, where: Cell): void {
+  earn(amount: number, where: Cell, source?: BuildingId): void {
     this.night.earned += amount;
+    if (source) {
+      const sale = this.sales.get(source) ?? { id: source, count: 0, coins: 0 };
+      sale.count++;
+      sale.coins += amount;
+      this.sales.set(source, sale);
+    }
     this.addMoney(amount);
     this.emit('earned', amount, where);
   }
@@ -708,9 +938,27 @@ export class GameState extends Emitter<StateEvents> {
     this.night.lost++;
   }
 
-  /** How many spirits should be out tonight (sleepers included). */
+  /** Sales of the running night, biggest first. */
+  salesTonight(): { sales: Sale[]; earned: number } {
+    return { sales: [...this.sales.values()].sort((a, b) => b.coins - a.coins), earned: this.night.earned };
+  }
+
+  /** How many guests the market can serve: sum over all buildings. */
+  popularity(): number {
+    let sum = 0;
+    for (const b of this.buildings.values()) sum += popularityOf(b.def);
+    return sum;
+  }
+
+  /**
+   * How many spirits come tonight (sleepers included): a few always come,
+   * every attractive building draws more, reputation scales it, the area caps it.
+   */
   guestsTonight(): number {
-    return GUESTS_BASE + Math.floor(this.reputation / GUESTS_PER_REPUTATION);
+    const repFactor = 0.6 + this.reputation / 125;
+    const wanted = (GUESTS_BASE + this.popularity() * GUESTS_PER_POPULARITY) * repFactor;
+    const cap = this.areas.has('hotel') ? AREAS.hotel.guestCap : MARKET_GUEST_CAP;
+    return Math.min(cap, GUEST_CAP, Math.round(wanted));
   }
 
   // ---------------------------------------------------------------------------
@@ -763,6 +1011,16 @@ export class GameState extends Emitter<StateEvents> {
     this.setSpeed(steps[(i + 1) % steps.length]);
   }
 
+  /** The night can be skipped once every guest is gone and nobody else is coming. */
+  get canSkipNight(): boolean {
+    return this.phase === 'night' && this.spiritCount === 0 && this.pendingArrivals === 0;
+  }
+
+  /** Jump straight to the morning (the scene sends workers home first). */
+  endNightNow(): void {
+    if (this.phase === 'night') this.endNight();
+  }
+
   /** Skip the rest of the day. */
   startNightNow(): void {
     if (this.phase === 'day') this.timeLeft = 0;
@@ -787,7 +1045,8 @@ export class GameState extends Emitter<StateEvents> {
     this.phase = 'night';
     this.timeLeft = NIGHT_MS;
     this.dawnStarted = false;
-    this.night = { safe: 0, lost: 0, happy: 0, unhappy: 0, earned: 0, staffLost: 0, cleaned: 0 };
+    this.night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0 };
+    this.sales.clear();
     if (this.tool) this.setTool(null);
     this.emit('phase', 'night');
   }
@@ -798,6 +1057,9 @@ export class GameState extends Emitter<StateEvents> {
     this.reserved.clear();
     this.onBridge.clear();
     this.waitingAt.clear();
+    this.lines.clear();
+    this.serving.clear();
+    this.pendingArrivals = 0;
 
     const rooms = this.hotels().reduce((sum, h) => sum + (this.sleepers.get(h.uid) ?? 0) * h.def.hotel!.price, 0);
     if (rooms > 0) this.addMoney(rooms);
@@ -806,7 +1068,10 @@ export class GameState extends Emitter<StateEvents> {
     for (const m of this.staff.values()) m.onDuty = false;
 
     const n = this.night;
-    const repDelta = n.happy * REP_HAPPY + n.unhappy * REP_UNHAPPY + n.lost * REP_LOST;
+    const xpGained = Math.round(n.earned * XP_PER_COIN + n.happy * XP_PER_HAPPY);
+    this.addXp(xpGained);
+    const guests = Math.max(1, n.safe + n.lost);
+    const repDelta = Math.round((REP_MOOD * (n.happy - n.unhappy) + REP_LOST * n.lost) / guests);
     this.reputation = Math.max(0, Math.min(REPUTATION_MAX, this.reputation + repDelta));
     this.emit('reputation', this.reputation);
 
@@ -814,21 +1079,28 @@ export class GameState extends Emitter<StateEvents> {
     this.phase = 'day';
     this.timeLeft = DAY_MS;
     this.emit('phase', 'day');
-    this.emit('report', {
+    const report: NightReport = {
       day: this.day,
       safe: n.safe,
       lost: n.lost,
       happy: n.happy,
       unhappy: n.unhappy,
+      angry: n.angry,
       earned: n.earned,
       rooms,
       wages,
       staffLost: n.staffLost,
       cleaned: n.cleaned,
       dirty: this.dirtyCells().length,
+      xp: xpGained,
+      level: this.level,
+      sales: this.salesTonight().sales,
+      net: n.earned + rooms - wages,
       repDelta,
       reputation: this.reputation,
-    });
+    };
+    this.lastReport = report;
+    this.emit('report', report);
   }
 
   /** For testing in the browser console: jump close to the next phase change. */

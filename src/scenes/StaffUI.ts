@@ -1,69 +1,135 @@
 import * as Phaser from 'phaser';
 import { BAR_HEIGHT, COLORS, FONT_TITLE, FONT_UI } from '../config';
-import { ROLES, STAFF } from '../data/staff';
+import { ROLES, STAFF, type Role } from '../data/staff';
 import { STR } from '../data/strings';
-import { state, type PlacedBuilding, type StaffMember } from '../state/GameState';
+import { TEX } from '../gfx/textures';
+import { hasDoors, state, type PlacedBuilding, type StaffMember, type StaffStatus } from '../state/GameState';
 
-const STAFF_W = 300;
+const CARD_W = 86;
+const CARD_H = 84;
+const CARD_GAP = 6;
+const CHIP_W = 118;
+const CHIP_H = 22;
 const INFO_W = 290;
-const ROW_H = 22;
 const REFRESH_MS = 400;
 
-interface Rect {
+export interface Rect {
   x: number;
   y: number;
   w: number;
   h: number;
 }
 
+/** Callbacks into the UI scene and the world. */
+export interface UIHooks {
+  /** Text for the hint line while hovering (null = clear). */
+  hover(text: string | null): void;
+  /** Short message in the hint line. */
+  flash(text: string): void;
+  /** Pan the world camera to a worker. */
+  focusWorker(id: number): void;
+}
+
+/** Colour of the little dot next to a worker's name. */
+const STATUS_COLOR: Record<StaffStatus, number> = {
+  asleep: 0x6b6580,
+  off: 0x6b6580,
+  toPost: 0xf2c46a,
+  toHome: 0xf2c46a,
+  roam: 0x8fc4ff,
+  cleaning: 0x9fe0a8,
+  onDuty: 0x9fe0a8,
+  idle: 0xa79fb8,
+  stuck: 0xff8a7a,
+};
+
 /**
- * The staff panel (hire, list, dismiss) and the info panel for whatever the
- * player clicked (a building or a worker). Both are rebuilt from the game
- * state a few times per second; there are only a handful of objects.
+ * Everything about workers in the interface:
+ * - the Workers tab of the bottom bar (one card per job to hire, plus the roster)
+ * - the info panel for whatever the player clicked (a building or a worker)
+ * Both are rebuilt from the game state a few times per second.
  */
 export class StaffUI {
-  private staffPanel: Phaser.GameObjects.Container;
+  private bar: Phaser.GameObjects.Container;
   private infoPanel: Phaser.GameObjects.Container;
-  private staffRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private infoRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
-  private open = false;
-  private timer: Phaser.Time.TimerEvent;
+  private barArea: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private barShown = false;
+  /** Element the pointer is over; panels are rebuilt often, so hover is tracked by key. */
+  private hoverKey: string | null = null;
 
   constructor(
     private scene: Phaser.Scene,
-    /** Shows a message in the hint line (null = clear). */
-    private setHover: (text: string | null) => void,
-    /** Pan the world camera to a worker. */
-    private focusWorker: (id: number) => void,
-    /** Top edge for the staff panel at screen x with width w. */
-    private topFor: (x: number, w: number) => number,
+    private hooks: UIHooks,
   ) {
-    this.staffPanel = scene.add.container(0, 0).setVisible(false);
+    this.bar = scene.add.container(0, 0).setVisible(false);
     this.infoPanel = scene.add.container(0, 0).setVisible(false);
-    this.timer = scene.time.addEvent({ delay: REFRESH_MS, loop: true, callback: () => this.refresh() });
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.timer.remove());
+    const timer = scene.time.addEvent({ delay: REFRESH_MS, loop: true, callback: () => this.refresh() });
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => timer.remove());
   }
 
-  get isOpen(): boolean {
-    return this.open;
+  /** Show or hide the Workers tab content. */
+  showBar(shown: boolean): void {
+    this.barShown = shown;
+    this.buildBar();
   }
 
-  toggle(): void {
-    this.open = !this.open;
+  /** Area of the bottom bar below the tabs. */
+  setBarArea(area: Rect): void {
+    this.barArea = area;
     this.refresh();
   }
 
-  /** Screen areas covered by the panels. */
+  /** Screen areas covered by floating panels. */
   rects(): Rect[] {
-    const out: Rect[] = [];
-    if (this.staffPanel.visible) out.push(this.staffRect);
-    if (this.infoPanel.visible) out.push(this.infoRect);
-    return out;
+    return this.infoPanel.visible ? [this.infoRect] : [];
   }
 
   refresh(): void {
-    this.buildStaffPanel();
+    const prev = this.hoverKey;
+    this.hoverKey = null;
+    this.restoring = prev;
+    this.restoreCheck = null;
+    this.buildBar();
     this.buildInfoPanel();
+    this.restoring = null;
+    // Check only now, when every element has its final position.
+    const check = this.restoreCheck as (() => void) | null;
+    this.restoreCheck = null;
+    check?.();
+    if (prev !== null && this.hoverKey === null) this.hooks.hover(null);
+  }
+
+  /** Key of the hovered element while rebuilding. */
+  private restoring: string | null = null;
+  private restoreCheck: (() => void) | null = null;
+
+  /**
+   * Hover text for an element. Rebuilt elements under the pointer keep their
+   * text (Phaser only sends "pointer over" once the mouse moves again).
+   */
+  private track(obj: Phaser.GameObjects.Rectangle, key: string, info: string, onOver?: () => void, onOut?: () => void): void {
+    obj.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      this.hoverKey = key;
+      this.hooks.hover(info);
+      onOver?.();
+    });
+    obj.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      if (this.hoverKey === key) {
+        this.hoverKey = null;
+        this.hooks.hover(null);
+      }
+      onOut?.();
+    });
+    if (this.restoring === key) {
+      this.restoreCheck = () => {
+        const p = this.scene.input.activePointer;
+        if (!obj.active || !obj.getBounds().contains(p.x, p.y)) return;
+        this.hoverKey = key;
+        this.hooks.hover(info);
+        onOver?.();
+      };
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -79,48 +145,34 @@ export class StaffUI {
     });
   }
 
-  private button(
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    label: string,
-    onClick: () => void,
-    enabled = true,
-    hover?: string,
-  ): Phaser.GameObjects.GameObject[] {
+  /** Runs `fn` after the current input event, because rebuilding destroys the clicked object. */
+  private later(fn: () => void): void {
+    this.scene.time.delayedCall(0, () => {
+      fn();
+      this.refresh();
+    });
+  }
+
+  private button(x: number, y: number, w: number, label: string, onClick: () => void, enabled = true, hover?: string): Phaser.GameObjects.GameObject[] {
+    const h = 22;
     const bg = this.scene.add
       .rectangle(x, y, w, h, enabled ? COLORS.uiButton : COLORS.uiPanel)
       .setOrigin(0)
       .setStrokeStyle(1, COLORS.uiPanelEdge)
       .setInteractive({ useHandCursor: enabled });
     const t = this.text(x + w / 2, y + h / 2, label, enabled ? COLORS.uiText : COLORS.uiTextDim, 11, true).setOrigin(0.5);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
-      if (enabled) bg.setStrokeStyle(1, COLORS.uiAccent);
-      if (hover) this.setHover(hover);
-    });
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
-      bg.setStrokeStyle(1, COLORS.uiPanelEdge);
-      if (hover) this.setHover(null);
-    });
+    this.track(
+      bg,
+      `btn:${label}`,
+      hover ?? '',
+      () => enabled && bg.setStrokeStyle(1, COLORS.uiAccent),
+      () => bg.setStrokeStyle(1, COLORS.uiPanelEdge),
+    );
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, (p: Phaser.Input.Pointer) => {
       if (p.button !== 0 || !enabled) return;
-      if (hover) this.setHover(null);
-      // Rebuilding destroys this button: act after the input event is done.
-      this.scene.time.delayedCall(0, () => {
-        onClick();
-        this.refresh();
-      });
+      this.later(onClick);
     });
     return [bg, t];
-  }
-
-  private hireButton(x: number, y: number, w: number, role: (typeof ROLES)[number], post?: number, label?: string) {
-    const r = STAFF[role];
-    const check = state.canHire(role);
-    const hover = check === 'beds' ? STR.hireNoBeds : STR.hireInfo(r.hire, r.wage);
-    const text = label ?? `${STR.roleIcons[role]} ${STR.roles[role]} ${r.hire}`;
-    return this.button(x, y, w, 22, text, () => state.hire(role, post), check === 'ok', hover);
   }
 
   private postName(m: StaffMember): string {
@@ -129,78 +181,118 @@ export class StaffUI {
     return b ? STR.buildings[b.def.id] : STR.postNone;
   }
 
-  private statusText(m: StaffMember): string {
-    if (m.status === 'asleep' && m.role !== 'cleaner' && m.post === null) return STR.staffStatus.off;
-    return STR.staffStatus[m.status];
+  private statusOf(m: StaffMember): StaffStatus {
+    return m.status === 'asleep' && m.role !== 'cleaner' && m.post === null ? 'off' : m.status;
+  }
+
+  /** Hire a worker; explains in the hint line why it did not work. */
+  private hire(role: Role, post?: number): void {
+    const result = state.hire(role, post);
+    if (result === 'beds') this.hooks.flash(STR.hireNoBeds);
+    else if (result === 'money') this.hooks.flash(STR.notEnoughCoins);
+    else if (typeof result !== 'string') this.hooks.flash(STR.hired(result.name, STR.roles[role]));
   }
 
   // ---------------------------------------------------------------------------
-  // staff panel
+  // Workers tab
   // ---------------------------------------------------------------------------
 
-  private buildStaffPanel(): void {
-    const panel = this.staffPanel;
-    panel.removeAll(true);
-    panel.setVisible(this.open);
-    if (!this.open) return;
+  private buildBar(): void {
+    const bar = this.bar;
+    bar.removeAll(true);
+    bar.setVisible(this.barShown);
+    if (!this.barShown) return;
 
-    const x = Math.max(8, this.scene.scale.width - STAFF_W - 8);
-    const y = this.topFor(x, STAFF_W);
-    const maxH = this.scene.scale.height - BAR_HEIGHT - y - 50;
-    const parts: Phaser.GameObjects.GameObject[] = [];
+    const { x, y, w, h } = this.barArea;
+    const byRole = state.staffByRole();
+    const cardsW = ROLES.length * (CARD_W + CARD_GAP) - CARD_GAP;
+    const scale = Math.min(1, (w - 20) / (cardsW + CHIP_W + 20), h / CARD_H);
+    const top = y + Math.round((h - CARD_H * scale) / 2);
 
-    parts.push(this.text(10, 8, STR.staffTitle(state.staff.size, state.staffBeds()), COLORS.uiGold, 15).setFontFamily(FONT_TITLE));
-    parts.push(this.text(10, 30, `Wages ${state.wages()} per night`, COLORS.uiTextDim, 11));
-
-    // Hire buttons, two per row.
-    let row = 48;
+    // One card per job: click to hire.
     ROLES.forEach((role, i) => {
-      const bx = 10 + (i % 2) * 142;
-      const by = row + Math.floor(i / 2) * 26;
-      parts.push(...this.hireButton(bx, by, 138, role));
+      const card = this.roleCard(role, byRole[role]);
+      card.setPosition(x + 10 + i * (CARD_W + CARD_GAP) * scale, top).setScale(scale);
+      bar.add(card);
     });
-    row += 2 * 26 + 6;
 
+    // Roster on the right: one chip per worker, click to select.
+    const rx = x + 10 + cardsW * scale + 16;
+    const rw = x + w - 10 - rx;
+    const header = state.staffBeds() && rw < 260 ? STR.staffShort(state.staff.size, state.staffBeds()) : STR.staffTitle(state.staff.size, state.staffBeds(), state.wages());
+    bar.add(this.text(rx, y + 2, header, COLORS.uiTextDim, 11));
+    const cols = Math.max(0, Math.floor((rw + 4) / (CHIP_W + 4)));
+    const rows = Math.max(1, Math.floor((h - 20) / (CHIP_H + 4)));
     const members = [...state.staff.values()];
-    if (!members.length) {
-      parts.push(this.text(10, row, STR.staffEmpty, COLORS.uiTextDim, 11).setWordWrapWidth(STAFF_W - 20));
-      row += 30;
+    if (!members.length || cols === 0) {
+      bar.add(this.text(rx, y + 22, members.length ? STR.staffCount(members.length) : STR.staffEmpty, COLORS.uiTextDim, 11).setWordWrapWidth(Math.max(120, rw)));
+      return;
     }
-    const fit = Math.max(1, Math.floor((maxH - row - 10) / ROW_H));
-    const shown = members.slice(0, fit);
-    const selected = state.selection?.kind === 'staff' ? state.selection.id : null;
-    for (const m of shown) {
-      const bg = this.scene.add
-        .rectangle(6, row, STAFF_W - 12, ROW_H - 2, m.id === selected ? COLORS.uiButtonActive : COLORS.uiButton, 0.8)
-        .setOrigin(0)
-        .setInteractive({ useHandCursor: true });
-      bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, (p: Phaser.Input.Pointer) => {
-        if (p.button !== 0) return;
-        this.scene.time.delayedCall(0, () => {
-          state.select({ kind: 'staff', id: m.id });
-          this.focusWorker(m.id);
-          this.refresh();
-        });
-      });
-      const color = m.status === 'stuck' ? COLORS.uiRed : COLORS.uiTextDim;
-      parts.push(
-        bg,
-        this.text(12, row + 3, `${STR.roleIcons[m.role]} ${m.name}`, COLORS.uiText, 12, true),
-        this.text(96, row + 4, `${this.statusText(m)} · ${this.postName(m)}`, color, 10),
-        ...this.button(STAFF_W - 30, row + 1, 22, ROW_H - 4, '✕', () => state.fire(m.id), true, `${STR.fire} ${m.name}`),
+    const slots = cols * rows;
+    const shown = members.length > slots ? members.slice(0, slots - 1) : members;
+    shown.forEach((m, i) => {
+      const cx = rx + (i % cols) * (CHIP_W + 4);
+      const cy = y + 20 + Math.floor(i / cols) * (CHIP_H + 4);
+      bar.add(this.chip(m, cx, cy));
+    });
+    if (shown.length < members.length) {
+      const i = shown.length;
+      bar.add(
+        this.text(rx + (i % cols) * (CHIP_W + 4) + 8, y + 24 + Math.floor(i / cols) * (CHIP_H + 4), STR.more(members.length - shown.length), COLORS.uiTextDim, 11),
       );
-      row += ROW_H;
     }
-    if (members.length > shown.length) {
-      parts.push(this.text(10, row + 2, `+${members.length - shown.length} more`, COLORS.uiTextDim, 11));
-      row += 18;
-    }
+  }
 
-    const h = row + 8;
-    const bg = this.scene.add.rectangle(0, 0, STAFF_W, h, COLORS.uiPanel, 0.94).setOrigin(0).setStrokeStyle(1, COLORS.uiPanelEdge);
-    panel.add([bg, ...parts]);
-    panel.setPosition(x, y);
-    this.staffRect = { x, y, w: STAFF_W, h };
+  private roleCard(role: Role, members: StaffMember[]): Phaser.GameObjects.Container {
+    const r = STAFF[role];
+    const check = state.canHire(role);
+    const ok = check === 'ok';
+    const c = this.scene.add.container(0, 0);
+    const bg = this.scene.add.rectangle(0, 0, CARD_W, CARD_H, COLORS.uiButton).setOrigin(0).setStrokeStyle(1, COLORS.uiPanelEdge);
+    const icon = this.scene.add.image(CARD_W / 2, 44, TEX.worker(role)).setOrigin(0.5, 1).setAlpha(ok ? 1 : 0.45);
+    const name = this.text(CARD_W / 2, 48, `${STR.roleIcons[role]} ${STR.roles[role]}`, COLORS.uiText, 11).setOrigin(0.5, 0);
+    const coin = this.scene.add.image(12, 72, TEX.coin).setScale(0.55);
+    const cost = this.text(20, 72, String(r.hire), ok || check === 'beds' ? COLORS.uiGold : COLORS.uiRed, 11, true).setOrigin(0, 0.5);
+    const wage = this.text(CARD_W - 6, 72, STR.perNight(r.wage), COLORS.uiTextDim, 10).setOrigin(1, 0.5);
+    const count = this.text(CARD_W - 5, 4, members.length ? `×${members.length}` : '', COLORS.uiGold, 11, true).setOrigin(1, 0);
+    const idle = members.filter((m) => m.role !== 'cleaner' && m.post === null).length;
+    const info = STR.roleInfo(STR.roles[role], STR.roleWorksAt[role], r.hire, r.wage, members.length, idle);
+    bg.setInteractive({ useHandCursor: true });
+    c.add([bg, icon, name, coin, cost, wage, count]);
+    this.track(
+      bg,
+      `card:${role}`,
+      check === 'beds' ? `${info}  ·  ${STR.hireNoBeds}` : info,
+      () => bg.setFillStyle(COLORS.uiButtonHover).setStrokeStyle(1, COLORS.uiAccent),
+      () => bg.setFillStyle(COLORS.uiButton).setStrokeStyle(1, COLORS.uiPanelEdge),
+    );
+    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, (p: Phaser.Input.Pointer) => {
+      if (p.button !== 0) return;
+      this.later(() => this.hire(role));
+    });
+    return c;
+  }
+
+  private chip(m: StaffMember, x: number, y: number): Phaser.GameObjects.GameObject[] {
+    const selected = state.selection?.kind === 'staff' && state.selection.id === m.id;
+    const status = this.statusOf(m);
+    const bg = this.scene.add
+      .rectangle(x, y, CHIP_W, CHIP_H, selected ? COLORS.uiButtonActive : COLORS.uiButton)
+      .setOrigin(0)
+      .setStrokeStyle(1, selected ? COLORS.uiAccent : COLORS.uiPanelEdge)
+      .setInteractive({ useHandCursor: true });
+    const dot = this.scene.add.circle(x + 9, y + CHIP_H / 2, 4, STATUS_COLOR[status]);
+    const label = this.text(x + 17, y + CHIP_H / 2, `${STR.roleIcons[m.role]} ${m.name}`, COLORS.uiText, 11, true).setOrigin(0, 0.5);
+    const info = `${m.name} · ${STR.roles[m.role]} · ${STR.staffStatus[status]} · ${this.postName(m)}`;
+    this.track(bg, `chip:${m.id}`, info);
+    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, (p: Phaser.Input.Pointer) => {
+      if (p.button !== 0) return;
+      this.later(() => {
+        state.select({ kind: 'staff', id: m.id });
+        this.hooks.focusWorker(m.id);
+      });
+    });
+    return [bg, dot, label];
   }
 
   // ---------------------------------------------------------------------------
@@ -218,48 +310,45 @@ export class StaffUI {
       parts.push(t);
       row += t.height + 4;
     };
-    const buttons = (list: Phaser.GameObjects.GameObject[][]) => {
-      if (!list.length) return;
-      row += 2;
-      parts.push(...list.flat());
-      row += 28;
+    const title = (s: string) => {
+      parts.push(this.text(10, row, s, COLORS.uiGold, 15).setFontFamily(FONT_TITLE));
+      row += 24;
     };
+    const buttons: Array<[string, () => void]> = [];
 
     if (sel?.kind === 'building') {
       const b = state.buildings.get(sel.uid);
       if (!b) return this.hideInfo();
-      parts.push(this.text(10, row, STR.buildings[b.def.id], COLORS.uiGold, 15).setFontFamily(FONT_TITLE));
-      row += 24;
-      this.describeBuilding(b, line);
-      if (b.def.staff) buttons(this.buildingButtons(b, row + 2));
+      title(STR.buildings[b.def.id]);
+      this.describeBuilding(b, line, buttons);
     } else if (sel?.kind === 'staff') {
       const m = state.staff.get(sel.id);
       if (!m) return this.hideInfo();
-      parts.push(this.text(10, row, `${STR.roleIcons[m.role]} ${m.name} · ${STR.roles[m.role]}`, COLORS.uiGold, 15).setFontFamily(FONT_TITLE));
-      row += 24;
-      line(this.statusText(m), m.status === 'stuck' ? COLORS.uiRed : COLORS.uiText);
-      line(this.postName(m), COLORS.uiTextDim);
+      title(`${STR.roleIcons[m.role]} ${m.name} · ${STR.roles[m.role]}`);
+      const status = this.statusOf(m);
+      line(STR.staffStatus[status], status === 'stuck' ? COLORS.uiRed : COLORS.uiText);
+      line(`${this.postName(m)}  ·  ${STR.perNight(STAFF[m.role].wage)}`, COLORS.uiTextDim);
       line(m.role === 'cleaner' ? STR.hintCleanerSelected : STR.hintStaffSelected(STR.roles[m.role].toLowerCase()), COLORS.uiTextDim);
-      const list: Phaser.GameObjects.GameObject[][] = [];
-      let bx = 10;
-      const add = (label: string, fn: () => void) => {
-        list.push(this.button(bx, row + 2, 100, 22, label, fn));
-        bx += 106;
-      };
-      if (m.role !== 'cleaner' && m.post !== null) add(STR.unassign, () => state.assign(m.id, null));
-      if (m.role === 'cleaner' && m.focus) add(STR.clearArea, () => state.setFocus(m.id, null));
-      add(STR.fire, () => state.fire(m.id));
-      buttons(list);
+      if (m.role !== 'cleaner' && m.post !== null) buttons.push([STR.unassign, () => state.assign(m.id, null)]);
+      if (m.role === 'cleaner' && m.focus) buttons.push([STR.clearArea, () => state.setFocus(m.id, null)]);
+      buttons.push([STR.fire, () => state.fire(m.id)]);
     } else {
       return this.hideInfo();
     }
 
-    const w = this.scene.scale.width;
+    if (buttons.length) {
+      const bw = Math.floor((INFO_W - 20 - (buttons.length - 1) * 6) / buttons.length);
+      buttons.forEach(([label, fn], i) => parts.push(...this.button(10 + i * (bw + 6), row + 2, bw, label, fn)));
+      row += 30;
+    }
+
     const h = row + 6;
-    const x = w - INFO_W - 8;
+    const x = this.scene.scale.width - INFO_W - 8;
     const y = this.scene.scale.height - BAR_HEIGHT - h - 34;
     const bg = this.scene.add.rectangle(0, 0, INFO_W, h, COLORS.uiPanel, 0.94).setOrigin(0).setStrokeStyle(1, COLORS.uiAccent);
-    panel.add([bg, ...parts]);
+    const close = this.text(INFO_W - 18, 6, '✕', COLORS.uiTextDim, 13).setInteractive({ useHandCursor: true });
+    close.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => this.later(() => state.select(null)));
+    panel.add([bg, ...parts, close]);
     panel.setPosition(x, y).setVisible(true);
     this.infoRect = { x, y, w: INFO_W, h };
   }
@@ -268,37 +357,44 @@ export class StaffUI {
     this.infoPanel.setVisible(false);
   }
 
-  /** Status lines for a building. */
-  private describeBuilding(b: PlacedBuilding, line: (s: string, color?: string) => void): void {
+  /** Status lines and buttons for a building. */
+  private describeBuilding(
+    b: PlacedBuilding,
+    line: (s: string, color?: string) => void,
+    buttons: Array<[string, () => void]>,
+  ): void {
     const { def } = b;
-    if (def.hotel) line(STR.bedsUsed(state.sleepersIn(b.uid), def.hotel.beds));
+    if (hasDoors(def) && state.canBuild) buttons.push([STR.rotate, () => state.rotate(b.uid)]);
+    if (def.provides) line(STR.sells(STR.needIcons[def.provides.need], def.provides.price), COLORS.uiTextDim);
+    if (def.hotel) line(STR.bedsUsed(state.sleepersIn(b.uid), def.hotel.beds, def.hotel.price));
     if (def.staffBeds) line(STR.staffHouse(state.staff.size, state.staffBeds()));
     if (def.bin) line(STR.catchesLitter, COLORS.uiTextDim);
-    const role = def.staff;
-    if (!role) return;
+    if (def.restaurant && def.cuisine) {
+      line(STR.restaurantInfo(STR.cuisines[def.cuisine], def.restaurant.tables), COLORS.uiTextDim);
+      if (state.phase === 'night') line(STR.tables(state.servingCount(b.uid), def.restaurant.tables));
+    }
+    if (!def.staff) return;
 
-    const roleName = STR.roles[role].toLowerCase();
-    const worker = state.staffAt(b.uid);
-    if (!worker) line(STR.noStaff(roleName), COLORS.uiRed);
+    const missing = state.missingRoles(b);
+    if (missing.length) line(STR.noStaff(missing.map((r) => STR.roles[r].toLowerCase()).join(' + ')), COLORS.uiRed);
     else if (state.phase === 'day') line(STR.dayClosed, COLORS.uiTextDim);
     else if (state.isOpen(b)) line(STR.open, COLORS.uiGreen);
     else line(STR.staffComing, COLORS.uiGold);
-    if (worker) line(STR.worker(`${STR.roleIcons[role]} ${worker.name}`, this.statusText(worker)), COLORS.uiTextDim);
-  }
 
-  /** Assign / hire / unassign buttons for a staffed building, at panel row `rowY`. */
-  private buildingButtons(b: PlacedBuilding, rowY: number): Phaser.GameObjects.GameObject[][] {
-    const role = b.def.staff!;
-    const roleName = STR.roles[role].toLowerCase();
-    const worker = state.staffAt(b.uid);
-    const list: Phaser.GameObjects.GameObject[][] = [];
-    if (worker) {
-      list.push(this.button(10, rowY, 120, 22, STR.unassign, () => state.assign(worker.id, null)));
-    } else {
-      const idle = state.idleStaff(role)[0];
-      if (idle) list.push(this.button(10, rowY, 132, 22, STR.assignIdle(roleName), () => state.assign(idle.id, b.uid)));
-      list.push(this.hireButton(idle ? 148 : 10, rowY, 132, role, b.uid, STR.hireAndAssign(roleName, STAFF[role].hire)));
+    for (const worker of state.staffOf(b.uid)) {
+      line(STR.worker(`${STR.roleIcons[worker.role]} ${worker.name}`, STR.staffStatus[this.statusOf(worker)]), COLORS.uiTextDim);
     }
-    return list;
+
+    // Free places: give the job to someone idle, or hire. Otherwise offer to unassign.
+    const free = [...new Set(def.staff)].filter(
+      (r) => state.staffOf(b.uid).filter((m) => m.role === r).length < state.slotsFor(b, r),
+    );
+    for (const role of free.slice(0, buttons.length ? 1 : 2)) {
+      const idle = state.idleStaff(role)[0];
+      if (idle) buttons.push([STR.assignIdle(idle.name), () => state.assign(idle.id, b.uid)]);
+      else buttons.push([STR.hireAndAssign(STR.roles[role], STAFF[role].hire), () => this.hire(role, b.uid)]);
+    }
+    const first = state.staffOf(b.uid)[0];
+    if (!free.length && first) buttons.push([STR.unassign, () => state.assign(first.id, null)]);
   }
 }
