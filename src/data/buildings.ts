@@ -3,6 +3,7 @@
  * a code change elsewhere. Display names live in strings.ts.
  */
 import type { Era } from './eras';
+import type { Role } from './staff';
 
 export type BuildingId =
   // transport
@@ -23,10 +24,13 @@ export type BuildingId =
   // services
   | 'brazier'
   | 'restroom'
+  | 'bin'
   // hotels
   | 'hotel'
   | 'hotel_grand'
   | 'hotel_sky'
+  | 'staff_lodge'
+  | 'staff_dorm'
   // decor
   | 'lantern'
   | 'gaslamp'
@@ -58,7 +62,9 @@ export type BuildingStyle =
   | 'restroom'
   | 'vending'
   | 'arcade'
-  | 'hotel';
+  | 'hotel'
+  | 'lodge'
+  | 'bin';
 
 /** River crossings: walk across with limited capacity, or ride a shuttling boat. */
 export type Crossing =
@@ -87,6 +93,12 @@ export interface BuildingDef {
   provides?: { need: Need; price: number };
   /** Beds in a hotel and what one night costs. */
   hotel?: { beds: number; price: number };
+  /** Needs a worker with this job on duty to be open. */
+  staff?: Role;
+  /** Beds for workers (staff houses). */
+  staffBeds?: number;
+  /** Catches litter around it. */
+  bin?: boolean;
   /** Warm glow drawn on top at night (position relative to the texture). */
   glow?: { x: number; y: number; radius: number; color?: number };
 }
@@ -193,6 +205,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'stall',
     colors: { main: '#8b5a36', roof: '#c8372d', accent: '#f4e6c8' },
     provides: { need: 'hunger', price: 12 },
+    staff: 'cook',
   },
   {
     id: 'tea',
@@ -207,6 +220,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     colors: { main: '#8a5a3c', roof: '#2f3f5a', accent: '#ffcf7a' },
     provides: { need: 'thirst', price: 10 },
     glow: { x: 0.5, y: 0.82, radius: 70 },
+    staff: 'cook',
   },
   {
     id: 'charm',
@@ -220,6 +234,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'stall',
     colors: { main: '#6e4a33', roof: '#6b4aa0', accent: '#f1e7d0' },
     provides: { need: 'luck', price: 15 },
+    staff: 'clerk',
   },
   {
     id: 'shrine',
@@ -247,6 +262,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     colors: { main: '#6d4c3d', roof: '#3d5a46', accent: '#ffd9a0' },
     provides: { need: 'thirst', price: 16 },
     glow: { x: 0.5, y: 0.82, radius: 80 },
+    staff: 'cook',
   },
   {
     id: 'vending',
@@ -275,6 +291,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     colors: { main: '#2b2440', roof: '#ff4fa3', accent: '#5ff2ff' },
     provides: { need: 'luck', price: 22 },
     glow: { x: 0.5, y: 0.4, radius: 110, color: 0xff6fc0 },
+    staff: 'clerk',
   },
 
   // --- services ------------------------------------------------------------
@@ -305,6 +322,19 @@ export const BUILDINGS: readonly BuildingDef[] = [
     colors: { main: '#7a6650', roof: '#3b4f45', accent: '#e8dcc0' },
     provides: { need: 'relief', price: 3 },
   },
+  {
+    id: 'bin',
+    era: 0,
+    category: 'services',
+    cost: 20,
+    w: 1,
+    h: 1,
+    rise: 14,
+    zone: 'land',
+    style: 'bin',
+    colors: { main: '#5a6b4a', roof: '#3a4632', accent: '#c9c2a8' },
+    bin: true,
+  },
 
   // --- hotels --------------------------------------------------------------
   {
@@ -320,6 +350,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     colors: { main: '#c9a77a', roof: '#7a2e2a', accent: '#ffd48a' },
     hotel: { beds: 12, price: 8 },
     glow: { x: 0.5, y: 0.88, radius: 110 },
+    staff: 'host',
   },
   {
     id: 'hotel_grand',
@@ -334,6 +365,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     colors: { main: '#a8553e', roof: '#3b3b46', accent: '#ffe0a0' },
     hotel: { beds: 24, price: 10 },
     glow: { x: 0.5, y: 0.9, radius: 140 },
+    staff: 'host',
   },
   {
     id: 'hotel_sky',
@@ -348,6 +380,35 @@ export const BUILDINGS: readonly BuildingDef[] = [
     colors: { main: '#3a4a66', roof: '#22283a', accent: '#bfe8ff' },
     hotel: { beds: 40, price: 12 },
     glow: { x: 0.5, y: 0.3, radius: 170, color: 0xff6fc0 },
+    staff: 'host',
+  },
+  {
+    id: 'staff_lodge',
+    era: 0,
+    category: 'hotels',
+    cost: 120,
+    w: 2,
+    h: 2,
+    rise: 50,
+    zone: 'market',
+    style: 'lodge',
+    colors: { main: '#7a5a40', roof: '#4a3a5a', accent: '#ffd48a' },
+    staffBeds: 6,
+    glow: { x: 0.5, y: 0.85, radius: 60 },
+  },
+  {
+    id: 'staff_dorm',
+    era: 1,
+    category: 'hotels',
+    cost: 320,
+    w: 3,
+    h: 2,
+    rise: 80,
+    zone: 'market',
+    style: 'lodge',
+    colors: { main: '#8a4a3a', roof: '#3b3b46', accent: '#ffe0a0' },
+    staffBeds: 14,
+    glow: { x: 0.5, y: 0.85, radius: 80 },
   },
 
   // --- decor ---------------------------------------------------------------

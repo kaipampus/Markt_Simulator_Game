@@ -13,6 +13,35 @@ Vorlage:
 
 ---
 
+## 2026-11-09 – Tagsüber bauen, nachts verwalten
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Bauen und Abreißen gehen nur am Tag. Nachts ist die Bauleiste gesperrt; man kümmert sich um Personal und Sauberkeit (Arbeiter umsetzen, Putzkräfte schicken, einstellen, entlassen).
+**Warum:** Beide Tageshälften haben eine eigene Aufgabe, so hat man immer etwas zu tun.
+**Verworfen:** Bauen nachts nur teurer; nachts nur kleine Bauten erlaubt.
+
+## 2026-11-09 – Personal: Stände und Hotels brauchen Arbeiter
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Jobs Koch, Verkäufer, Gastgeber und Putzkraft. Nudelbude, Teehaus und Café brauchen einen Koch, Glücksbringer-Stand und Spielhalle einen Verkäufer, Hotels einen Gastgeber. Ein Gebäude ist nur geöffnet, solange sein Arbeiter davor steht; Gäste warten kurz (⏳) und geben dann auf. Toilette, Feuerschale, Schrein, Getränkeautomat und Mülleimer brauchen niemanden. Je Gebäude ein Arbeiter. Neue Arbeiter und neue Gebäude werden automatisch zugeteilt, umsetzen geht per Klick. Einstellungsgebühr plus Lohn jeden Morgen (Geld darf ins Minus).
+**Warum:** Arbeiter sind die Aufgabe für die Nacht und machen jeden neuen Stand zu einer kleinen Entscheidung.
+**Verworfen:** Personal nur als Bonus (Stände laufen auch ohne).
+
+## 2026-11-09 – Personalhaus auf der Marktseite, Sonnenregel auch für Arbeiter
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Arbeiter wohnen im Personalhaus (Staff Lodge 6 Betten, Staff Dormitory 14 Betten ab Dampfzeit), das nur auf den Markt darf. Die Bettenzahl begrenzt, wie viele man einstellen kann. Bei Morgengrauen gehen Arbeiter ins nächste Personalhaus; wer bei Sonnenaufgang draußen ist, vergeht und fehlt dann. Gastgeber bleiben im Hotel und schlafen dort. Eine Lodge steht zu Beginn neben dem Startweg.
+**Warum:** Kurze Wege zu den Ständen; gleiche Regel wie für Gäste, damit Infrastruktur auch für das Personal zählt.
+**Verworfen:** Personalhaus im Hotel-Viertel; Arbeiter ohne Sonnenregel.
+
+## 2026-11-09 – Sauberkeit: Müll, Schleim, Mülleimer, Putzkräfte
+**Status:** entschieden (Idee des Nutzers)
+**Entscheidung:** Gäste lassen nach Essen oder Trinken manchmal Müll fallen, außer ein Mülleimer steht in der Nähe (3 Felder). Der neue Schleimgeist (Ooze) hinterlässt Schleimspuren, gegen die nur Putzkräfte helfen. Jedes schmutzige Feld, über das ein Gast läuft, senkt seine Zufriedenheit (bis höchstens −30 %). Putzkräfte suchen selbst den nächsten Schmutz; schickt man sie per Klick an eine Stelle, putzen sie dort zuerst. Schmutz bleibt über den Tag liegen.
+**Warum:** Gibt Putzkräften und Mülleimern einen klaren Zweck und der Nacht etwas zu tun.
+**Verworfen:** Putzen nur per Klick (zu viel Klickarbeit); feste Putzbereiche.
+
+## 2026-11-09 – Gemeinsame Laufklasse für Geister und Arbeiter
+**Status:** entschieden
+**Entscheidung:** Laufen auf Wegen, Anstehen an Brücken und Fährfahren stecken in einer Basisklasse `Walker` (`src/entities/Walker.ts`), von der `Spirit` und `Worker` erben.
+**Warum:** Arbeiter müssen dieselben Regeln einhalten wie Gäste; doppelter Code würde schnell auseinanderlaufen.
+
 ## 2026-11-08 – Entspannt statt stressig: kein Game Over, Zeitsteuerung
 **Status:** entschieden (Wunsch des Nutzers)
 **Entscheidung:** Kein Game Over mehr. Vom Sonnenaufgang erwischte Geister vergehen weiterhin, das kostet aber nur Ruf (weniger Gäste). Die Zeit läuft automatisch, der Spieler hat Pause, Tempo 1×/2×/4× und „Nacht jetzt starten“.

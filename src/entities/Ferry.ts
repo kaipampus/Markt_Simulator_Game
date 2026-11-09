@@ -3,7 +3,7 @@ import { DEPTH, TILE } from '../config';
 import { TEX } from '../gfx/textures';
 import type { PlacedBuilding } from '../state/GameState';
 import type { Cell } from '../state/pathfinding';
-import type { Spirit } from './Spirit';
+import type { Walker } from './Walker';
 
 export type Bank = 'north' | 'south';
 
@@ -18,8 +18,8 @@ export class Ferry {
   private sailing = false;
   private progress = 0;
   private dockMs = 0;
-  private queues: Record<Bank, Spirit[]> = { north: [], south: [] };
-  private riders: Spirit[] = [];
+  private queues: Record<Bank, Walker[]> = { north: [], south: [] };
+  private riders: Walker[] = [];
 
   constructor(
     scene: Phaser.Scene,
@@ -52,7 +52,7 @@ export class Ferry {
   }
 
   /** A spirit standing at `side` wants to cross. */
-  request(spirit: Spirit, side: Bank): void {
+  request(spirit: Walker, side: Bank): void {
     this.queues[side].push(spirit);
   }
 

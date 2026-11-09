@@ -2,6 +2,19 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-09 – Tag bauen, Nacht verwalten: Personal und Sauberkeit (Branch `feature/staff`)
+- **Bauen und Abreißen nur tagsüber**; nachts ist die Bauleiste gesperrt, man verwaltet den Markt
+- **Personal**: Koch (Nudelbude, Teehaus, Café), Verkäufer (Glücksbringer-Stand, Spielhalle), Gastgeber (alle Hotels), Putzkraft; Einstellungsgebühr und Lohn pro Nacht
+- Stände und Hotels sind **nur geöffnet, wenn ihr Arbeiter vor Ort ist**; Toilette, Feuerschale, Schrein und Getränkeautomat brauchen niemanden
+- **Personalhaus** (Staff Lodge, 6 Betten; Staff Dormitory ab Dampfzeit, 14 Betten), nur auf der Marktseite; eine Lodge steht zu Beginn neben dem Weg
+- Arbeiter laufen nachts zur Arbeit und bei Morgengrauen heim; wer bei Sonnenaufgang draußen ist, vergeht. Gastgeber bleiben im Hotel und schlafen dort
+- **Müll und Schleim**: Gäste lassen nach Essen/Trinken Müll fallen, der neue Schleimgeist (Ooze) hinterlässt Spuren; schmutzige Wege verderben die Laune
+- **Mülleimer** (20 Münzen) fangen Müll im Umkreis von 3 Feldern ab, Schleim nur die Putzkraft
+- Putzkräfte suchen selbst Schmutz; per Klick schickt man sie an eine Stelle
+- Neues **Personal-Fenster** (Taste P), **Infofenster** für angeklickte Gebäude und Arbeiter, Symbole über Ständen ohne Personal
+- Morgenbericht mit Löhnen, verlorenen Arbeitern und Sauberkeit
+- Technik: gemeinsame Laufklasse `Walker` für Geister und Arbeiter (Wege, Brücken, Fähren)
+
 ## 2026-11-08 – Entspannter Modus, Wege-Pflicht, Brücken, Fähren und Zeitalter
 - **Kein Game Over** mehr: Ruf sinkt nur, dann kommen weniger Gäste
 - **Zeitsteuerung**: Pause (Leertaste), Tempo 1×/2×/4× (Taste F), „Start night“ (Taste N); erster Tag 90 s, weitere 45 s

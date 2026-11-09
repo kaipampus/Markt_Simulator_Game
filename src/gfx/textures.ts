@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { COLORS, GRID_H, GRID_W, RIVER_ROWS, RIVER_TOP, TILE, WORLD_H, WORLD_W } from '../config';
 import { BUILDINGS, GATE, type BuildingDef } from '../data/buildings';
+import { ROLES, STAFF } from '../data/staff';
 
 /**
  * Placeholder graphics drawn with the Canvas 2D API at startup.
@@ -19,6 +20,9 @@ export const TEX = {
   /** Path look for an era. */
   path: (era: number) => `path_${era}`,
   boat: (id: string) => `boat_${id}`,
+  worker: (role: string) => `worker_${role}`,
+  litter: 'litter',
+  slime: 'slime',
 } as const;
 
 type Ctx = CanvasRenderingContext2D;
@@ -953,6 +957,59 @@ function drawRestroom(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   roof(ctx, 2, w - 2, bottom - wallH + 5, 6, roofColor);
 }
 
+/** Staff house: one floor (lodge) or two floors (dormitory), with a curtain over the door. */
+function drawLodge(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  const footH = def.h * TILE;
+  footShadow(ctx, w / 2, w, h, footH);
+  const { main, roof: roofColor, accent } = def.colors;
+  const bottom = h - 3;
+  const twoFloors = def.w >= 3;
+  const floorH = Math.round((footH + def.rise) * (twoFloors ? 0.27 : 0.36));
+  wall(ctx, 8, w - 8, bottom, floorH, main, accent, true);
+  if (twoFloors) {
+    const top = bottom - floorH;
+    ctx.fillStyle = shade(main, -0.5);
+    ctx.fillRect(4, top - 4, w - 8, 4);
+    wall(ctx, 12, w - 12, top - 4, floorH - 6, shade(main, 0.08), accent, true);
+    roof(ctx, 2, w - 2, top - 4 - (floorH - 6) + 6, 6, roofColor);
+  } else {
+    roof(ctx, 0, w, bottom - floorH + 6, 6, roofColor);
+  }
+  // Short cloth curtain over the door, split into strips.
+  const dh = Math.min(floorH - 8, 30);
+  const cy = bottom - 5 - dh - 2;
+  ctx.fillStyle = '#2f4f7a';
+  ctx.fillRect(w / 2 - 14, cy, 28, 11);
+  ctx.fillStyle = shade(main, -0.55);
+  for (const x of [w / 2 - 5, w / 2 + 4]) ctx.fillRect(x, cy + 3, 1.5, 8);
+  ctx.fillStyle = '#e8dcc0';
+  ctx.beginPath();
+  ctx.arc(w / 2, cy + 5, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Small wooden litter bin with a lid. */
+function drawBin(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  footShadow(ctx, w / 2, w * 0.6, h, 20);
+  const { main, roof: lid, accent } = def.colors;
+  const bottom = h - 8;
+  const bw = 20;
+  const bh = 26;
+  const x0 = w / 2 - bw / 2;
+  ctx.fillStyle = main;
+  ctx.fillRect(x0, bottom - bh, bw, bh);
+  ctx.fillStyle = shade(main, -0.35);
+  for (const y of [bottom - bh + 6, bottom - 6]) ctx.fillRect(x0, y, bw, 2);
+  ctx.fillStyle = shade(main, 0.2);
+  ctx.fillRect(x0 + 3, bottom - bh + 2, 2, bh - 4);
+  ctx.fillStyle = lid;
+  ctx.beginPath();
+  ctx.ellipse(w / 2, bottom - bh, bw / 2 + 2, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = accent;
+  ctx.fillRect(w / 2 - 3, bottom - bh - 4, 6, 2);
+}
+
 function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   switch (def.style) {
     case 'path':
@@ -985,6 +1042,10 @@ function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
       if (def.id === 'hotel_grand') return drawGrandHotel(ctx, w, h, def);
       if (def.id === 'hotel_sky') return drawSkyHotel(ctx, w, h, def);
       return drawHotel(ctx, w, h, def);
+    case 'lodge':
+      return drawLodge(ctx, w, h, def);
+    case 'bin':
+      return drawBin(ctx, w, h, def);
   }
 }
 
@@ -1122,6 +1183,61 @@ function drawSpirit(ctx: Ctx, w: number, h: number): void {
   ctx.fill();
 }
 
+/** A worker: the spirit shape with a work coat and a headband. */
+function drawWorker(ctx: Ctx, w: number, h: number, coat: string, band: string): void {
+  drawSpirit(ctx, w, h);
+  const r = w / 2 - 4;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.fillStyle = coat;
+  ctx.fillRect(0, h * 0.58, w, h);
+  ctx.fillStyle = shade(coat, -0.35);
+  ctx.fillRect(0, h * 0.58, w, 2);
+  ctx.fillRect(w / 2 - 1, h * 0.58, 2, h);
+  ctx.fillStyle = band;
+  ctx.fillRect(0, r - 5, w, 4);
+  ctx.restore();
+}
+
+/** Litter on a path: paper scraps and a cup. */
+function drawLitter(ctx: Ctx, w: number, h: number): void {
+  const rand = rng(7);
+  const colors = ['#e8dcc0', '#f3e9d2', '#c9b48a', '#d9452b'];
+  for (let i = 0; i < 6; i++) {
+    ctx.save();
+    ctx.translate(8 + rand() * (w - 16), 10 + rand() * (h - 20));
+    ctx.rotate(rand() * Math.PI);
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fillRect(-4, -2.5, 8, 5);
+    ctx.restore();
+  }
+  ctx.fillStyle = '#f3e9d2';
+  ctx.fillRect(w * 0.62, h * 0.5, 6, 8);
+  ctx.fillStyle = '#c8372d';
+  ctx.fillRect(w * 0.62, h * 0.5 + 3, 6, 2);
+}
+
+/** Green slime trail. */
+function drawSlime(ctx: Ctx, w: number, h: number): void {
+  const rand = rng(11);
+  for (let i = 0; i < 5; i++) {
+    const x = 10 + rand() * (w - 20);
+    const y = 12 + rand() * (h - 24);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, 9);
+    g.addColorStop(0, 'rgba(150,240,140,0.85)');
+    g.addColorStop(1, 'rgba(90,200,110,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 10, 6, rand() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(220,255,220,0.7)';
+  ctx.beginPath();
+  ctx.arc(w * 0.4, h * 0.45, 1.5, 0, Math.PI * 2);
+  ctx.arc(w * 0.6, h * 0.6, 1.2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 // ---------------------------------------------------------------------------
 
 /** Creates every placeholder texture once. Safe to call again. */
@@ -1154,6 +1270,12 @@ export function createTextures(scene: Phaser.Scene): void {
   });
 
   makeCanvas(scene, TEX.spirit, 36, 46, (ctx) => drawSpirit(ctx, 36, 46));
+  for (const role of ROLES) {
+    const r = STAFF[role];
+    makeCanvas(scene, TEX.worker(role), 36, 46, (ctx) => drawWorker(ctx, 36, 46, r.coat, r.band));
+  }
+  makeCanvas(scene, TEX.litter, TILE, TILE, (ctx) => drawLitter(ctx, TILE, TILE));
+  makeCanvas(scene, TEX.slime, TILE, TILE, (ctx) => drawSlime(ctx, TILE, TILE));
 
   makeCanvas(scene, TEX.shadow, 30, 12, (ctx) => {
     ctx.fillStyle = 'rgba(0,0,0,0.35)';

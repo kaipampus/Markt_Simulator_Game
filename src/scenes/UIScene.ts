@@ -15,6 +15,8 @@ import { BUILDINGS, CATEGORIES, getBuilding, type BuildingDef, type Category } f
 import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
 import { state, type NightReport, type Tool } from '../state/GameState';
+import type { MarketScene } from './MarketScene';
+import { StaffUI } from './StaffUI';
 
 const BTN_W = 86;
 const BTN_H = 84;
@@ -67,6 +69,10 @@ export class UIScene extends Phaser.Scene {
   private category: Category = 'transport';
   private tabs = new Map<Category, SmallButton>();
   private demolishButton!: SmallButton;
+  private staffButton!: SmallButton;
+  private staffUI!: StaffUI;
+  /** Short message in the hint line (e.g. "building resumes at daybreak"). */
+  private flash: { text: string; until: number } | null = null;
   private items: ItemButton[] = [];
   private hoverInfo: string | null = null;
 
@@ -109,6 +115,17 @@ export class UIScene extends Phaser.Scene {
     this.createTimePanel();
     this.createEraPanel();
     this.createBuildBar();
+    this.staffUI = new StaffUI(
+      this,
+      (text) => (this.hoverInfo = text),
+      (id) => (this.scene.get('MarketScene') as MarketScene).focusWorker(id),
+      (x, w) => {
+        // Below the time panel if they would overlap.
+        const tp = this.timePanel;
+        const overlaps = x < tp.x + TIME_PANEL_HALF_WIDTH * 2 && x + w > tp.x;
+        return overlaps ? tp.y + TIME_PANEL_HEIGHT + 6 : HUD_HEIGHT + 6;
+      },
+    );
     this.setupKeys();
 
     this.unsubscribe.push(
@@ -117,6 +134,12 @@ export class UIScene extends Phaser.Scene {
       state.on('speed', () => this.refreshTime()),
       state.on('era', (era) => this.onEra(era)),
       state.on('report', (r) => this.showReport(r)),
+      state.on('phase', () => {
+        this.refreshItems();
+        this.staffUI.refresh();
+      }),
+      state.on('staff', () => this.staffUI.refresh()),
+      state.on('selection', () => this.staffUI.refresh()),
     );
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe.forEach((u) => u()));
     this.scale.on(Phaser.Scale.Events.RESIZE, this.layout, this);
@@ -151,9 +174,15 @@ export class UIScene extends Phaser.Scene {
     }
 
     const t = state.tool;
+    const sel = state.selection;
+    const member = sel?.kind === 'staff' ? state.staff.get(sel.id) : undefined;
     let hint: string;
-    if (this.hoverInfo) hint = this.hoverInfo;
-    else if (!t) hint = state.day === 1 && state.phase === 'day' ? STR.hintFirstDay : STR.hintIdle;
+    if (this.flash && this.time.now < this.flash.until) hint = this.flash.text;
+    else if (this.hoverInfo) hint = this.hoverInfo;
+    else if (member)
+      hint = member.role === 'cleaner' ? STR.hintCleanerSelected : STR.hintStaffSelected(STR.roles[member.role].toLowerCase());
+    else if (!t && state.phase === 'night') hint = STR.hintNight;
+    else if (!t) hint = state.day === 1 ? STR.hintFirstDay : STR.hintIdle;
     else if (t.kind === 'demolish') hint = STR.hintDemolish;
     else hint = getBuilding(t.id).dragPlace ? STR.hintPainting : STR.hintPlacing;
     if (this.hint.text !== hint) this.hint.setText(hint);
@@ -284,6 +313,7 @@ export class UIScene extends Phaser.Scene {
     this.demolishButton = this.smallButton(0, 0, 110, TAB_H - 4, `✖ ${STR.demolish} (X)`, () =>
       this.toggleTool({ kind: 'demolish' }),
     );
+    this.staffButton = this.smallButton(0, 0, 110, TAB_H - 4, STR.staffButton, () => this.toggleStaff());
     for (const def of BUILDINGS) this.items.push(this.makeItem(def));
     this.selectCategory(this.category);
   }
@@ -337,6 +367,9 @@ export class UIScene extends Phaser.Scene {
     if (def.crossing?.kind === 'walk') parts.push(STR.capacity(def.crossing.capacity));
     if (def.crossing?.kind === 'boat') parts.push(STR.perTrip(def.crossing.capacity));
     if (def.hotel) parts.push(STR.beds(def.hotel.beds));
+    if (def.staffBeds) parts.push(STR.staffBeds(def.staffBeds));
+    if (def.staff) parts.push(STR.needsStaff(STR.roles[def.staff].toLowerCase()));
+    if (def.bin) parts.push(STR.catchesLitter);
     if (def.provides) parts.push(`${STR.needIcons[def.provides.need]} +${def.provides.price}`);
     if (!state.isUnlocked(def)) parts.push(`🔒 ${STR.eras[def.era]}`);
     return parts.join('  ·  ');
@@ -361,6 +394,10 @@ export class UIScene extends Phaser.Scene {
   }
 
   private toggleTool(tool: NonNullable<Tool>): void {
+    if (!state.canBuild) {
+      this.flash = { text: STR.nightNoBuild, until: this.time.now + 2000 };
+      return;
+    }
     if (tool.kind === 'build' && !state.isUnlocked(getBuilding(tool.id))) return;
     const current = state.tool;
     const same =
@@ -376,7 +413,7 @@ export class UIScene extends Phaser.Scene {
     const affordable = state.canAfford(item.def.cost);
     item.bg.setFillStyle(selected ? COLORS.uiButtonActive : item.hovered && unlocked ? COLORS.uiButtonHover : COLORS.uiButton);
     item.bg.setStrokeStyle(selected ? 2 : 1, selected ? COLORS.uiAccent : COLORS.uiPanelEdge);
-    item.icon.setAlpha(!unlocked ? 0.25 : affordable ? 1 : 0.45);
+    item.icon.setAlpha(!unlocked || !state.canBuild ? 0.25 : affordable ? 1 : 0.45);
     item.costText.setColor(affordable ? COLORS.uiGold : COLORS.uiRed);
     item.lock.setVisible(!unlocked);
   }
@@ -401,10 +438,19 @@ export class UIScene extends Phaser.Scene {
       this.selectCategory(CATEGORIES[(i + 1) % CATEGORIES.length]);
     });
     kb.on('keydown-X', () => this.toggleTool({ kind: 'demolish' }));
-    kb.on('keydown-ESC', () => state.setTool(null));
+    kb.on('keydown-ESC', () => {
+      state.setTool(null);
+      state.select(null);
+    });
+    kb.on('keydown-P', () => this.toggleStaff());
     kb.on('keydown-SPACE', () => state.togglePause());
     kb.on('keydown-F', () => state.cycleSpeed());
     kb.on('keydown-N', () => state.startNightNow());
+  }
+
+  private toggleStaff(): void {
+    this.staffUI.toggle();
+    this.setActive(this.staffButton, this.staffUI.isOpen);
   }
 
   private refreshMoney(pop: boolean): void {
@@ -431,7 +477,10 @@ export class UIScene extends Phaser.Scene {
       STR.report.happy(r.happy, r.unhappy),
       STR.report.income(r.earned),
       STR.report.rooms(r.rooms),
+      STR.report.wages(r.wages),
+      STR.report.cleaned(r.cleaned, r.dirty),
     ];
+    if (r.staffLost > 0) lines.splice(2, 0, STR.report.staffLost(r.staffLost));
     const title = this.add
       .text(0, 14, STR.report.title(r.day), { fontFamily: FONT_TITLE, fontSize: '20px', color: COLORS.uiText })
       .setOrigin(0.5, 0);
@@ -470,7 +519,7 @@ export class UIScene extends Phaser.Scene {
     const inside = (cx: number, cy: number, w: number, hh: number) => x >= cx && x <= cx + w && y >= cy && y <= cy + hh;
     if (inside(this.eraPanel.x, this.eraPanel.y, ERA_PANEL_WIDTH, ERA_PANEL_HEIGHT)) return true;
     if (inside(this.timePanel.x, this.timePanel.y, TIME_PANEL_HALF_WIDTH * 2, TIME_PANEL_HEIGHT)) return true;
-    return false;
+    return this.staffUI.rects().some((r) => inside(r.x, r.y, r.w, r.h));
   }
 
   private layoutHud(): void {
@@ -489,15 +538,20 @@ export class UIScene extends Phaser.Scene {
     const h = this.scale.height;
     const top = h - BAR_HEIGHT;
 
-    // Tabs on the left, demolish on the right.
+    // Tabs on the left (narrower on small screens), staff and demolish on the right.
+    const tabW = Math.max(56, Math.min(92, Math.floor((w - 20 - 236) / CATEGORIES.length) - 4));
     let tx = 10;
     for (const b of this.tabs.values()) {
-      b.bg.setPosition(tx, top + 7);
-      b.label.setPosition(tx + 46, top + 7 + (TAB_H - 4) / 2);
-      tx += 96;
+      b.bg.setPosition(tx, top + 7).setSize(tabW, TAB_H - 4);
+      b.bg.input?.hitArea.setSize(tabW, TAB_H - 4);
+      b.label.setPosition(tx + tabW / 2, top + 7 + (TAB_H - 4) / 2).setFontSize(tabW < 80 ? 10 : 12);
+      tx += tabW + 4;
     }
     this.demolishButton.bg.setPosition(w - 10 - 110, top + 7);
     this.demolishButton.label.setPosition(w - 10 - 55, top + 7 + (TAB_H - 4) / 2);
+    this.staffButton.bg.setPosition(w - 10 - 226, top + 7);
+    this.staffButton.label.setPosition(w - 10 - 171, top + 7 + (TAB_H - 4) / 2);
+    this.setActive(this.staffButton, this.staffUI?.isOpen ?? false);
 
     // Items of the current tab, centred.
     const items = this.visibleItems();
@@ -533,5 +587,6 @@ export class UIScene extends Phaser.Scene {
     this.hint.setPosition(w / 2, h - BAR_HEIGHT - 10);
     this.report?.setX(w / 2);
     this.layoutHud();
+    this.staffUI.refresh();
   }
 }

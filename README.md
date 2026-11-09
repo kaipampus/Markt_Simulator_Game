@@ -27,6 +27,11 @@ Then open http://localhost:5173.
 | Pause / resume | `Space` |
 | Game speed 1× / 2× / 4× | `F` |
 | Start the night now | `N` |
+| Staff panel (hire, dismiss) | `P` or the **Staff** button |
+| Select a stall, hotel or worker | Left-click (no tool selected) |
+| Move a worker / send a cleaner | Select the worker, then click a building or a path |
+
+Building only works during the day; at night you manage the market and your staff.
 
 ## Build
 

@@ -1,5 +1,5 @@
 ---
-aktualisiert: 2026-11-08
+aktualisiert: 2026-11-09
 ---
 
 # Roadmap
@@ -42,9 +42,21 @@ Konzept: [[Spielkonzept]] · Entscheidungen: [[Entscheidungen]] · Verlauf: [[Ch
 - [x] Bauleiste mit Reitern, gesperrte Gebäude sichtbar
 - [ ] Straßenbahn oder Bus in der Neon-Zeit
 - [ ] Laternen mit Wirkung (z. B. Geister meiden dunkle Wege)
-- [ ] Sauberkeit und Müll
-- [ ] Personal einstellen und einteilen
+- [x] Sauberkeit und Müll (siehe Phase 3b)
+- [x] Personal einstellen und einteilen (siehe Phase 3b)
 - [ ] Marktstände sehen je Zeitalter moderner aus
+
+## Phase 3b – Tag bauen, Nacht verwalten
+- [x] Bauen und Abreißen nur tagsüber
+- [x] Personal: Koch, Verkäufer, Gastgeber, Putzkraft; einstellen, entlassen, Lohn pro Nacht
+- [x] Stände und Hotels nur offen, wenn ihr Arbeiter da ist
+- [x] Personalhaus (Lodge, Dormitory) auf der Marktseite; Sonnenaufgangs-Regel auch für Arbeiter
+- [x] Arbeiter per Klick umsetzen, Putzkräfte an eine Stelle schicken
+- [x] Müll (nach Essen/Trinken), Schleimspuren (Ooze), Mülleimer
+- [ ] Balancing: Löhne, Müllmenge, Zahl der nötigen Putzkräfte
+- [ ] Mehr zu tun in der Nacht: Arbeiter werden müde und brauchen Pausen
+- [ ] Mülleimer laufen voll und müssen geleert werden
+- [ ] Fährleute für Fähren, Personalhaus der Neon-Zeit
 
 ## Phase 4 – Magie
 - [ ] Mana und Schreine
@@ -65,3 +77,5 @@ Konzept: [[Spielkonzept]] · Entscheidungen: [[Entscheidungen]] · Verlauf: [[Ch
 
 ## Ideen-Parkplatz
 - Gebäude drehen oder spiegeln
+- Preise pro Stand nachts anpassen
+- Arbeiter mit Erfahrung oder Eigenschaften (schnell, freundlich, schläfrig)
