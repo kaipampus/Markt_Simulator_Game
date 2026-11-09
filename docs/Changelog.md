@@ -2,6 +2,13 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-09 – Übersichtlichere Oberfläche: Workers-Reiter und Finanzen
+- Personal hat jetzt einen eigenen Reiter **Workers** in der Bauleiste (neben Decor) statt eines schwebenden Fensters: links eine Karte pro Job (Bild, Einstellungspreis, Lohn pro Nacht, Anzahl), Klick stellt ein; rechts alle Arbeiter als Namensschilder mit Statuspunkt, Klick wählt aus und zeigt sie auf der Karte
+- Neues Fenster **Finances** (Knopf oben oder Taste I): Lohnkosten pro Job und Nacht, was Gäste heute Nacht und letzte Nacht bei welchem Gebäude gekauft haben, Zimmergeld, gezahlte Löhne und Gewinn
+- Morgenbericht kürzer, mit Gewinn und Verweis auf die Finanzen
+- Infofenster mit Schließen-Knopf, zeigt Preise von Ständen und Hotels
+- Hinweistext bricht auf schmalen Bildschirmen um; Hinweise beim Darüberfahren bleiben beim Aktualisieren stabil
+
 ## 2026-11-09 – Tag bauen, Nacht verwalten: Personal und Sauberkeit (Branch `feature/staff`)
 - **Bauen und Abreißen nur tagsüber**; nachts ist die Bauleiste gesperrt, man verwaltet den Markt
 - **Personal**: Koch (Nudelbude, Teehaus, Café), Verkäufer (Glücksbringer-Stand, Spielhalle), Gastgeber (alle Hotels), Putzkraft; Einstellungsgebühr und Lohn pro Nacht

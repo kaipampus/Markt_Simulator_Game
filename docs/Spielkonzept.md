@@ -69,7 +69,9 @@ Wege ändern ihr Aussehen automatisch mit dem Zeitalter.
 
 ## Personal
 - **Jobs:** Koch (Cook), Verkäufer (Clerk), Gastgeber (Host), Putzkraft (Cleaner)
-- Einstellen im Personal-Fenster (Taste P) gegen eine **Einstellungsgebühr**; jeden Morgen wird **Lohn** gezahlt
+- Einstellen im Reiter **Workers** der Bauleiste (Taste P): Klick auf eine Job-Karte stellt gegen eine **Einstellungsgebühr** ein; jeden Morgen wird **Lohn** gezahlt, auch für Arbeiter ohne Aufgabe
+- Rechts im Reiter stehen alle Arbeiter mit Statuspunkt; Klick wählt sie aus. Entlassen über ihr Infofenster.
+- Das Fenster **Finances** (Taste I) zeigt Lohnkosten pro Nacht, Verkäufe pro Gebäude, Zimmergeld und Gewinn
 - Jedes Gebäude mit Personalbedarf braucht **einen Arbeiter**. Es ist nur **geöffnet, solange er davorsteht**. Gäste warten kurz und geben dann auf.
 - Neue Arbeiter gehen automatisch zum ersten Gebäude ohne Personal, neue Gebäude bekommen automatisch einen freien Arbeiter. **Umsetzen per Klick:** Arbeiter anklicken, dann das Gebäude.
 - Über Ständen ohne Personal steht 👤❗, nachts 🚶 solange der Arbeiter noch unterwegs ist

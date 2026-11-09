@@ -702,7 +702,7 @@ export class MarketScene extends Phaser.Scene {
   /** Centre the camera on a worker (used by the staff panel). */
   focusWorker(id: number): void {
     const w = this.workers.get(id);
-    if (w?.isAwake) this.cameras.main.pan(w.position.x, w.position.y, 400, 'Sine.InOut');
+    if (w?.isAwake) this.cameras.main.pan(w.position.x, w.position.y, 400, Phaser.Math.Easing.Sine.InOut);
   }
 
   private refreshGhost(): void {

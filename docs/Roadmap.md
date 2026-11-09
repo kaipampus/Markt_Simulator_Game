@@ -53,6 +53,7 @@ Konzept: [[Spielkonzept]] · Entscheidungen: [[Entscheidungen]] · Verlauf: [[Ch
 - [x] Personalhaus (Lodge, Dormitory) auf der Marktseite; Sonnenaufgangs-Regel auch für Arbeiter
 - [x] Arbeiter per Klick umsetzen, Putzkräfte an eine Stelle schicken
 - [x] Müll (nach Essen/Trinken), Schleimspuren (Ooze), Mülleimer
+- [x] Workers-Reiter in der Bauleiste, Finanz-Fenster mit Verkäufen, Löhnen und Gewinn
 - [ ] Balancing: Löhne, Müllmenge, Zahl der nötigen Putzkräfte
 - [ ] Mehr zu tun in der Nacht: Arbeiter werden müde und brauchen Pausen
 - [ ] Mülleimer laufen voll und müssen geleert werden

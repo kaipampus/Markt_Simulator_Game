@@ -333,7 +333,7 @@ export class Spirit extends Walker {
     }
     const b = this.state.buildings.get(goal.uid);
     if (b?.def.provides) {
-      this.state.earn(b.def.provides.price, this.cell);
+      this.state.earn(b.def.provides.price, this.cell, b.def.id);
       this.met++;
       this.needs = this.needs.filter((n) => n !== goal.need);
       // Food and drinks come with wrappers and cups.

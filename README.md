@@ -27,7 +27,8 @@ Then open http://localhost:5173.
 | Pause / resume | `Space` |
 | Game speed 1× / 2× / 4× | `F` |
 | Start the night now | `N` |
-| Staff panel (hire, dismiss) | `P` or the **Staff** button |
+| Workers (hire, see who works where) | **Workers** tab in the bottom bar, or `P` |
+| Finances (wages, sales, profit) | **Finances** button at the top, or `I` |
 | Select a stall, hotel or worker | Left-click (no tool selected) |
 | Move a worker / send a cleaner | Select the worker, then click a building or a path |
 

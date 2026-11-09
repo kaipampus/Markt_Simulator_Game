@@ -13,6 +13,12 @@ Vorlage:
 
 ---
 
+## 2026-11-09 – Personal als Reiter in der Bauleiste, Finanzen als eigenes Fenster
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Arbeiter werden über einen Reiter **Workers** in der Bauleiste eingestellt und ausgewählt, genauso wie Gebäude. Ein Klick auf eine Job-Karte stellt sofort ein (wie ein Gebäude kaufen); Entlassen geht über das Infofenster des Arbeiters. Ein Fenster **Finances** zeigt Lohnkosten, Verkäufe pro Gebäude, Zimmergeld und Gewinn.
+**Warum:** Übersichtlicher: alles Kaufbare an einer Stelle, Geldfragen an einer anderen.
+**Verworfen:** Schwebendes Personal-Fenster rechts oben (verdeckte die Karte und war vom Rest getrennt).
+
 ## 2026-11-09 – Tagsüber bauen, nachts verwalten
 **Status:** entschieden (Wunsch des Nutzers)
 **Entscheidung:** Bauen und Abreißen gehen nur am Tag. Nachts ist die Bauleiste gesperrt; man kümmert sich um Personal und Sauberkeit (Arbeiter umsetzen, Putzkräfte schicken, einstellen, entlassen).

@@ -16,6 +16,7 @@ import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
 import { state, type NightReport, type Tool } from '../state/GameState';
 import type { MarketScene } from './MarketScene';
+import { FinanceUI } from './FinanceUI';
 import { StaffUI } from './StaffUI';
 
 const BTN_W = 86;
@@ -39,6 +40,10 @@ interface SmallButton {
   bg: Phaser.GameObjects.Rectangle;
   label: Phaser.GameObjects.Text;
 }
+
+/** Bottom bar tabs: building categories plus the workers. */
+type Tab = Category | 'workers';
+const TABS: readonly Tab[] = [...CATEGORIES, 'workers'];
 
 const HOTKEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'] as const;
 
@@ -66,11 +71,12 @@ export class UIScene extends Phaser.Scene {
   private eraButton!: SmallButton;
 
   // build bar
-  private category: Category = 'transport';
-  private tabs = new Map<Category, SmallButton>();
+  private category: Tab = 'transport';
+  private tabs = new Map<Tab, SmallButton>();
   private demolishButton!: SmallButton;
-  private staffButton!: SmallButton;
+  private financeButton!: SmallButton;
   private staffUI!: StaffUI;
+  private financeUI!: FinanceUI;
   /** Short message in the hint line (e.g. "building resumes at daybreak"). */
   private flash: { text: string; until: number } | null = null;
   private items: ItemButton[] = [];
@@ -114,18 +120,19 @@ export class UIScene extends Phaser.Scene {
 
     this.createTimePanel();
     this.createEraPanel();
+    this.staffUI = new StaffUI(this, {
+      hover: (text) => (this.hoverInfo = text),
+      flash: (text) => this.flashHint(text),
+      focusWorker: (id) => (this.scene.get('MarketScene') as MarketScene).focusWorker(id),
+    });
+    this.financeUI = new FinanceUI(this, (x, w) => {
+      // Below the time panel if they would overlap.
+      const tp = this.timePanel;
+      const overlaps = x < tp.x + TIME_PANEL_HALF_WIDTH * 2 && x + w > tp.x;
+      return overlaps ? tp.y + TIME_PANEL_HEIGHT + 6 : HUD_HEIGHT + 6;
+    });
+    this.financeButton = this.smallButton(0, 8, 110, HUD_HEIGHT - 16, `${STR.financeButton} (I)`, () => this.toggleFinance());
     this.createBuildBar();
-    this.staffUI = new StaffUI(
-      this,
-      (text) => (this.hoverInfo = text),
-      (id) => (this.scene.get('MarketScene') as MarketScene).focusWorker(id),
-      (x, w) => {
-        // Below the time panel if they would overlap.
-        const tp = this.timePanel;
-        const overlaps = x < tp.x + TIME_PANEL_HALF_WIDTH * 2 && x + w > tp.x;
-        return overlaps ? tp.y + TIME_PANEL_HEIGHT + 6 : HUD_HEIGHT + 6;
-      },
-    );
     this.setupKeys();
 
     this.unsubscribe.push(
@@ -307,13 +314,13 @@ export class UIScene extends Phaser.Scene {
   // ---------------------------------------------------------------------------
 
   private createBuildBar(): void {
-    for (const cat of CATEGORIES) {
-      this.tabs.set(cat, this.smallButton(0, 0, 92, TAB_H - 4, STR.categories[cat], () => this.selectCategory(cat)));
+    for (const tab of TABS) {
+      const label = tab === 'workers' ? STR.workersTab : STR.categories[tab];
+      this.tabs.set(tab, this.smallButton(0, 0, 92, TAB_H - 4, label, () => this.selectCategory(tab)));
     }
     this.demolishButton = this.smallButton(0, 0, 110, TAB_H - 4, `✖ ${STR.demolish} (X)`, () =>
       this.toggleTool({ kind: 'demolish' }),
     );
-    this.staffButton = this.smallButton(0, 0, 110, TAB_H - 4, STR.staffButton, () => this.toggleStaff());
     for (const def of BUILDINGS) this.items.push(this.makeItem(def));
     this.selectCategory(this.category);
   }
@@ -379,10 +386,11 @@ export class UIScene extends Phaser.Scene {
     return this.items.filter((i) => i.def.category === this.category);
   }
 
-  private selectCategory(cat: Category): void {
+  private selectCategory(cat: Tab): void {
     this.category = cat;
     for (const [c, b] of this.tabs) this.setActive(b, c === cat);
     for (const i of this.items) i.container.setVisible(i.def.category === cat);
+    this.staffUI.showBar(cat === 'workers');
     this.visibleItems().forEach((i, n) => i.keyText.setText(n < 9 ? String(n + 1) : ''));
     this.refreshItems();
     this.layoutBar();
@@ -395,7 +403,7 @@ export class UIScene extends Phaser.Scene {
 
   private toggleTool(tool: NonNullable<Tool>): void {
     if (!state.canBuild) {
-      this.flash = { text: STR.nightNoBuild, until: this.time.now + 2000 };
+      this.flashHint(STR.nightNoBuild);
       return;
     }
     if (tool.kind === 'build' && !state.isUnlocked(getBuilding(tool.id))) return;
@@ -434,23 +442,29 @@ export class UIScene extends Phaser.Scene {
       }),
     );
     kb.on('keydown-TAB', () => {
-      const i = CATEGORIES.indexOf(this.category);
-      this.selectCategory(CATEGORIES[(i + 1) % CATEGORIES.length]);
+      const i = TABS.indexOf(this.category);
+      this.selectCategory(TABS[(i + 1) % TABS.length]);
     });
     kb.on('keydown-X', () => this.toggleTool({ kind: 'demolish' }));
     kb.on('keydown-ESC', () => {
       state.setTool(null);
       state.select(null);
+      if (this.financeUI.isOpen) this.toggleFinance();
     });
-    kb.on('keydown-P', () => this.toggleStaff());
+    kb.on('keydown-P', () => this.selectCategory('workers'));
+    kb.on('keydown-I', () => this.toggleFinance());
     kb.on('keydown-SPACE', () => state.togglePause());
     kb.on('keydown-F', () => state.cycleSpeed());
     kb.on('keydown-N', () => state.startNightNow());
   }
 
-  private toggleStaff(): void {
-    this.staffUI.toggle();
-    this.setActive(this.staffButton, this.staffUI.isOpen);
+  private toggleFinance(): void {
+    this.financeUI.toggle();
+    this.setActive(this.financeButton, this.financeUI.isOpen);
+  }
+
+  private flashHint(text: string): void {
+    this.flash = { text, until: this.time.now + 2500 };
   }
 
   private refreshMoney(pop: boolean): void {
@@ -471,16 +485,9 @@ export class UIScene extends Phaser.Scene {
 
   private showReport(r: NightReport): void {
     this.report?.destroy();
-    const lines = [
-      STR.report.safe(r.safe),
-      STR.report.lost(r.lost),
-      STR.report.happy(r.happy, r.unhappy),
-      STR.report.income(r.earned),
-      STR.report.rooms(r.rooms),
-      STR.report.wages(r.wages),
-      STR.report.cleaned(r.cleaned, r.dirty),
-    ];
-    if (r.staffLost > 0) lines.splice(2, 0, STR.report.staffLost(r.staffLost));
+    const lines = [STR.report.guests(r.safe, r.lost), STR.report.happy(r.happy, r.unhappy)];
+    if (r.staffLost > 0) lines.push(STR.report.staffLost(r.staffLost));
+    lines.push(STR.report.cleaned(r.cleaned, r.dirty), STR.report.profit(r.net));
     const title = this.add
       .text(0, 14, STR.report.title(r.day), { fontFamily: FONT_TITLE, fontSize: '20px', color: COLORS.uiText })
       .setOrigin(0.5, 0);
@@ -519,7 +526,7 @@ export class UIScene extends Phaser.Scene {
     const inside = (cx: number, cy: number, w: number, hh: number) => x >= cx && x <= cx + w && y >= cy && y <= cy + hh;
     if (inside(this.eraPanel.x, this.eraPanel.y, ERA_PANEL_WIDTH, ERA_PANEL_HEIGHT)) return true;
     if (inside(this.timePanel.x, this.timePanel.y, TIME_PANEL_HALF_WIDTH * 2, TIME_PANEL_HEIGHT)) return true;
-    return this.staffUI.rects().some((r) => inside(r.x, r.y, r.w, r.h));
+    return [...this.staffUI.rects(), ...this.financeUI.rects()].some((r) => inside(r.x, r.y, r.w, r.h));
   }
 
   private layoutHud(): void {
@@ -529,8 +536,10 @@ export class UIScene extends Phaser.Scene {
     this.coinIcon.setPosition(w - 16 - this.moneyText.width - 16, y);
     this.repText.setPosition(this.coinIcon.x - 22, y);
     this.spiritText.setPosition(this.repText.x - this.repText.width - 18, y);
-    const left = this.spiritText.x - this.spiritText.width;
-    this.title.setVisible(this.title.width + 32 < left);
+    const fx = this.spiritText.x - this.spiritText.width - 18 - 110;
+    this.financeButton.bg.setPosition(fx, 8);
+    this.financeButton.label.setPosition(fx + 55, HUD_HEIGHT / 2);
+    this.title.setVisible(this.title.width + 32 < fx);
   }
 
   private layoutBar(): void {
@@ -538,8 +547,8 @@ export class UIScene extends Phaser.Scene {
     const h = this.scale.height;
     const top = h - BAR_HEIGHT;
 
-    // Tabs on the left (narrower on small screens), staff and demolish on the right.
-    const tabW = Math.max(56, Math.min(92, Math.floor((w - 20 - 236) / CATEGORIES.length) - 4));
+    // Tabs on the left (narrower on small screens), demolish on the right.
+    const tabW = Math.max(56, Math.min(104, Math.floor((w - 20 - 124) / TABS.length) - 4));
     let tx = 10;
     for (const b of this.tabs.values()) {
       b.bg.setPosition(tx, top + 7).setSize(tabW, TAB_H - 4);
@@ -549,9 +558,7 @@ export class UIScene extends Phaser.Scene {
     }
     this.demolishButton.bg.setPosition(w - 10 - 110, top + 7);
     this.demolishButton.label.setPosition(w - 10 - 55, top + 7 + (TAB_H - 4) / 2);
-    this.staffButton.bg.setPosition(w - 10 - 226, top + 7);
-    this.staffButton.label.setPosition(w - 10 - 171, top + 7 + (TAB_H - 4) / 2);
-    this.setActive(this.staffButton, this.staffUI?.isOpen ?? false);
+    this.staffUI.setBarArea({ x: 0, y: top + TAB_H + 8, w, h: BAR_HEIGHT - TAB_H - 12 });
 
     // Items of the current tab, centred.
     const items = this.visibleItems();
@@ -584,9 +591,10 @@ export class UIScene extends Phaser.Scene {
     this.timePanel.setPosition(tpX, tpY);
 
     this.layoutBar();
-    this.hint.setPosition(w / 2, h - BAR_HEIGHT - 10);
+    this.hint.setPosition(w / 2, h - BAR_HEIGHT - 10).setWordWrapWidth(w - 40);
+    this.hint.setAlign('center');
     this.report?.setX(w / 2);
     this.layoutHud();
-    this.staffUI.refresh();
+    this.financeUI.build();
   }
 }

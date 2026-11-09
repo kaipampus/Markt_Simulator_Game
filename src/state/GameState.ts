@@ -67,6 +67,13 @@ export type DirtKind = 'litter' | 'slime';
 export type Phase = 'day' | 'night';
 export type Terrain = 'hotel' | 'river' | 'market';
 
+/** What guests bought at one kind of building during a night. */
+export interface Sale {
+  id: BuildingId;
+  count: number;
+  coins: number;
+}
+
 export interface NightReport {
   day: number;
   safe: number;
@@ -79,6 +86,10 @@ export interface NightReport {
   staffLost: number;
   cleaned: number;
   dirty: number;
+  /** Guest spending per kind of building, biggest first. */
+  sales: Sale[];
+  /** earned + rooms - wages */
+  net: number;
   repDelta: number;
   reputation: number;
 }
@@ -171,6 +182,9 @@ export class GameState extends Emitter<StateEvents> {
   private slime = new Uint8Array(GRID_W * GRID_H);
 
   private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, earned: 0, staffLost: 0, cleaned: 0 };
+  private sales = new Map<BuildingId, Sale>();
+  /** The last morning report (for the finances panel). */
+  lastReport: NightReport | null = null;
 
   /** Top-left cell of the gate (bottom centre of the market). */
   readonly gate = { tx: Math.floor(GRID_W / 2) - 1, ty: GRID_H - GATE.h };
@@ -691,8 +705,14 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   /** A spirit paid at a building. */
-  earn(amount: number, where: Cell): void {
+  earn(amount: number, where: Cell, source?: BuildingId): void {
     this.night.earned += amount;
+    if (source) {
+      const sale = this.sales.get(source) ?? { id: source, count: 0, coins: 0 };
+      sale.count++;
+      sale.coins += amount;
+      this.sales.set(source, sale);
+    }
     this.addMoney(amount);
     this.emit('earned', amount, where);
   }
@@ -706,6 +726,11 @@ export class GameState extends Emitter<StateEvents> {
 
   recordLost(): void {
     this.night.lost++;
+  }
+
+  /** Sales of the running night, biggest first. */
+  salesTonight(): { sales: Sale[]; earned: number } {
+    return { sales: [...this.sales.values()].sort((a, b) => b.coins - a.coins), earned: this.night.earned };
   }
 
   /** How many spirits should be out tonight (sleepers included). */
@@ -788,6 +813,7 @@ export class GameState extends Emitter<StateEvents> {
     this.timeLeft = NIGHT_MS;
     this.dawnStarted = false;
     this.night = { safe: 0, lost: 0, happy: 0, unhappy: 0, earned: 0, staffLost: 0, cleaned: 0 };
+    this.sales.clear();
     if (this.tool) this.setTool(null);
     this.emit('phase', 'night');
   }
@@ -814,7 +840,7 @@ export class GameState extends Emitter<StateEvents> {
     this.phase = 'day';
     this.timeLeft = DAY_MS;
     this.emit('phase', 'day');
-    this.emit('report', {
+    const report: NightReport = {
       day: this.day,
       safe: n.safe,
       lost: n.lost,
@@ -826,9 +852,13 @@ export class GameState extends Emitter<StateEvents> {
       staffLost: n.staffLost,
       cleaned: n.cleaned,
       dirty: this.dirtyCells().length,
+      sales: this.salesTonight().sales,
+      net: n.earned + rooms - wages,
       repDelta,
       reputation: this.reputation,
-    });
+    };
+    this.lastReport = report;
+    this.emit('report', report);
   }
 
   /** For testing in the browser console: jump close to the next phase change. */
