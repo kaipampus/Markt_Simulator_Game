@@ -116,7 +116,7 @@ export interface BuildingDef {
   /** Restaurant: guests sit at tables, the cook cooks, the waiter serves. */
   restaurant?: { tables: number; cookMs: number; eatMs: number };
   cuisine?: Cuisine;
-  /** How much this building attracts guests (see GameState.guestsTonight). */
+  /** How many guests this building draws per night (default: from tables or service places, see GameState.popularityOf). */
   popularity?: number;
   /** Emoji painted on the sign of the placeholder graphic. */
   sign?: string;
@@ -143,7 +143,7 @@ function restaurant(
     cost: o.cost,
     w: o.w,
     h: o.h,
-    rise: 46,
+    rise: 50,
     zone: 'market',
     style: 'restaurant',
     colors: o.colors,
@@ -151,7 +151,6 @@ function restaurant(
     staff: [...Array<Role>(o.cooks).fill('cook'), ...Array<Role>(o.waiters).fill('waiter')],
     restaurant: { tables: o.tables, cookMs: 3500, eatMs: 15_000 },
     cuisine,
-    popularity: o.popularity,
     sign: o.sign,
     glow: { x: 0.5, y: 0.3, radius: 60 + o.w * 14 },
   };
@@ -177,19 +176,18 @@ function stall(
     provides: { need: o.need, price: o.price },
     service: { slots: o.slots, ms: o.ms },
     staff: o.staff ? [o.staff] : undefined,
-    popularity: o.popularity,
     sign: o.sign,
   };
 }
 
 const RESTAURANTS: readonly BuildingDef[] = [
-  restaurant('r_ramen', 'japanese', { cost: 260, price: 22, w: 4, h: 3, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍜', colors: { main: '#8a5a3c', roof: '#c8372d', accent: '#f4e6c8' } }),
-  restaurant('r_pho', 'vietnamese', { cost: 300, price: 24, w: 4, h: 3, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍲', colors: { main: '#6e7a4a', roof: '#3d6b4a', accent: '#f3e9c8' } }),
-  restaurant('r_dimsum', 'chinese', { cost: 340, price: 26, w: 4, h: 3, tables: 4, cooks: 1, waiters: 1, popularity: 11, sign: '🥟', colors: { main: '#9a3a2a', roof: '#d9a42b', accent: '#ffe6b0' } }),
-  restaurant('r_curry', 'thai', { cost: 380, price: 28, w: 4, h: 3, tables: 4, cooks: 1, waiters: 1, popularity: 12, sign: '🍛', colors: { main: '#a8743a', roof: '#6b2a5a', accent: '#ffd98a' } }),
-  restaurant('r_bbq', 'korean', { cost: 750, price: 34, w: 5, h: 4, tables: 6, cooks: 2, waiters: 2, popularity: 18, sign: '🔥', colors: { main: '#5a4a44', roof: '#2a2a33', accent: '#ffb070' } }),
-  restaurant('r_sushi', 'japanese', { cost: 850, price: 38, w: 5, h: 4, tables: 6, cooks: 2, waiters: 2, popularity: 20, sign: '🍣', colors: { main: '#c9a77a', roof: '#2f3f5a', accent: '#f4f0e6' } }),
-  restaurant('r_hotpot', 'magic', { cost: 1000, price: 42, w: 5, h: 4, tables: 6, cooks: 2, waiters: 2, popularity: 22, sign: '🫕', colors: { main: '#4a3a6a', roof: '#7a2e5a', accent: '#c8f0ff' } }),
+  restaurant('r_ramen', 'japanese', { cost: 260, price: 22, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍜', colors: { main: '#8a5a3c', roof: '#c8372d', accent: '#f4e6c8' } }),
+  restaurant('r_pho', 'vietnamese', { cost: 300, price: 24, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍲', colors: { main: '#6e7a4a', roof: '#3d6b4a', accent: '#f3e9c8' } }),
+  restaurant('r_dimsum', 'chinese', { cost: 340, price: 26, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 11, sign: '🥟', colors: { main: '#9a3a2a', roof: '#d9a42b', accent: '#ffe6b0' } }),
+  restaurant('r_curry', 'thai', { cost: 380, price: 28, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 12, sign: '🍛', colors: { main: '#a8743a', roof: '#6b2a5a', accent: '#ffd98a' } }),
+  restaurant('r_bbq', 'korean', { cost: 750, price: 34, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 18, sign: '🔥', colors: { main: '#5a4a44', roof: '#2a2a33', accent: '#ffb070' } }),
+  restaurant('r_sushi', 'japanese', { cost: 850, price: 38, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 20, sign: '🍣', colors: { main: '#c9a77a', roof: '#2f3f5a', accent: '#f4f0e6' } }),
+  restaurant('r_hotpot', 'magic', { cost: 1000, price: 42, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 22, sign: '🫕', colors: { main: '#4a3a6a', roof: '#7a2e5a', accent: '#c8f0ff' } }),
 ];
 
 const NEW_STALLS: readonly BuildingDef[] = [

@@ -14,7 +14,8 @@ import {
 import { BUILDINGS, CATEGORIES, getBuilding, type BuildingDef, type Category } from '../data/buildings';
 import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
-import { state, type NightReport, type Tool } from '../state/GameState';
+import { AREAS, LEVEL_XP } from '../data/levels';
+import { state, unlockLevel, type NightReport, type Tool } from '../state/GameState';
 import type { MarketScene } from './MarketScene';
 import { FinanceUI } from './FinanceUI';
 import { StaffUI } from './StaffUI';
@@ -69,6 +70,8 @@ export class UIScene extends Phaser.Scene {
   private eraName!: Phaser.GameObjects.Text;
   private eraInfo!: Phaser.GameObjects.Text;
   private eraButton!: SmallButton;
+  private xpBar!: Phaser.GameObjects.Graphics;
+  private xpText!: Phaser.GameObjects.Text;
 
   // build bar
   private category: Tab = 'transport';
@@ -139,7 +142,11 @@ export class UIScene extends Phaser.Scene {
       state.on('money', () => this.refreshMoney(true)),
       state.on('tool', () => this.refreshItems()),
       state.on('speed', () => this.refreshTime()),
-      state.on('era', (era) => this.onEra(era)),
+      state.on('level', (level) => this.onLevel(level)),
+      state.on('area', () => {
+        this.refreshEra();
+        this.toast(STR.areaOpened);
+      }),
       state.on('report', (r) => this.showReport(r)),
       state.on('phase', () => {
         this.refreshItems();
@@ -257,44 +264,67 @@ export class UIScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // era panel
+  // level panel (top left): level, experience bar, next unlocks, opening areas
   // ---------------------------------------------------------------------------
 
   private createEraPanel(): void {
     const w = ERA_PANEL_WIDTH;
     const h = ERA_PANEL_HEIGHT;
     const bg = this.add.rectangle(0, 0, w, h, COLORS.uiPanel, 0.92).setOrigin(0).setStrokeStyle(1, COLORS.uiPanelEdge);
-    this.eraName = this.add.text(10, 6, '', { fontFamily: FONT_TITLE, fontSize: '15px', color: COLORS.uiGold });
-    this.eraInfo = this.add.text(10, 34, '', { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiTextDim });
-    this.eraButton = this.smallButton(w - 168, 6, 160, 22, '', () => {
-      if (state.advanceEra()) this.refreshEra();
+    this.eraName = this.add.text(10, 5, '', { fontFamily: FONT_TITLE, fontSize: '15px', color: COLORS.uiGold });
+    this.xpBar = this.add.graphics();
+    this.xpText = this.add.text(w - 10, 8, '', { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiTextDim }).setOrigin(1, 0);
+    this.eraInfo = this.add.text(10, 32, '', { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiTextDim }).setWordWrapWidth(w - 20);
+    this.eraButton = this.smallButton(w - 178, 30, 170, 22, '', () => {
+      if (state.openArea('hotel')) this.refreshEra();
     });
     this.eraButton.label.setFontSize(11);
-    this.eraPanel = this.add.container(8, HUD_HEIGHT + 6, [bg, this.eraName, this.eraInfo, this.eraButton.bg, this.eraButton.label]);
+    this.eraPanel = this.add.container(8, HUD_HEIGHT + 6, [
+      bg,
+      this.eraName,
+      this.xpBar,
+      this.xpText,
+      this.eraInfo,
+      this.eraButton.bg,
+      this.eraButton.label,
+    ]);
     this.refreshEra();
   }
 
   private refreshEra(): void {
-    this.eraName.setText(STR.eras[state.era]);
-    const next = state.nextEra;
-    if (!next) {
-      this.eraInfo.setText(STR.eraFinal);
-      this.eraButton.bg.setVisible(false);
-      this.eraButton.label.setVisible(false);
+    const w = ERA_PANEL_WIDTH;
+    this.eraName.setText(STR.level(state.level));
+    const next = state.nextLevelXp;
+    const prev = LEVEL_XP[state.level - 1] ?? 0;
+    const share = next === null ? 1 : Phaser.Math.Clamp((state.xp - prev) / (next - prev), 0, 1);
+    this.xpText.setText(STR.levelXp(state.xp, next));
+    const bx = 90;
+    const bw = w - bx - 10 - this.xpText.width - 8;
+    this.xpBar.clear();
+    this.xpBar.fillStyle(0x0b0f1a, 1).fillRect(bx, 11, bw, 8);
+    this.xpBar.fillStyle(COLORS.uiAccent, 1).fillRect(bx, 11, bw * share, 8);
+
+    // The hotel district can be opened once the level is reached.
+    const area = AREAS.hotel;
+    const canOpen = !state.areas.has('hotel') && state.level >= area.level;
+    this.eraButton.bg.setVisible(canOpen);
+    this.eraButton.label.setVisible(canOpen);
+    if (canOpen) {
+      const ready = state.canOpenArea('hotel');
+      this.eraButton.label.setText(STR.areaOpen(area.cost)).setColor(ready ? COLORS.uiText : COLORS.uiTextDim);
+      this.eraButton.bg.setFillStyle(ready ? COLORS.uiButtonActive : COLORS.uiButton).setAlpha(ready ? 1 : 0.6);
+      this.eraInfo.setText('');
       return;
     }
-    const name = STR.eras[next.era];
-    this.eraInfo.setText(STR.eraNext(name, next.reputation, next.cost));
-    const ready = state.canAdvanceEra();
-    this.eraButton.label.setText(STR.eraBuy(name, next.cost)).setColor(ready ? COLORS.uiText : COLORS.uiTextDim);
-    this.eraButton.bg.setFillStyle(ready ? COLORS.uiButtonActive : COLORS.uiButton).setAlpha(ready ? 1 : 0.6);
+    const unlocks = BUILDINGS.filter((d) => unlockLevel(d) === state.level + 1).map((d) => STR.buildings[d.id]);
+    if (state.level + 1 === area.level) unlocks.unshift(STR.areaName);
+    this.eraInfo.setText(unlocks.length ? STR.levelNext(unlocks.slice(0, 4).join(', ') + (unlocks.length > 4 ? ' …' : '')) : '');
   }
 
-  private onEra(era: number): void {
+  private onLevel(level: number): void {
     this.refreshEra();
     this.refreshItems();
-    this.items.find((i) => i.def.id === 'path')?.icon.setTexture(TEX.path(era));
-    this.toast(STR.eraStarted(STR.eras[era]));
+    this.toast(STR.levelUp(level));
   }
 
   private toast(text: string): void {
@@ -344,7 +374,7 @@ export class UIScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
     const keyText = this.add.text(5, 3, '', { fontFamily: FONT_UI, fontSize: '10px', color: COLORS.uiTextDim });
     const lock = this.add
-      .text(BTN_W / 2, 28, `🔒 ${STR.eras[def.era]}`, {
+      .text(BTN_W / 2, 28, STR.lockedLevel(unlockLevel(def)), {
         fontFamily: FONT_UI,
         fontSize: '10px',
         color: COLORS.uiText,
@@ -383,7 +413,7 @@ export class UIScene extends Phaser.Scene {
     if (def.staff) parts.push(STR.needsJobs([...new Set(def.staff)].map((r) => STR.roles[r].toLowerCase()).join(' + ')));
     if (def.bin) parts.push(STR.catchesLitter);
     if (def.provides) parts.push(`${STR.needIcons[def.provides.need]} +${def.provides.price}`);
-    if (!state.isUnlocked(def)) parts.push(`🔒 ${STR.eras[def.era]}`);
+    if (!state.isUnlocked(def)) parts.push(STR.lockedLevel(unlockLevel(def)));
     return parts.join('  ·  ');
   }
 
@@ -457,6 +487,11 @@ export class UIScene extends Phaser.Scene {
       if (this.financeUI.isOpen) this.toggleFinance();
     });
     kb.on('keydown-P', () => this.selectCategory('workers'));
+    kb.on('keydown-R', () => {
+      // Turn the building being placed, or the selected one (by day).
+      if (state.tool?.kind === 'build') state.rotateBuild();
+      else if (state.selection?.kind === 'building') state.rotate(state.selection.uid);
+    });
     kb.on('keydown-I', () => this.toggleFinance());
     kb.on('keydown-SPACE', () => state.togglePause());
     kb.on('keydown-F', () => state.cycleSpeed());
@@ -498,6 +533,7 @@ export class UIScene extends Phaser.Scene {
     this.report?.destroy();
     const lines = [STR.report.guests(r.safe, r.lost), STR.report.happy(r.happy, r.unhappy)];
     if (r.angry > 0) lines.push(STR.report.angry(r.angry));
+    lines.push(STR.report.xp(r.xp, r.level));
     if (r.staffLost > 0) lines.push(STR.report.staffLost(r.staffLost));
     lines.push(STR.report.cleaned(r.cleaned, r.dirty), STR.report.profit(r.net));
     const title = this.add

@@ -28,7 +28,7 @@ export const STR = {
   lockedUntil: (name: string) => name,
 
   hintIdle: 'Space pause · F speed · N start night / skip to morning · P workers · I finances · Drag or WASD to move · Wheel to zoom',
-  hintPlacing: 'Left-click to build  ·  Right-click or Esc to cancel',
+  hintPlacing: 'Left-click to build  ·  R turns the doors  ·  Right-click or Esc to cancel',
   hintPainting: 'Hold the left mouse button and drag to lay paths  ·  Right-click or Esc to cancel',
   hintDemolish: 'Click a building to demolish (50% refund)  ·  Right-click or Esc to cancel',
   hintFirstDay: 'Build by day: a restaurant next to the path (Food tab), hire a cook and a waiter (Workers tab, P), then start the night.',
@@ -38,6 +38,18 @@ export const STR = {
   nightNoBuild: 'Building resumes at daybreak',
 
   notEnoughCoins: 'Not enough coins',
+  areaLocked: 'This area is still closed',
+  rotate: '↻ Turn (R)',
+  level: (n: number) => `Level ${n}`,
+  levelXp: (xp: number, next: number | null) => (next === null ? `${xp} XP · top level` : `${xp} / ${next} XP`),
+  levelNext: (names: string) => `Next level: ${names}`,
+  levelUp: (n: number) => `Level ${n}!`,
+  lockedLevel: (n: number) => `🔒 Lv ${n}`,
+  areaName: 'Hotel District',
+  areaOpen: (cost: number) => `Open Hotel District (${cost})`,
+  areaNeeds: (level: number, cost: number) => `Hotel District: level ${level} + ${cost} coins`,
+  areaOpened: 'The Hotel District is open!',
+  areaLockLabel: (level: number, cost: number) => `🔒 Hotel District · Level ${level} · ${cost} coins`,
   cantBuildHere: "Can't build here",
   tooClose: 'Too close to another crossing',
   zoneOnly: {
@@ -152,6 +164,7 @@ export const STR = {
   impatientIcon: '😤',
   angryIcon: '😠',
   queueBadge: (n: number) => `👥 ${n}`,
+  restaurantBadge: (busy: number, tables: number, waiting: number) => `🪑 ${busy}/${tables}${waiting ? `  ⏳ ${waiting}` : ''}`,
 
   // --- staff ---------------------------------------------------------------
   staffTitle: (n: number, beds: number, wages: number) => `Staff ${n} / ${beds} beds  ·  wages ${wages} per night`,
@@ -256,6 +269,7 @@ export const STR = {
     angry: (n: number) => `${n} left a queue in anger`,
     profit: (n: number) => `Profit ${n >= 0 ? '+' : '−'}${Math.abs(n)}  (details: I)`,
     staffLost: (n: number) => `${n} workers lost to the sun`,
+    xp: (xp: number, level: number) => `+${xp} XP · Level ${level}`,
     cleaned: (n: number, dirty: number) => `${n} spots cleaned · ${dirty} still dirty`,
     reputation: (value: number, delta: number) => `Reputation ${value} (${delta >= 0 ? '+' : ''}${delta})`,
   },

@@ -2,6 +2,17 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-09 – Türen, Drehen, Level statt Zeitalter, sichtbare Küche
+- **Türen**: Gebäude mit Gästen oder Personal haben feste Türen (Matte vor der Tür). Restaurants haben zwei gegenüberliegende, alle anderen eine. Gäste und Arbeiter nutzen nur die Türen; die Tür muss an einem Weg liegen
+- **Drehen** mit R beim Bauen (Vorschau zeigt die Türen grün/orange) oder tagsüber für ein ausgewähltes Gebäude (auch Knopf im Infofenster)
+- **Level mit Erfahrungsbalken** oben links statt Zeitalter-Kauf; Erfahrung aus Einnahmen und zufriedenen Gästen; Gebäude werden nach und nach freigeschaltet (🔒 Lv)
+- **Hotel-Viertel gesperrt** (abgedunkelt) bis Level 6, dann für 2000 Münzen zu öffnen; Startbrücke entfällt
+- **Gästezahl folgt der Kapazität**: Tische und Bedienplätze bestimmen, wie viele Gäste kommen; Markt bis 100, mit Hotel-Viertel bis 400
+- Restaurants größer (4 × 4, 5 × 5) mit **eigener Küche** (Fliesen, Herde, Ausgabe): Der Koch kocht am Herd und trägt das Essen zur Ausgabe, der Kellner bringt es zum Tisch
+- An Ständen steht der Arbeiter **sichtbar hinter der Theke**
+- Über Restaurants nachts **„🪑 belegt/Tische ⏳ Wartende“**
+- Werte für Level und Freischaltungen in `src/data/levels.ts`
+
 ## 2026-11-09 – Restaurants, viele neue Stände, Geld-Wachstum
 - **Restaurants** als offene Räume: Küche mit Koch, Tische, Kellner trägt das Essen, Gäste sitzen sichtbar und essen ca. 15 s
 - Sieben Restaurants: Moonbroth Ramen, Mistleaf Pho, Floating Dumpling House, Firefly Curry House, Ember Grill, Starfish Sushi Bar, Bubbling Cauldron Hot Pot

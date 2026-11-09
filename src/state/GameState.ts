@@ -23,6 +23,7 @@ import {
 } from '../config';
 import { GATE, getBuilding, type BuildingDef, type BuildingId, type Need, type Zone } from '../data/buildings';
 import { ERAS, type Era } from '../data/eras';
+import { AREAS, LEVEL_XP, MARKET_GUEST_CAP, UNLOCK_LEVEL, XP_PER_COIN, XP_PER_HAPPY, type AreaId } from '../data/levels';
 import { DIRT, ROLES, STAFF, type Role } from '../data/staff';
 import { STR } from '../data/strings';
 import { Emitter } from './Emitter';
@@ -31,14 +32,23 @@ import type { Cell } from './pathfinding';
 /** What the player currently has selected in the build bar. */
 export type Tool = { kind: 'build'; id: BuildingId } | { kind: 'demolish' } | null;
 
+/** Which side the (main) door faces: 0 = front/south, 1 = west, 2 = back/north, 3 = east. */
+export type Rot = 0 | 1 | 2 | 3;
+
 export interface PlacedBuilding {
   uid: number;
   def: BuildingDef;
   tx: number;
   ty: number;
+  rot: Rot;
 }
 
-export type PlaceResult = 'ok' | 'blocked' | 'zone' | 'adjacent' | 'locked' | 'money' | 'night';
+/** Buildings guests or workers go into have doors; restaurants have two opposite ones. */
+export function hasDoors(def: BuildingDef): boolean {
+  return !!(def.provides || def.hotel || def.staffBeds || def.staff);
+}
+
+export type PlaceResult = 'ok' | 'blocked' | 'zone' | 'adjacent' | 'locked' | 'money' | 'night' | 'area';
 export type DemolishResult = { result: 'ok'; refund: number } | { result: 'night' | 'occupied' };
 export type HireResult = 'ok' | 'beds' | 'money';
 
@@ -87,6 +97,8 @@ export interface NightReport {
   staffLost: number;
   cleaned: number;
   dirty: number;
+  xp: number;
+  level: number;
   /** Guest spending per kind of building, biggest first. */
   sales: Sale[];
   /** earned + rooms - wages */
@@ -118,14 +130,37 @@ type StateEvents = {
   selection: [Selection];
   /** Dirt on a cell changed. */
   dirt: [Cell];
+  /** Reached a new level. */
+  level: [number];
+  /** An area was opened. */
+  area: [AreaId];
 };
 
-/** Popularity of a building: its own value, or a default by kind. */
+/**
+ * How many guests a building draws per night. Follows its capacity, so the
+ * crowd grows with what the market can actually serve: restaurants per
+ * table, stalls per service place, decoration a little.
+ */
 export function popularityOf(def: BuildingDef): number {
   if (def.popularity !== undefined) return def.popularity;
-  if (def.provides) return 3;
-  if (def.category === 'decor') return 1;
+  if (def.restaurant) return def.restaurant.tables * 2.5;
+  if (def.provides) return (def.service?.slots ?? 1) * 2;
+  if (def.category === 'decor') return 0.5;
   return 0;
+}
+
+export function unlockLevel(def: BuildingDef): number {
+  return UNLOCK_LEVEL[def.id] ?? 1;
+}
+
+/** Door cells of a building placed at (tx, ty) with rotation `rot` (also used for previews). */
+export function doorCellsFor(def: BuildingDef, tx: number, ty: number, rot: Rot): Cell[] {
+  if (!hasDoors(def)) return [];
+  const mx = tx + Math.floor(def.w / 2);
+  const my = ty + Math.floor(def.h / 2);
+  const side = (r: number): Cell =>
+    r === 0 ? { tx: mx, ty: ty + def.h } : r === 1 ? { tx: tx - 1, ty: my } : r === 2 ? { tx: mx, ty: ty - 1 } : { tx: tx + def.w, ty: my };
+  return def.restaurant ? [side(rot), side((rot + 2) % 4)] : [side(rot)];
 }
 
 /** Cell values in the occupancy grid. Positive numbers are building uids. */
@@ -155,9 +190,14 @@ function zoneAllows(zone: Zone, terrain: Terrain): boolean {
 export class GameState extends Emitter<StateEvents> {
   money = START_MONEY;
   tool: Tool = null;
+  /** Rotation for the next building to place (R). */
+  buildRot: Rot = 0;
   spiritCount = 0;
   reputation = REPUTATION_START;
   era: Era = 0;
+  level = 1;
+  xp = 0;
+  readonly areas = new Set<AreaId>();
 
   // --- clock ---
   phase: Phase = 'day';
@@ -222,13 +262,11 @@ export class GameState extends Emitter<StateEvents> {
     }
     this.gateCells = front;
 
-    // Starter infrastructure: a path from the gate up to a wooden bridge and one step beyond.
+    // Starter infrastructure: a path from the gate up through the market.
     const cx = this.gate.tx + 1;
-    this.place('bridge', cx, RIVER_TOP, true);
     for (let y = RIVER_TOP + RIVER_ROWS; y < this.gate.ty - 1; y++) this.place('path', cx, y, true);
-    this.place('path', cx, RIVER_TOP - 1, true);
     // A small staff lodge next to the path, so the first workers have a home.
-    this.place('staff_lodge', cx + 1, this.gate.ty - 3, true);
+    this.place('staff_lodge', cx + 1, this.gate.ty - 3, true, 1); // door faces the path
   }
 
   // ---------------------------------------------------------------------------
@@ -279,8 +317,19 @@ export class GameState extends Emitter<StateEvents> {
     return c > 0 ? this.buildings.get(c) : undefined;
   }
 
-  /** Walkable cells around a building, where spirits stand to use it. */
+  /**
+   * Cells right outside the doors of a building. Restaurants have two opposite
+   * doors, everything else one, in the middle of the side the rotation points to.
+   */
+  doorCells(b: PlacedBuilding): Cell[] {
+    return doorCellsFor(b.def, b.tx, b.ty, b.rot);
+  }
+
+  /** Walkable cells where spirits stand to use a building (its doors, if it has any). */
   entranceCells(b: PlacedBuilding): Cell[] {
+    if (hasDoors(b.def)) {
+      return this.doorCells(b).filter((c) => this.isWalkable(c.tx, c.ty) && !this.buildingAt(c.tx, c.ty)?.def.crossing);
+    }
     const out: Cell[] = [];
     const { tx, ty, def } = b;
     for (let x = tx; x < tx + def.w; x++) out.push({ tx: x, ty: ty + def.h }, { tx: x, ty: ty - 1 });
@@ -293,19 +342,28 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   isUnlocked(def: BuildingDef): boolean {
-    return def.era <= this.era;
+    return unlockLevel(def) <= this.level;
   }
 
-  checkPlace(def: BuildingDef, tx: number, ty: number): 'ok' | 'blocked' | 'zone' | 'adjacent' {
+  /** Is the area this cell belongs to open? (The market is always open.) */
+  isAreaOpen(tx: number, ty: number): boolean {
+    const t = this.terrainAt(tx, ty);
+    return t === 'market' || this.areas.has('hotel');
+  }
+
+  checkPlace(def: BuildingDef, tx: number, ty: number): 'ok' | 'blocked' | 'zone' | 'adjacent' | 'area' {
     let zoneOk = true;
+    let areaOk = true;
     for (let x = 0; x < def.w; x++) {
       for (let y = 0; y < def.h; y++) {
         if (!this.inBounds(tx + x, ty + y)) return 'blocked';
         if (this.cell(tx + x, ty + y) !== FREE) return 'blocked';
         if (!zoneAllows(def.zone, this.terrainAt(tx + x, ty + y))) zoneOk = false;
+        if (!this.isAreaOpen(tx + x, ty + y)) areaOk = false;
       }
     }
     if (!zoneOk) return 'zone';
+    if (!areaOk) return 'area';
     // Crossings need a free column on both sides, so spirits can't hop between them.
     if (def.crossing) {
       for (let y = 0; y < def.h; y++) {
@@ -327,6 +385,12 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('tool', tool);
   }
 
+  /** R while placing: turn the next building. */
+  rotateBuild(): void {
+    this.buildRot = ((this.buildRot + 1) % 4) as Rot;
+    this.emit('tool', this.tool);
+  }
+
   /** Building and demolishing only happen during the day. */
   get canBuild(): boolean {
     return this.phase === 'day';
@@ -341,7 +405,7 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('money', this.money);
   }
 
-  place(id: BuildingId, tx: number, ty: number, free = false): PlaceResult {
+  place(id: BuildingId, tx: number, ty: number, free = false, rot: Rot = 0): PlaceResult {
     const def = getBuilding(id);
     if (!free && !this.canBuild) return 'night';
     if (!free && !this.isUnlocked(def)) return 'locked';
@@ -349,7 +413,7 @@ export class GameState extends Emitter<StateEvents> {
     if (check !== 'ok') return check;
     if (!free && !this.canAfford(def.cost)) return 'money';
 
-    const building: PlacedBuilding = { uid: this.nextUid++, def, tx, ty };
+    const building: PlacedBuilding = { uid: this.nextUid++, def, tx, ty, rot };
     this.buildings.set(building.uid, building);
     for (let x = 0; x < def.w; x++) {
       for (let y = 0; y < def.h; y++) this.setCell(tx + x, ty + y, building.uid);
@@ -358,6 +422,49 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('placed', building);
     if (def.staff) this.autoAssign(building);
     return 'ok';
+  }
+
+  /** Turn a building so its door(s) face the next side (by day only). */
+  rotate(uid: number): boolean {
+    const b = this.buildings.get(uid);
+    if (!b || !this.canBuild || !hasDoors(b.def)) return false;
+    this.emit('removed', b);
+    b.rot = ((b.rot + 1) % 4) as Rot;
+    this.emit('placed', b);
+    if (this.selection?.kind === 'building' && this.selection.uid === uid) this.emit('selection', this.selection);
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // level and areas
+  // ---------------------------------------------------------------------------
+
+  /** Experience needed for the next level (null at the top). */
+  get nextLevelXp(): number | null {
+    return LEVEL_XP[this.level] ?? null;
+  }
+
+  addXp(amount: number): void {
+    this.xp += Math.round(amount);
+    let up = false;
+    while (this.nextLevelXp !== null && this.xp >= this.nextLevelXp) {
+      this.level++;
+      up = true;
+    }
+    if (up) this.emit('level', this.level);
+  }
+
+  canOpenArea(id: AreaId): boolean {
+    const a = AREAS[id];
+    return !this.areas.has(id) && this.level >= a.level && this.money >= a.cost;
+  }
+
+  openArea(id: AreaId): boolean {
+    if (!this.canOpenArea(id)) return false;
+    this.addMoney(-AREAS[id].cost);
+    this.areas.add(id);
+    this.emit('area', id);
+    return true;
   }
 
   /** Removes a building and refunds part of its cost. */
@@ -836,7 +943,7 @@ export class GameState extends Emitter<StateEvents> {
     return { sales: [...this.sales.values()].sort((a, b) => b.coins - a.coins), earned: this.night.earned };
   }
 
-  /** How attractive the market is: sum over all buildings. */
+  /** How many guests the market can serve: sum over all buildings. */
   popularity(): number {
     let sum = 0;
     for (const b of this.buildings.values()) sum += popularityOf(b.def);
@@ -850,7 +957,8 @@ export class GameState extends Emitter<StateEvents> {
   guestsTonight(): number {
     const repFactor = 0.6 + this.reputation / 125;
     const wanted = (GUESTS_BASE + this.popularity() * GUESTS_PER_POPULARITY) * repFactor;
-    return Math.min(GUEST_CAP, Math.round(wanted));
+    const cap = this.areas.has('hotel') ? AREAS.hotel.guestCap : MARKET_GUEST_CAP;
+    return Math.min(cap, GUEST_CAP, Math.round(wanted));
   }
 
   // ---------------------------------------------------------------------------
@@ -960,6 +1068,8 @@ export class GameState extends Emitter<StateEvents> {
     for (const m of this.staff.values()) m.onDuty = false;
 
     const n = this.night;
+    const xpGained = Math.round(n.earned * XP_PER_COIN + n.happy * XP_PER_HAPPY);
+    this.addXp(xpGained);
     const guests = Math.max(1, n.safe + n.lost);
     const repDelta = Math.round((REP_MOOD * (n.happy - n.unhappy) + REP_LOST * n.lost) / guests);
     this.reputation = Math.max(0, Math.min(REPUTATION_MAX, this.reputation + repDelta));
@@ -982,6 +1092,8 @@ export class GameState extends Emitter<StateEvents> {
       staffLost: n.staffLost,
       cleaned: n.cleaned,
       dirty: this.dirtyCells().length,
+      xp: xpGained,
+      level: this.level,
       sales: this.salesTonight().sales,
       net: n.earned + rooms - wages,
       repDelta,

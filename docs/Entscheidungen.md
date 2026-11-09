@@ -13,6 +13,16 @@ Vorlage:
 
 ---
 
+## 2026-11-09 – Feste Türen und Drehen
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Gebäude mit Gästen oder Personal haben feste Türen: Restaurants zwei gegenüberliegende, alle anderen eine in der Mitte einer Seite. Nur über die Türen kommt man hinein; ein Weg, der irgendwo an der Seite vorbeiführt, reicht nicht. Mit R dreht man beim Bauen (oder tagsüber nachträglich) die Türen um 90°. Bei Restaurants ändert sich die Grafik (Türen vorn/hinten oder links/rechts), bei anderen Gebäuden zeigt eine Türmatte die Tür (echte Grafiken folgen in Phase 5).
+**Warum:** Klare Eingänge machen Wege und Platz zur echten Planungsaufgabe.
+
+## 2026-11-09 – Level statt Zeitalter umgesetzt, Gästezahl nach Kapazität
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Das Zeitalter-Kaufen ist ersetzt durch ein Level mit Erfahrung (0,2 XP pro verdiente Münze, 2 XP pro zufriedenem Gast). Jedes Gebäude hat eine Freischalt-Stufe (Tabelle in `data/levels.ts`). Das Hotel-Viertel öffnet ab Level 6 für 2000 Münzen. Die Gästezahl richtet sich nach der Kapazität (Tische × 2,5, Bedienplätze × 2, Deko 0,5) plus 6 Grundgäste, mal Ruf-Faktor, gedeckelt (Markt 100, mit Hotel-Viertel 400). Damit wächst die Menge der Gäste mit dem, was man sich leisten kann, bleibt aber leicht fordernd.
+**Verworfen:** Alle Restaurants von Anfang an; Gästezahl unabhängig von der Kapazität.
+
 ## 2026-11-09 – Restaurants mit Koch und Kellner, viele Küchen
 **Status:** entschieden (Idee des Nutzers; Detailfragen mit den empfohlenen Varianten beantwortet)
 **Entscheidung:** Neue Gebäudeart **Restaurant**: offener Raum mit Küche und Tischen, Gäste sichtbar am Tisch, Koch kocht, Kellner (neuer Job) serviert, Essen dauert ca. 15 s. Koch und Kellner sind Pflicht. Sieben Restaurants verschiedener asiatischer Küchen mit Zauber-Einschlag, dazu acht neue Stände und das neue Bedürfnis **Spaß**. Die Nudelbude bleibt als billiger Imbiss. Gäste haben oft **Gelüste** nach einer Küche. Platzmangel und ein chaotischer Markt sind gewollt.

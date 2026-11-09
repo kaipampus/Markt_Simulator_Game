@@ -344,7 +344,8 @@ export class Worker extends Walker {
     if (!this.isAwake) return;
     // Inside a restaurant the restaurant draws its own cook and waiter figures.
     const m0 = this.member;
-    const inside = this.mode === 'onDuty' && m0?.post != null && !!this.state.buildings.get(m0.post)?.def.restaurant;
+    const postDef = m0?.post != null ? this.state.buildings.get(m0.post)?.def : undefined;
+    const inside = this.mode === 'onDuty' && !!postDef && (!!postDef.restaurant || postDef.style === 'stall');
     for (const o of [this.body, this.shadow, this.badge]) o.setVisible(!inside);
     if (inside) return;
     const moving = this.mode === 'toPost' || this.mode === 'toHome' || this.mode === 'roam';

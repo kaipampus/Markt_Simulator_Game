@@ -12,31 +12,35 @@ export interface Diner {
 }
 
 type TableState = 'free' | 'seated' | 'ordered' | 'cooking' | 'ready' | 'served';
+type Pt = { x: number; y: number };
 
-interface Waiter {
+/** A cook or waiter figure inside the restaurant. */
+interface Figure {
   img: Phaser.GameObjects.Image;
   plate: Phaser.GameObjects.Image;
   x: number;
   y: number;
-  /** Table we are bringing food to, and whether we are on the way back. */
-  task: { table: number; back: boolean } | null;
+  /**
+   * Cooks: 'cook' at the stove, 'carry' to the pass, 'back' to the stove.
+   * Waiters: 'carry' to the table, 'back' to the pass.
+   */
+  task: { table: number; stage: 'cook' | 'carry' | 'back'; ms: number } | null;
 }
 
-const WAITER_SPEED = 120;
+const WALK_SPEED = 110;
 
 /**
- * Runs one restaurant: guests take a table and order, cooks cook one dish
- * each at a time, waiters carry the dishes from the pass to the tables.
- * Cooks and waiters on duty are drawn inside the room; the worker figures
- * themselves wait hidden at the door.
+ * Runs one restaurant. Guests take a table and order. A cook cooks the dish
+ * at the stove and carries it to the pass; a waiter takes it from the pass
+ * to the table. Cooks and waiters on duty are drawn inside the room; the
+ * worker figures themselves wait hidden at the door.
  */
 export class Restaurant {
   private tables: Array<{ guest: Diner | null; state: TableState }>;
-  private cooking: Array<{ table: number; ms: number }> = [];
   private orders: number[] = [];
   private ready: number[] = [];
-  private cooks: Phaser.GameObjects.Image[] = [];
-  private waiters: Waiter[] = [];
+  private cooks: Figure[] = [];
+  private waiters: Figure[] = [];
   private readonly layout;
   private readonly ox: number;
   private readonly oy: number;
@@ -53,13 +57,8 @@ export class Restaurant {
     this.tables = Array.from({ length: def.restaurant?.tables ?? 0 }, () => ({ guest: null, state: 'free' as TableState }));
   }
 
-  private world(p: { x: number; y: number }): { x: number; y: number } {
+  private world(p: Pt): Pt {
     return { x: this.ox + p.x, y: this.oy + p.y };
-  }
-
-  /** Free tables right now. */
-  get freeTables(): number {
-    return this.tables.filter((t) => t.state === 'free').length;
   }
 
   /** Take a free table; returns its number or null. */
@@ -71,7 +70,7 @@ export class Restaurant {
   }
 
   /** Where a guest sits at table i (world position of the feet). */
-  seatPos(i: number): { x: number; y: number } {
+  seatPos(i: number): Pt {
     return this.world(this.layout.tables[i].seat);
   }
 
@@ -88,114 +87,130 @@ export class Restaurant {
     this.tables[i] = { guest: null, state: 'free' };
     this.orders = this.orders.filter((t) => t !== i);
     this.ready = this.ready.filter((t) => t !== i);
-    this.cooking = this.cooking.filter((c) => c.table !== i);
-    for (const w of this.waiters) {
-      if (w.task?.table === i && !w.task.back) {
-        w.task.back = true;
-        w.plate.setVisible(false);
+    for (const f of [...this.cooks, ...this.waiters]) {
+      if (f.task?.table === i && f.task.stage !== 'back') {
+        f.task.stage = 'back';
+        f.plate.setVisible(false);
       }
     }
   }
 
+  /** Moves a figure towards a point; true when it got there. */
+  private walk(f: Figure, to: Pt, delta: number): boolean {
+    const dx = to.x - f.x;
+    const dy = to.y - f.y;
+    const dist = Math.hypot(dx, dy);
+    const step = (WALK_SPEED * delta) / 1000;
+    if (dist <= step) {
+      f.x = to.x;
+      f.y = to.y;
+      return true;
+    }
+    f.x += (dx / dist) * step;
+    f.y += (dy / dist) * step;
+    if (Math.abs(dx) > 0.5) f.img.setFlipX(dx < 0);
+    return false;
+  }
+
+  private draw(f: Figure, time: number, busy: boolean): void {
+    const bob = Math.sin(time / (busy ? 120 : 300) + f.x) * (busy ? 1.5 : 1);
+    f.img.setPosition(f.x, f.y - 3 + bob).setDepth(f.y);
+    f.plate.setPosition(f.x + 9, f.y - 24 + bob).setDepth(f.y + 0.1);
+  }
+
   /** `delta` is already scaled by the game speed. */
   update(delta: number, time: number): void {
-    const cookCount = this.state.onDutyCount(this.building.uid, 'cook');
-    const waiterCount = this.state.onDutyCount(this.building.uid, 'waiter');
-    this.syncCooks(cookCount);
-    this.syncWaiters(waiterCount);
+    this.sync(this.cooks, 'cook', this.state.onDutyCount(this.building.uid, 'cook'));
+    this.sync(this.waiters, 'waiter', this.state.onDutyCount(this.building.uid, 'waiter'));
 
     // Drop guests who vanished (lost to the sun) without leaving properly.
     this.tables.forEach((t, i) => {
       if (t.guest?.isDone) this.leave(i);
     });
 
-    // Kitchen: every cook works on one dish.
+    // Cooks: cook at the stove, carry the dish to the pass, go back.
     const cookMs = this.building.def.restaurant?.cookMs ?? 3000;
-    while (this.cooking.length < cookCount && this.orders.length) {
-      const table = this.orders.shift()!;
-      this.tables[table].state = 'cooking';
-      this.cooking.push({ table, ms: cookMs });
-    }
-    for (const c of this.cooking) c.ms -= delta;
-    for (const c of this.cooking.filter((c) => c.ms <= 0)) {
-      this.tables[c.table].state = 'ready';
-      this.ready.push(c.table);
-    }
-    this.cooking = this.cooking.filter((c) => c.ms > 0);
+    const drop = this.world(this.layout.drop);
+    this.cooks.forEach((c, i) => {
+      const stove = this.world(this.layout.stoves[i % this.layout.stoves.length]);
+      if (!c.task && this.orders.length && Math.hypot(c.x - stove.x, c.y - stove.y) < 2) {
+        const table = this.orders.shift()!;
+        this.tables[table].state = 'cooking';
+        c.task = { table, stage: 'cook', ms: cookMs };
+      }
+      const t = c.task;
+      if (t?.stage === 'cook') {
+        t.ms -= delta;
+        if (t.ms <= 0) {
+          t.stage = 'carry';
+          c.plate.setVisible(true);
+        }
+      } else if (t?.stage === 'carry') {
+        if (this.walk(c, drop, delta)) {
+          if (this.tables[t.table].state === 'cooking') {
+            this.tables[t.table].state = 'ready';
+            this.ready.push(t.table);
+          }
+          t.stage = 'back';
+          c.plate.setVisible(false);
+        }
+      } else if (this.walk(c, stove, delta)) {
+        c.task = null;
+      }
+      this.draw(c, time, t?.stage === 'cook');
+    });
 
-    // Service: waiters carry ready dishes from the pass to the tables.
+    // Waiters: take ready dishes from the pass to the tables.
     const pass = this.world(this.layout.pass);
     for (const w of this.waiters) {
       if (!w.task && this.ready.length && Math.hypot(w.x - pass.x, w.y - pass.y) < 2) {
-        w.task = { table: this.ready.shift()!, back: false };
+        w.task = { table: this.ready.shift()!, stage: 'carry', ms: 0 };
         w.plate.setVisible(true);
       }
-      const target = !w.task || w.task.back ? pass : this.world(this.layout.tables[w.task.table].serve);
-      const dx = target.x - w.x;
-      const dy = target.y - w.y;
-      const dist = Math.hypot(dx, dy);
-      const step = (WAITER_SPEED * delta) / 1000;
-      if (dist > step) {
-        w.x += (dx / dist) * step;
-        w.y += (dy / dist) * step;
-        if (Math.abs(dx) > 0.5) w.img.setFlipX(dx < 0);
-      } else {
-        w.x = target.x;
-        w.y = target.y;
-        if (w.task && !w.task.back) {
-          const t = this.tables[w.task.table];
-          if (t.state === 'ready' && t.guest) {
-            t.state = 'served';
-            t.guest.foodServed();
+      const t = w.task;
+      if (t?.stage === 'carry') {
+        if (this.walk(w, this.world(this.layout.tables[t.table].serve), delta)) {
+          const table = this.tables[t.table];
+          if (table.state === 'ready' && table.guest) {
+            table.state = 'served';
+            table.guest.foodServed();
           }
-          w.task.back = true;
+          t.stage = 'back';
           w.plate.setVisible(false);
-        } else if (w.task?.back) {
-          w.task = null;
         }
+      } else if (this.walk(w, pass, delta)) {
+        w.task = null;
       }
-      const bob = Math.sin(time / 140 + w.x) * 1.5;
-      w.img.setPosition(w.x, w.y - 3 + bob).setDepth(w.y);
-      w.plate.setPosition(w.x + 9, w.y - 24 + bob).setDepth(w.y + 0.1);
+      this.draw(w, time, !!t);
     }
-
-    // Cooks bob at their stoves.
-    this.cooks.forEach((c, i) => {
-      const p = this.world(this.layout.stoves[i % this.layout.stoves.length]);
-      c.setPosition(p.x, p.y - 3 + Math.sin(time / 260 + i) * 1.5).setDepth(p.y);
-    });
   }
 
-  private figure(role: Role, x: number, y: number): Phaser.GameObjects.Image {
-    return this.scene.add.image(x, y, TEX.worker(role)).setOrigin(0.5, 1).setScale(0.9).setDepth(y);
-  }
-
-  private syncCooks(n: number): void {
-    while (this.cooks.length < n) {
-      const p = this.world(this.layout.stoves[this.cooks.length % this.layout.stoves.length]);
-      this.cooks.push(this.figure('cook', p.x, p.y));
+  /** Match the figures to the workers on duty. */
+  private sync(list: Figure[], role: Role, n: number): void {
+    const start = role === 'cook' ? this.world(this.layout.stoves[list.length % this.layout.stoves.length]) : this.world(this.layout.pass);
+    while (list.length < n) {
+      const img = this.scene.add.image(start.x, start.y, TEX.worker(role)).setOrigin(0.5, 1).setScale(0.9).setDepth(start.y);
+      const plate = this.scene.add.image(start.x, start.y, TEX.plate).setVisible(false);
+      list.push({ img, plate, x: start.x, y: start.y, task: null });
     }
-    while (this.cooks.length > n) this.cooks.pop()!.destroy();
-  }
-
-  private syncWaiters(n: number): void {
-    const pass = this.world(this.layout.pass);
-    while (this.waiters.length < n) {
-      const img = this.figure('waiter', pass.x, pass.y);
-      const plate = this.scene.add.image(pass.x, pass.y, TEX.plate).setVisible(false);
-      this.waiters.push({ img, plate, x: pass.x, y: pass.y, task: null });
-    }
-    while (this.waiters.length > n) {
-      const w = this.waiters.pop()!;
-      // A dish on its way goes back to the pass.
-      if (w.task && !w.task.back && this.tables[w.task.table]?.state === 'ready') this.ready.unshift(w.task.table);
-      w.img.destroy();
-      w.plate.destroy();
+    while (list.length > n) {
+      const f = list.pop()!;
+      // Unfinished work goes back into the queues.
+      const t = f.task;
+      if (t && t.stage !== 'back') {
+        const table = this.tables[t.table];
+        if (role === 'cook' && table?.state === 'cooking') {
+          table.state = 'ordered';
+          this.orders.unshift(t.table);
+        } else if (role === 'waiter' && table?.state === 'ready') this.ready.unshift(t.table);
+      }
+      f.img.destroy();
+      f.plate.destroy();
     }
   }
 
   destroy(): void {
-    this.syncCooks(0);
-    this.syncWaiters(0);
+    this.sync(this.cooks, 'cook', 0);
+    this.sync(this.waiters, 'waiter', 0);
   }
 }

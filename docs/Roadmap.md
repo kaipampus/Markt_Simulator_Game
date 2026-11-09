@@ -78,10 +78,14 @@ Schritt 1b – Restaurants, Vielfalt, Geld:
 - [ ] Eigene Grafiken statt Platzhaltern für Restaurants
 
 Schritt 2 – Level und Bereiche:
-- [ ] Level mit Balken, Erfahrung aus zufriedenen Gästen und Gebäuden
+- [x] Level mit Balken, Erfahrung aus Einnahmen und zufriedenen Gästen
+- [x] Gebäude nach Level freischalten, Hotel-Viertel gesperrt bis Level 6 + 2000 Münzen
+- [x] Türen und Drehen (R), Gästezahl nach Kapazität
+- [x] Sichtbare Küche, Personal hinter Theken, Anzeige Tische/Warteschlange
+- [ ] Zeitalter-Code und alte Weg-Grafiken aufräumen
 - [x] Beliebtheitswert für Stände und Deko bestimmt die Gästezahl (vorgezogen)
-- [ ] Bereich 1 Nachtmarkt (ohne Hotel), Bereich 2 Hotel-Viertel gesperrt bis Level + Münzen
-- [ ] Zeitalter entfernen, Gebäude neu auf die Bereiche verteilen
+- [x] Bereich 1 Nachtmarkt (ohne Hotel), Bereich 2 Hotel-Viertel gesperrt bis Level + Münzen
+- [x] Zeitalter-Kauf entfernt, Gebäude nach Level verteilt (moderne Gebäude vorerst Level 10)
 
 Schritt 3 – Neon-Viertel und Größe:
 - [ ] Karte nach rechts erweitern, Bereich 3 Neon-Viertel mit modernen Gebäuden

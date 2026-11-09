@@ -84,10 +84,17 @@ Wege ändern ihr Aussehen automatisch mit dem Zeitalter.
   - Zufrieden ist ein Gast, wenn er mindestens die Hälfte seiner Wünsche erfüllt bekam; Schmutz und Wut in der Schlange ziehen ab
 - **Mana**: für Zauber (später)
 
+## Türen
+- Gebäude mit Gästen oder Personal haben **feste Türen** (Matte davor). Restaurants haben **zwei gegenüberliegende**, alle anderen eine.
+- Gäste und Arbeiter gehen nur durch die Türen; die Tür muss an einem Weg liegen.
+- Mit **R** dreht man das Gebäude beim Bauen (Vorschau: Tür grün = Weg da, orange = Weg fehlt) oder tagsüber nachträglich.
+
 ## Restaurants
-Für richtige Mahlzeiten gibt es **Restaurants**: offene Räume (4 × 3 oder 5 × 4 Felder), in die man von schräg oben hineinsieht.
-- Hinten die **Küche** mit Koch, vorne **Tische** (4 oder 6). Gäste stellen sich an, setzen sich, bestellen.
-- Der **Koch** kocht ein Gericht nach dem anderen, der **Kellner** trägt es vom Pass zum Tisch, der Gast isst etwa 15 Sekunden (je nach Gast) und zahlt.
+Für richtige Mahlzeiten gibt es **Restaurants**: offene Räume (4 × 4 oder 5 × 5 Felder), in die man von schräg oben hineinsieht.
+- Hinten die **Küche** (Fliesen, Herde, Ausgabe-Theke) mit Koch, vorne **Tische** (4 oder 6). Gäste stellen sich an, setzen sich, bestellen.
+- Der **Koch** kocht am Herd und trägt das Gericht zur Ausgabe, der **Kellner** bringt es zum Tisch, der Gast isst etwa 15 Sekunden (je nach Gast) und zahlt.
+- Nachts zeigt das Restaurant über dem Dach „🪑 belegt/Tische ⏳ Wartende“.
+- An Ständen steht der Arbeiter sichtbar hinter der Theke.
 - Ein Restaurant braucht **mindestens einen Koch und einen Kellner**. Große Restaurants haben Platz für je zwei, das macht sie schneller.
 - Wer zu lange aufs Essen wartet (doppelte Geduld), geht wütend.
 - Restaurants bringen pro Gast deutlich mehr als Stände, brauchen aber viel Platz und Personal.
@@ -114,7 +121,8 @@ Neben den Restaurants gibt es viele kleine Stände mit Zauber-Einschlag:
 
 ## Geld und Wachstum
 - Start mit wenig Geld (**650 Münzen**): genug für ein kleines Restaurant, Koch, Kellner und einen Imbiss.
-- **Beliebtheit (★):** Jedes Gebäude hat einen Beliebtheitswert (Restaurants 10–22, Stände 3–5, Deko 1). Gäste pro Nacht = (6 + Beliebtheit) × Ruf-Faktor, höchstens 120 (Bereich 1).
+- **Beliebtheit (★)** folgt der **Kapazität**: Tische × 2,5, Bedienplätze × 2, Deko 0,5. Gäste pro Nacht = (6 + Beliebtheit) × Ruf-Faktor, höchstens 100 (nur Markt) bzw. 400 (mit Hotel-Viertel). So kommen nur so viele Gäste, wie man bedienen kann, plus etwas Druck.
+- **Level:** Erfahrung aus Einnahmen (0,2 XP pro Münze) und zufriedenen Gästen (2 XP). Restaurants und Stände werden nach und nach freigeschaltet (Liste in `src/data/levels.ts`), das Hotel-Viertel ab Level 6 für 2000 Münzen.
 - Mehr Gebäude → mehr Gäste → mehr Geld → mehr Gebäude. Test: Nacht 1 mit Ramen und Nudelbude ≈ 500 Gewinn, Nacht 2 mit zweitem Restaurant und Teehaus ≈ 1150.
 - Wünsche, die der Markt gar nicht anbietet, kosten nur Einnahmen, nicht den Ruf. Der Ruf hängt an Schlangen, Wut, Schmutz und falscher Küche.
 - Geplant: Gebäude-Stufen (z. B. Restaurant Stufe 2 mit mehr Tischen), weitere Gebäude teurer.

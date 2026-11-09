@@ -3,7 +3,7 @@ import { BAR_HEIGHT, COLORS, FONT_TITLE, FONT_UI } from '../config';
 import { ROLES, STAFF, type Role } from '../data/staff';
 import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
-import { state, type PlacedBuilding, type StaffMember, type StaffStatus } from '../state/GameState';
+import { hasDoors, state, type PlacedBuilding, type StaffMember, type StaffStatus } from '../state/GameState';
 
 const CARD_W = 86;
 const CARD_H = 84;
@@ -364,6 +364,7 @@ export class StaffUI {
     buttons: Array<[string, () => void]>,
   ): void {
     const { def } = b;
+    if (hasDoors(def) && state.canBuild) buttons.push([STR.rotate, () => state.rotate(b.uid)]);
     if (def.provides) line(STR.sells(STR.needIcons[def.provides.need], def.provides.price), COLORS.uiTextDim);
     if (def.hotel) line(STR.bedsUsed(state.sleepersIn(b.uid), def.hotel.beds, def.hotel.price));
     if (def.staffBeds) line(STR.staffHouse(state.staff.size, state.staffBeds()));
@@ -388,7 +389,7 @@ export class StaffUI {
     const free = [...new Set(def.staff)].filter(
       (r) => state.staffOf(b.uid).filter((m) => m.role === r).length < state.slotsFor(b, r),
     );
-    for (const role of free.slice(0, 2)) {
+    for (const role of free.slice(0, buttons.length ? 1 : 2)) {
       const idle = state.idleStaff(role)[0];
       if (idle) buttons.push([STR.assignIdle(idle.name), () => state.assign(idle.id, b.uid)]);
       else buttons.push([STR.hireAndAssign(STR.roles[role], STAFF[role].hire), () => this.hire(role, b.uid)]);
