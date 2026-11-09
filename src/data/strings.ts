@@ -1,4 +1,4 @@
-import type { BuildingId, Category, Need, Zone } from './buildings';
+import type { BuildingId, Category, Cuisine, Need, Zone } from './buildings';
 import type { Role } from './staff';
 
 function clock(ms: number): string {
@@ -31,7 +31,7 @@ export const STR = {
   hintPlacing: 'Left-click to build  ·  Right-click or Esc to cancel',
   hintPainting: 'Hold the left mouse button and drag to lay paths  ·  Right-click or Esc to cancel',
   hintDemolish: 'Click a building to demolish (50% refund)  ·  Right-click or Esc to cancel',
-  hintFirstDay: 'Build by day: a stall on the path, an inn up north, then hire workers for both (Workers tab, P) and start the night.',
+  hintFirstDay: 'Build by day: a restaurant next to the path (Food tab), hire a cook and a waiter (Workers tab, P), then start the night.',
   hintNight: 'Night: building is closed. Manage the market: click stalls and workers, send cleaners to dirty paths.',
   hintStaffSelected: (role: string) => `Click a ${role} building to move this worker there  ·  Esc to deselect`,
   hintCleanerSelected: 'Click a path to send this cleaner there  ·  Esc to deselect',
@@ -56,7 +56,8 @@ export const STR = {
 
   categories: {
     transport: 'Transport',
-    market: 'Market',
+    food: 'Food',
+    market: 'Fun',
     services: 'Services',
     hotels: 'Hotels',
     decor: 'Decor',
@@ -65,6 +66,21 @@ export const STR = {
   zoneLabels: { hotel: 'Hotel District', market: 'Night Market' },
 
   buildings: {
+    r_ramen: 'Moonbroth Ramen',
+    r_pho: 'Mistleaf Pho',
+    r_dimsum: 'Floating Dumpling House',
+    r_curry: 'Firefly Curry House',
+    r_bbq: 'Ember Grill',
+    r_sushi: 'Starfish Sushi Bar',
+    r_hotpot: 'Bubbling Cauldron Hot Pot',
+    skewers: 'Firefly Skewers',
+    mochi: 'Moon Mochi',
+    dreamfloss: 'Dream Floss',
+    bubbletea: 'Cauldron Bubble Tea',
+    goldfish: 'Ghost Goldfish Scooping',
+    masks: 'Spirit Mask Stand',
+    ringtoss: 'Lantern Ring Toss',
+    fortune: 'Paper Crane Fortunes',
     path: 'Path',
     bridge: 'Wooden Bridge',
     bridge_stone: 'Stone Bridge',
@@ -106,7 +122,31 @@ export const STR = {
     luck: '🧧',
     warmth: '🔥',
     relief: '🚻',
+    fun: '🎏',
   } satisfies Record<Need, string>,
+  cuisines: {
+    japanese: 'Japanese',
+    vietnamese: 'Vietnamese',
+    chinese: 'Chinese',
+    thai: 'Thai',
+    korean: 'Korean',
+    magic: 'Witch kitchen',
+  } satisfies Record<Cuisine, string>,
+  /** Bubble above a guest craving one cuisine. */
+  cravingIcons: {
+    japanese: '🍣',
+    vietnamese: '🍲',
+    chinese: '🥟',
+    thai: '🍛',
+    korean: '🔥',
+    magic: '🫕',
+  } satisfies Record<Cuisine, string>,
+  eatingIcon: '😋',
+  tables: (busy: number, total: number) => `Tables ${busy} / ${total} taken`,
+  restaurantInfo: (cuisine: string, tables: number) => `${cuisine} kitchen · ${tables} tables`,
+  needsJobs: (jobs: string) => `needs ${jobs}`,
+  popularity: (p: number, guests: number) => `★ ${p} → ${guests} guests`,
+  popularityInfo: 'Popularity: every stall, restaurant and decoration draws more guests',
   homeIcon: '💤',
   waitIcon: '⏳',
   impatientIcon: '😤',
@@ -123,8 +163,9 @@ export const STR = {
   roleInfo: (role: string, worksAt: string, hire: number, wage: number, count: number, idle: number) =>
     `${role}: ${worksAt}  ·  Hire ${hire}, then ${wage} per night  ·  ${count} hired${idle ? `, ${idle} without a job` : ''}  ·  Click to hire`,
   roleWorksAt: {
-    cook: 'Noodle Stall, Tea House, Café',
-    clerk: 'Charm Stand, Arcade',
+    cook: 'restaurants, food and tea stalls',
+    waiter: 'restaurants (serves the tables)',
+    clerk: 'fun and luck stalls, Dream Floss, Arcade',
     host: 'every hotel',
     cleaner: 'cleans litter and slime anywhere',
   } satisfies Record<Role, string>,
@@ -133,12 +174,14 @@ export const STR = {
   fire: 'Dismiss',
   roles: {
     cook: 'Cook',
+    waiter: 'Waiter',
     clerk: 'Clerk',
     host: 'Host',
     cleaner: 'Cleaner',
   } satisfies Record<Role, string>,
   roleIcons: {
     cook: '🍳',
+    waiter: '🍽️',
     clerk: '🏮',
     host: '🛎️',
     cleaner: '🧹',

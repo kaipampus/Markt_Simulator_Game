@@ -1,7 +1,20 @@
 import * as Phaser from 'phaser';
 import { DEPTH, FONT_UI, SPIRIT_SPEED, VISIT_MS } from '../config';
-import { NEEDS, type Need } from '../data/buildings';
-import { ANGER_MOOD, SPIRIT_KINDS, STROLL_PAUSE, WISHES, type SpiritKind } from '../data/spirits';
+import { BUILDINGS, NEEDS, type Cuisine, type Need } from '../data/buildings';
+import {
+  ANGER_MOOD,
+  CHOICE_NOISE,
+  CRAVING_CHANCE,
+  CRAVING_DETOUR,
+  CRAVING_MISS,
+  FOOD_PATIENCE,
+  SPIRIT_KINDS,
+  STROLL_PAUSE,
+  UNAVAILABLE_WEIGHT,
+  BASE_WISH_WEIGHTS,
+  WISHES,
+  type SpiritKind,
+} from '../data/spirits';
 import { DIRT, HOLD_MS } from '../data/staff';
 import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
@@ -23,6 +36,9 @@ export function randomKind(): SpiritKind {
   return 'wisp';
 }
 
+/** Every cuisine some restaurant cooks. */
+const CUISINES: readonly Cuisine[] = [...new Set(BUILDINGS.flatMap((b) => (b.cuisine ? [b.cuisine] : [])))];
+
 /** A list of wishes for tonight. Wishes may repeat, but never twice in a row. */
 function rollWishes(kind: SpiritKind): Need[] {
   const weights = SPIRIT_KINDS[kind].needs ?? {};
@@ -30,10 +46,11 @@ function rollWishes(kind: SpiritKind): Need[] {
   const out: Need[] = [];
   while (out.length < count) {
     const options = NEEDS.filter((n) => n !== out[out.length - 1]);
-    const total = options.reduce((sum, n) => sum + (weights[n] ?? 1), 0);
+    const weight = (n: Need) => BASE_WISH_WEIGHTS[n] * (weights[n] ?? 1);
+    const total = options.reduce((sum, n) => sum + weight(n), 0);
     let r = Math.random() * total;
     for (const n of options) {
-      r -= weights[n] ?? 1;
+      r -= weight(n);
       if (r <= 0) {
         out.push(n);
         break;
@@ -54,9 +71,11 @@ type Goal =
  * walking  – on the way (also while riding a ferry)
  * queueing – in line at a stall
  * holding  – at a hotel whose host has not arrived yet
- * visiting – being served
+ * visiting – being served at a stall
+ * dining   – at a restaurant table (walking in, waiting for food, eating)
  */
-type Phase = 'waiting' | 'walking' | 'queueing' | 'holding' | 'visiting' | 'safe' | 'lost';
+type Phase = 'waiting' | 'walking' | 'queueing' | 'holding' | 'visiting' | 'dining' | 'safe' | 'lost';
+type Dine = 'enter' | 'wait' | 'eat';
 
 let nextSpiritId = 1;
 
@@ -90,9 +109,20 @@ export class Spirit extends Walker {
   /** Remaining time the angry face is shown. */
   private angryMs = 0;
 
+  // --- restaurant ---
+  private table: number | null = null;
+  private dine: Dine = 'enter';
+  private dineMs = 0;
+  /** Where we stood before walking in (we leave the same way). */
+  private door: { x: number; y: number } | null = null;
+  private seat: { x: number; y: number } | null = null;
+
   private needs: Need[];
-  private readonly totalNeeds: number;
+  /** Craving for each wish (same order as `needs`); only hunger wishes can have one. */
+  private cravings: Array<Cuisine | null>;
+  /** Wishes fulfilled and wishes that failed (unreachable, angry, wrong kitchen). Open wishes do not count. */
   private met = 0;
+  private failed = 0;
   private dirtSeen = 0;
   private angerCount = 0;
 
@@ -112,7 +142,9 @@ export class Spirit extends Walker {
     this.speed = SPIRIT_SPEED * k.speed * Phaser.Math.FloatBetween(0.9, 1.1);
     this.waitMs = delayMs;
     this.needs = rollWishes(kind);
-    this.totalNeeds = this.needs.length;
+    this.cravings = this.needs.map((n) =>
+      n === 'hunger' && Math.random() < CRAVING_CHANCE ? Phaser.Utils.Array.GetRandom([...CUISINES]) : null,
+    );
 
     this.shadow = scene.add.image(this.x, this.y, TEX.shadow).setAlpha(0).setScale(k.scale);
     this.body = scene.add
@@ -156,7 +188,9 @@ export class Spirit extends Walker {
 
   private get satisfaction(): number {
     const dirt = Math.min(DIRT.moodMax, this.dirtSeen * DIRT.moodPerCell);
-    return this.met / Math.max(1, this.totalNeeds) - dirt - this.angerCount * ANGER_MOOD;
+    const tried = this.met + this.failed;
+    const share = tried > 0 ? this.met / tried : 0.5;
+    return share - dirt - this.angerCount * ANGER_MOOD;
   }
 
   private get headingHome(): boolean {
@@ -192,6 +226,9 @@ export class Spirit extends Walker {
         this.waitMs -= delta;
         if (this.waitMs <= 0) this.finishVisit();
         break;
+      case 'dining':
+        this.dining(delta);
+        break;
       case 'walking':
         this.walk(delta);
         break;
@@ -223,9 +260,13 @@ export class Spirit extends Walker {
 
     let icon = '';
     if (this.angryMs > 0) icon = STR.angryIcon;
+    else if (this.phase === 'dining' && this.dine === 'eat') icon = STR.eatingIcon;
+    else if (this.phase === 'dining' && this.dine === 'wait')
+      icon = this.waited > this.def.patience * FOOD_PATIENCE * 0.65 ? STR.impatientIcon : STR.waitIcon;
     else if (this.phase === 'queueing') icon = this.waited > this.def.patience * 0.65 ? STR.impatientIcon : STR.waitIcon;
     else if (this.queueing || this.phase === 'holding') icon = STR.waitIcon;
     else if (this.headingHome) icon = STR.homeIcon;
+    else if (this.cravings[0]) icon = STR.cravingIcons[this.cravings[0]];
     else if (this.needs.length > 0) icon = STR.needIcons[this.needs[0]];
     if (this.bubble.text !== icon) this.bubble.setText(icon);
     this.bubble.setVisible(icon !== '').setPosition(x, y - 44 * k + bob);
@@ -236,7 +277,7 @@ export class Spirit extends Walker {
     if (this.isDone || !this.goal || this.riding) return;
     const goal = this.goal;
     const targetGone = (goal.kind === 'visit' || goal.kind === 'hotel') && !this.state.buildings.has(goal.uid);
-    if (this.phase === 'visiting' || this.phase === 'queueing' || this.phase === 'holding') {
+    if (this.phase === 'visiting' || this.phase === 'queueing' || this.phase === 'holding' || this.phase === 'dining') {
       if (targetGone) this.replan();
       return;
     }
@@ -276,12 +317,27 @@ export class Spirit extends Walker {
     return true;
   }
 
-  /** Leave the queue or the service place we are at. */
+  /** Leave the queue, the stall or the restaurant table we are at. */
   private leaveLine(): void {
     if (this.queuedAt !== null) this.state.leaveQueue(this.queuedAt, this.id);
-    if (this.servedAt !== null) this.state.endServe(this.servedAt);
+    if (this.servedAt !== null) {
+      if (this.table !== null) this.world.restaurant(this.servedAt)?.leave(this.table);
+      this.state.endServe(this.servedAt);
+    }
+    if (this.door) {
+      this.x = this.door.x;
+      this.y = this.door.y;
+    }
     this.queuedAt = null;
     this.servedAt = null;
+    this.table = null;
+    this.door = null;
+  }
+
+  /** The current wish is done (or given up). */
+  private dropWish(): void {
+    this.needs.shift();
+    this.cravings.shift();
   }
 
   /** Pick the next wish and walk to the best building for it (short queues preferred). */
@@ -292,21 +348,24 @@ export class Spirit extends Walker {
       return;
     }
     const need = this.needs[0];
+    const craving = this.cravings[0];
     const field = this.search();
 
     let best: { uid: number; cell: Cell; cost: number } | null = null;
     for (const b of this.state.providersOf(need)) {
       const cell = cheapest(field, this.state.entranceCells(b));
       if (!cell) continue;
-      const slots = b.def.service?.slots ?? 1;
-      const cost = costTo(field, cell) + (this.state.queueLength(b.uid) / slots) * 3;
+      const slots = b.def.restaurant?.tables ?? b.def.service?.slots ?? 1;
+      let cost = costTo(field, cell) + (this.state.queueLength(b.uid) / slots) * 3 + Math.random() * CHOICE_NOISE;
+      if (craving && b.def.cuisine === craving) cost -= CRAVING_DETOUR;
       if (!best || cost < best.cost) best = { uid: b.uid, cell, cost };
     }
 
     if (best && this.walkTo({ kind: 'visit', uid: best.uid, need }, field, best.cell)) return;
 
     // Nothing reachable provides this wish: give up on it and stroll a bit.
-    this.needs.shift();
+    this.failed += this.state.providersOf(need).length === 0 ? UNAVAILABLE_WEIGHT : 1;
+    this.dropWish();
     this.stroll(field);
   }
 
@@ -396,6 +455,18 @@ export class Spirit extends Walker {
     if (this.state.tryServe(b.uid, this.id)) {
       this.queuedAt = null;
       this.servedAt = b.uid;
+      const r = b.def.restaurant ? this.world.restaurant(b.uid) : undefined;
+      const table = r?.seat(this) ?? null;
+      if (r && table !== null) {
+        // Walk in and sit down.
+        this.table = table;
+        this.door = { x: this.x, y: this.y };
+        this.seat = r.seatPos(table);
+        this.phase = 'dining';
+        this.dine = 'enter';
+        this.dineMs = 0;
+        return;
+      }
       this.phase = 'visiting';
       this.waitMs = b.def.service?.ms ?? VISIT_MS;
       return;
@@ -406,11 +477,58 @@ export class Spirit extends Walker {
     // Waited too long: leave angry and skip this wish.
     this.leaveLine();
     this.angerCount++;
+    this.failed++;
     this.angryMs = ANGRY_SHOW_MS;
     this.state.recordAngry();
-    this.needs.shift();
+    this.dropWish();
     this.goal = null;
     this.stroll();
+  }
+
+  /** At a restaurant table. */
+  private dining(delta: number): void {
+    const uid = this.servedAt;
+    const r = uid !== null ? this.world.restaurant(uid) : undefined;
+    if (!r || this.table === null || !this.door || !this.seat) {
+      this.replan();
+      return;
+    }
+    if (this.dine === 'enter') {
+      this.dineMs += delta;
+      const t = Math.min(1, this.dineMs / 700);
+      this.x = Phaser.Math.Linear(this.door.x, this.seat.x, t);
+      this.y = Phaser.Math.Linear(this.door.y, this.seat.y, t);
+      if (Math.abs(this.seat.x - this.door.x) > 1) this.face(this.seat.x < this.door.x);
+      if (t >= 1) {
+        this.face(false);
+        r.order(this.table);
+        this.dine = 'wait';
+        this.waited = 0;
+      }
+    } else if (this.dine === 'wait') {
+      this.waited += delta;
+      if (this.waited < this.def.patience * FOOD_PATIENCE) return;
+      // The food takes too long.
+      this.leaveLine();
+      this.angerCount++;
+      this.failed++;
+      this.angryMs = ANGRY_SHOW_MS;
+      this.state.recordAngry();
+      this.dropWish();
+      this.goal = null;
+      this.stroll();
+    } else {
+      this.dineMs -= delta;
+      if (this.dineMs <= 0) this.finishVisit();
+    }
+  }
+
+  /** Called by the restaurant when the waiter brings the food. */
+  foodServed(): void {
+    if (this.phase !== 'dining') return;
+    const eat = this.servedAt !== null ? this.state.buildings.get(this.servedAt)?.def.restaurant?.eatMs : undefined;
+    this.dine = 'eat';
+    this.dineMs = (eat ?? 15_000) * Phaser.Math.FloatBetween(0.7, 1.3) * (this.kind === 'glutton' ? 1.3 : 1);
   }
 
   private hold(delta: number): void {
@@ -445,10 +563,13 @@ export class Spirit extends Walker {
     const b = uid !== null ? this.state.buildings.get(uid) : undefined;
     if (b?.def.provides) {
       this.state.earn(b.def.provides.price, this.cell, b.def.id);
-      this.met++;
-      this.needs.shift();
-      // Food and drinks come with wrappers and cups.
-      const messy = goal.need === 'hunger' || goal.need === 'thirst';
+      const craving = this.cravings[0];
+      const value = craving && b.def.cuisine !== craving ? CRAVING_MISS : 1;
+      this.met += value;
+      this.failed += 1 - value;
+      this.dropWish();
+      // Food and drinks to go come with wrappers and cups (restaurants clean up themselves).
+      const messy = !b.def.restaurant && (goal.need === 'hunger' || goal.need === 'thirst');
       if (messy && !this.state.nearBin(this.cell) && Math.random() < DIRT.litterChance) {
         this.state.addDirt(this.cell, 'litter');
       }

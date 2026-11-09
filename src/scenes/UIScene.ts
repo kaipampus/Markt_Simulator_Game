@@ -176,7 +176,7 @@ export class UIScene extends Phaser.Scene {
     if (this.nightButton.label.text !== label) this.nightButton.label.setText(label);
 
     const rep = STR.reputation(state.reputation);
-    const spirits = STR.spirits(state.spiritCount);
+    const spirits = `${STR.spirits(state.spiritCount)}  ·  ${STR.popularity(state.popularity(), state.guestsTonight())}`;
     if (this.repText.text !== rep || this.spiritText.text !== spirits) {
       this.repText.setText(rep);
       this.spiritText.setText(spirits);
@@ -379,7 +379,8 @@ export class UIScene extends Phaser.Scene {
     if (def.crossing?.kind === 'boat') parts.push(STR.perTrip(def.crossing.capacity));
     if (def.hotel) parts.push(STR.beds(def.hotel.beds));
     if (def.staffBeds) parts.push(STR.staffBeds(def.staffBeds));
-    if (def.staff) parts.push(STR.needsStaff(STR.roles[def.staff].toLowerCase()));
+    if (def.restaurant && def.cuisine) parts.push(STR.restaurantInfo(STR.cuisines[def.cuisine], def.restaurant.tables));
+    if (def.staff) parts.push(STR.needsJobs([...new Set(def.staff)].map((r) => STR.roles[r].toLowerCase()).join(' + ')));
     if (def.bin) parts.push(STR.catchesLitter);
     if (def.provides) parts.push(`${STR.needIcons[def.provides.need]} +${def.provides.price}`);
     if (!state.isUnlocked(def)) parts.push(`🔒 ${STR.eras[def.era]}`);

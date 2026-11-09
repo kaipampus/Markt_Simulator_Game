@@ -76,6 +76,34 @@ export const SPIRIT_KINDS: Record<SpiritKind, SpiritKindDef> = {
 /** Wishes per guest and night (the same wish can come up again later). */
 export const WISHES = { min: 3, max: 6 } as const;
 
+/** Chance that a hunger wish is a craving for one cuisine. */
+export const CRAVING_CHANCE = 0.5;
+/** A craving fulfilled by another kitchen counts only this much. */
+export const CRAVING_MISS = 0.6;
+/** Path cost a guest accepts to reach the kitchen it craves. */
+export const CRAVING_DETOUR = 8;
+/** At a restaurant, a guest waits this many times its patience for the food. */
+export const FOOD_PATIENCE = 2;
+
+/**
+ * How much a wish the market does not offer at all counts against the guest's
+ * mood (0 = not at all). Missing variety costs income, not reputation.
+ */
+export const UNAVAILABLE_WEIGHT = 0;
+
+/** How common each wish is for every guest (multiplied with the kind's own weights). */
+export const BASE_WISH_WEIGHTS: Record<Need, number> = {
+  hunger: 2.5,
+  thirst: 1.5,
+  fun: 1,
+  luck: 1,
+  relief: 0.8,
+  warmth: 0.7,
+};
+
+/** Random extra path cost when picking a stall, so guests spread over several stalls. */
+export const CHOICE_NOISE = 6;
+
 /** Mood lost every time a guest leaves a queue in anger. */
 export const ANGER_MOOD = 0.25;
 

@@ -3,11 +3,13 @@ import { SPIRIT_SPEED, TILE } from '../config';
 import type { GameState } from '../state/GameState';
 import { searchFrom, type Cell, type Field } from '../state/pathfinding';
 import type { Ferry } from './Ferry';
+import type { Restaurant } from './Restaurant';
 
 /** What the scene provides to everyone walking around. */
 export interface WalkerWorld {
   glowLayer: Phaser.GameObjects.Layer;
   ferry(uid: number): Ferry | undefined;
+  restaurant(uid: number): Restaurant | undefined;
 }
 
 /** World position of a figure's feet when standing on a cell. */

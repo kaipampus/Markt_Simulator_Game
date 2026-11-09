@@ -67,9 +67,19 @@ Schritt 1 – Nachtleben:
 - [x] Knopf „Zum Morgen springen“, höheres Startgeld, längere Nacht
 - [ ] Balancing: Einnahmen sind mit längeren Nächten deutlich höher, Preise und Kosten anpassen
 
+Schritt 1b – Restaurants, Vielfalt, Geld:
+- [x] Restaurants mit Küche, Tischen, Koch und Kellner (Gäste sichtbar am Tisch)
+- [x] Sieben Küchen (japanisch, vietnamesisch, chinesisch, thailändisch, koreanisch, Hexenküche), Gelüste der Gäste
+- [x] Acht neue Stände, neues Bedürfnis Spaß, Reiter Food und Fun
+- [x] Gebäude mit mehreren Jobs (z. B. 2 Köche + 2 Kellner)
+- [x] Beliebtheit bestimmt die Gästezahl, Startgeld 650
+- [ ] Gebäude-Stufen (mehr Tische, höhere Preise)
+- [ ] Noch mehr Stände und Küchen (z. B. indisch, Street-Food-Wagen, Zauberbuden)
+- [ ] Eigene Grafiken statt Platzhaltern für Restaurants
+
 Schritt 2 – Level und Bereiche:
 - [ ] Level mit Balken, Erfahrung aus zufriedenen Gästen und Gebäuden
-- [ ] Beliebtheitswert für Stände und Deko bestimmt die Gästezahl
+- [x] Beliebtheitswert für Stände und Deko bestimmt die Gästezahl (vorgezogen)
 - [ ] Bereich 1 Nachtmarkt (ohne Hotel), Bereich 2 Hotel-Viertel gesperrt bis Level + Münzen
 - [ ] Zeitalter entfernen, Gebäude neu auf die Bereiche verteilen
 

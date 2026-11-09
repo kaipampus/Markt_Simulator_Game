@@ -18,7 +18,7 @@ export const WORLD_H = GRID_H * TILE;
 /** Extra space around the map the camera may scroll into. */
 export const WORLD_PADDING = 160;
 
-export const START_MONEY = 2500;
+export const START_MONEY = 650;
 
 /** Share of the build cost returned when demolishing. */
 export const DEMOLISH_REFUND = 0.5;
@@ -50,9 +50,11 @@ export const FERRY_CELL_COST = 2;
 /** Hard upper limit of spirits on the map. */
 export const SPIRIT_HARD_CAP = 250;
 
-/** Guests per night = GUESTS_BASE + reputation / GUESTS_PER_REPUTATION. */
-export const GUESTS_BASE = 20;
-export const GUESTS_PER_REPUTATION = 2;
+/** Guests per night = (GUESTS_BASE + popularity × GUESTS_PER_POPULARITY) × reputation factor, at most GUEST_CAP. */
+export const GUESTS_BASE = 6;
+export const GUESTS_PER_POPULARITY = 1;
+/** Most guests per night for now (area 1). Later each unlocked area raises it. */
+export const GUEST_CAP = 120;
 
 // --- Reputation ----------------------------------------------------------------
 

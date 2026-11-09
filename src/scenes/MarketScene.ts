@@ -25,6 +25,7 @@ import { GATE, getBuilding, type BuildingDef } from '../data/buildings';
 import { WAVES } from '../data/spirits';
 import { STR } from '../data/strings';
 import { Ferry } from '../entities/Ferry';
+import { Restaurant } from '../entities/Restaurant';
 import { Spirit } from '../entities/Spirit';
 import type { WalkerWorld } from '../entities/Walker';
 import { Worker } from '../entities/Worker';
@@ -35,6 +36,8 @@ import type { Cell } from '../state/pathfinding';
 
 interface BuildingView {
   image: Phaser.GameObjects.Image;
+  /** Restaurants: low front wall drawn in front of the guests. */
+  front?: Phaser.GameObjects.Image;
   glow?: Phaser.GameObjects.Image;
   /** Status icon above staffed buildings (no staff / staff on the way). */
   badge?: Phaser.GameObjects.Text;
@@ -69,6 +72,7 @@ export class MarketScene extends Phaser.Scene {
   private views = new Map<number, BuildingView>();
   private spirits: Spirit[] = [];
   private ferries = new Map<number, Ferry>();
+  private restaurants = new Map<number, Restaurant>();
   private workers = new Map<number, Worker>();
   private dirtViews = new Map<number, DirtView>();
   private selectionGfx!: Phaser.GameObjects.Graphics;
@@ -97,7 +101,11 @@ export class MarketScene extends Phaser.Scene {
     this.addZoneLabels();
 
     this.glowLayer = this.add.layer().setDepth(DEPTH.glow);
-    this.world = { glowLayer: this.glowLayer, ferry: (uid) => this.ferries.get(uid) };
+    this.world = {
+      glowLayer: this.glowLayer,
+      ferry: (uid) => this.ferries.get(uid),
+      restaurant: (uid) => this.restaurants.get(uid),
+    };
     const pad = WORLD_PADDING;
     this.nightOverlay = this.add
       .rectangle(-pad, -pad, WORLD_W + pad * 2, WORLD_H + pad * 2, COLORS.night)
@@ -161,6 +169,7 @@ export class MarketScene extends Phaser.Scene {
     const worldDelta = delta * state.speed;
 
     for (const f of this.ferries.values()) f.update(worldDelta);
+    for (const r of this.restaurants.values()) r.update(worldDelta, time);
     for (const s of this.spirits) s.update(time, worldDelta);
     this.spirits = this.spirits.filter((s) => !s.isDone);
     state.setSpiritCount(this.spirits.length);
@@ -351,10 +360,16 @@ export class MarketScene extends Phaser.Scene {
     const { def } = b;
     const bottom = (b.ty + def.h) * TILE;
     // Paths and bridges lie flat on the ground, below everything that stands.
-    const depth = def.walkable ? DEPTH.flat + b.ty : bottom;
+    // Restaurants are open rooms: floor at the top edge, front wall at the bottom.
+    const depth = def.walkable ? DEPTH.flat + b.ty : def.restaurant ? b.ty * TILE + 1 : bottom;
     const texture = def.id === 'path' ? TEX.path(state.era) : TEX.building(def.id);
     const image = this.add.image(b.tx * TILE, bottom, texture).setOrigin(0, 1).setDepth(depth);
     if (def.crossing?.kind === 'boat') this.ferries.set(b.uid, new Ferry(this, b));
+    let front: Phaser.GameObjects.Image | undefined;
+    if (def.restaurant) {
+      this.restaurants.set(b.uid, new Restaurant(this, state, b));
+      front = this.add.image(b.tx * TILE, bottom, TEX.front(def.id)).setOrigin(0, 1).setDepth(bottom + 1);
+    }
 
     let glow: Phaser.GameObjects.Image | undefined;
     if (def.glow) {
@@ -383,7 +398,7 @@ export class MarketScene extends Phaser.Scene {
       this.puff(b.tx * TILE + (def.w * TILE) / 2, bottom - 6, def.w * 6);
     }
 
-    this.views.set(b.uid, { image, glow, badge });
+    this.views.set(b.uid, { image, front, glow, badge });
     this.gridChanged();
   }
 
@@ -393,6 +408,9 @@ export class MarketScene extends Phaser.Scene {
     this.views.delete(b.uid);
     this.ferries.get(b.uid)?.destroy();
     this.ferries.delete(b.uid);
+    this.restaurants.get(b.uid)?.destroy();
+    this.restaurants.delete(b.uid);
+    view.front?.destroy();
     if (this.hoveredUid === b.uid) this.hoveredUid = null;
     view.glow?.destroy();
     view.badge?.destroy();
@@ -692,7 +710,7 @@ export class MarketScene extends Phaser.Scene {
           this.floatText(x, y, STR.cleanHere, COLORS.uiGreen, 13);
           return;
         }
-      } else if (building?.def.staff === member.role) {
+      } else if (building?.def.staff?.includes(member.role)) {
         state.assign(member.id, building.uid);
         this.floatText(x, y, STR.assigned, COLORS.uiGreen, 13);
         return;

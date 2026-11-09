@@ -7,8 +7,9 @@ import {
   FIRST_DAY_MS,
   GRID_H,
   GRID_W,
+  GUEST_CAP,
   GUESTS_BASE,
-  GUESTS_PER_REPUTATION,
+  GUESTS_PER_POPULARITY,
   HAPPY_THRESHOLD,
   NIGHT_MS,
   REP_LOST,
@@ -118,6 +119,14 @@ type StateEvents = {
   /** Dirt on a cell changed. */
   dirt: [Cell];
 };
+
+/** Popularity of a building: its own value, or a default by kind. */
+export function popularityOf(def: BuildingDef): number {
+  if (def.popularity !== undefined) return def.popularity;
+  if (def.provides) return 3;
+  if (def.category === 'decor') return 1;
+  return 0;
+}
 
 /** Cell values in the occupancy grid. Positive numbers are building uids. */
 const FREE = 0;
@@ -446,6 +455,7 @@ export class GameState extends Emitter<StateEvents> {
       const target = post ?? this.unstaffed(role)[0]?.uid;
       if (target !== undefined) this.assign(member.id, target);
     }
+    if (this.selection?.kind === 'building' && post !== undefined) this.emit('selection', this.selection);
     this.emit('staff');
     return member;
   }
@@ -468,17 +478,25 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('staff');
   }
 
-  /** Move a worker to a building (null = no job). Whoever worked there before loses the job. */
+  /** How many places for a job a building has. */
+  slotsFor(b: PlacedBuilding, role: Role): number {
+    return b.def.staff?.filter((r) => r === role).length ?? 0;
+  }
+
+  /**
+   * Move a worker to a building (null = no job). If all places for that job
+   * are taken, the worker who was there first loses the job.
+   */
   assign(id: number, uid: number | null): boolean {
     const m = this.staff.get(id);
     if (!m || m.role === 'cleaner') return false;
     if (uid !== null) {
       const b = this.buildings.get(uid);
-      if (b?.def.staff !== m.role) return false;
-      const previous = this.staffAt(uid);
-      if (previous && previous.id !== id) {
-        previous.post = null;
-        previous.onDuty = false;
+      if (!b || this.slotsFor(b, m.role) === 0) return false;
+      const same = this.staffOf(uid).filter((o) => o.role === m.role && o.id !== id);
+      if (m.post !== uid && same.length >= this.slotsFor(b, m.role)) {
+        same[0].post = null;
+        same[0].onDuty = false;
       }
     }
     if (m.post !== uid) {
@@ -489,10 +507,16 @@ export class GameState extends Emitter<StateEvents> {
     return true;
   }
 
-  /** Worker assigned to a building. */
-  staffAt(uid: number): StaffMember | undefined {
-    for (const m of this.staff.values()) if (m.post === uid) return m;
-    return undefined;
+  /** Workers assigned to a building. */
+  staffOf(uid: number): StaffMember[] {
+    return [...this.staff.values()].filter((m) => m.post === uid);
+  }
+
+  /** Jobs at a building that have nobody yet (each job listed once). */
+  missingRoles(b: PlacedBuilding): Role[] {
+    const roles = [...new Set(b.def.staff ?? [])];
+    const here = this.staffOf(b.uid);
+    return roles.filter((r) => !here.some((m) => m.role === r));
   }
 
   /** Workers of a role without a job. */
@@ -500,26 +524,42 @@ export class GameState extends Emitter<StateEvents> {
     return [...this.staff.values()].filter((m) => m.role === role && m.post === null);
   }
 
-  /** Buildings that need a worker of this role and have none. */
+  /**
+   * Buildings with a free place for this job: first those that lack the job
+   * completely (they are closed without it), then those with extra places.
+   */
   unstaffed(role: Role): PlacedBuilding[] {
-    return [...this.buildings.values()].filter((b) => b.def.staff === role && !this.staffAt(b.uid));
+    const list = [...this.buildings.values()].filter(
+      (b) => this.staffOf(b.uid).filter((m) => m.role === role).length < this.slotsFor(b, role),
+    );
+    const lacking = (b: PlacedBuilding) => (this.missingRoles(b).includes(role) ? 0 : 1);
+    return list.sort((a, b) => lacking(a) - lacking(b));
   }
 
+  /** Fill the places of a new building with workers who have no job. */
   private autoAssign(b: PlacedBuilding): void {
-    const role = b.def.staff;
-    if (!role || this.staffAt(b.uid)) return;
-    const idle = this.idleStaff(role)[0];
-    if (idle) this.assign(idle.id, b.uid);
+    for (const role of b.def.staff ?? []) {
+      if (this.staffOf(b.uid).filter((m) => m.role === role).length >= this.slotsFor(b, role)) continue;
+      const idle = this.idleStaff(role)[0];
+      if (idle) this.assign(idle.id, b.uid);
+    }
   }
 
-  /** Someone is (or will be) working here, or nobody is needed. */
+  /** Every job here has someone (who may still be on the way), or nobody is needed. */
   isServed(b: PlacedBuilding): boolean {
-    return !b.def.staff || this.staffAt(b.uid) !== undefined;
+    return this.missingRoles(b).length === 0;
   }
 
-  /** Staffed buildings only work while their worker stands at the post. */
+  /** Staffed buildings only work while at least one worker of every job is on duty. */
   isOpen(b: PlacedBuilding): boolean {
-    return !b.def.staff || this.staffAt(b.uid)?.onDuty === true;
+    if (!b.def.staff) return true;
+    const here = this.staffOf(b.uid);
+    return [...new Set(b.def.staff)].every((r) => here.some((m) => m.role === r && m.onDuty));
+  }
+
+  /** Workers of a job on duty at a building. */
+  onDutyCount(uid: number, role: Role): number {
+    return this.staffOf(uid).filter((m) => m.role === role && m.onDuty).length;
   }
 
   setOnDuty(id: number, onDuty: boolean): void {
@@ -655,10 +695,15 @@ export class GameState extends Emitter<StateEvents> {
     const line = this.lines.get(uid);
     if (!line || line[0] !== spiritId) return false;
     const busy = this.serving.get(uid) ?? 0;
-    if (busy >= (b.def.service?.slots ?? 1)) return false;
+    if (busy >= (b.def.restaurant?.tables ?? b.def.service?.slots ?? 1)) return false;
     line.shift();
     this.serving.set(uid, busy + 1);
     return true;
+  }
+
+  /** Guests being served right now (taken tables in a restaurant). */
+  servingCount(uid: number): number {
+    return this.serving.get(uid) ?? 0;
   }
 
   endServe(uid: number): void {
@@ -791,9 +836,21 @@ export class GameState extends Emitter<StateEvents> {
     return { sales: [...this.sales.values()].sort((a, b) => b.coins - a.coins), earned: this.night.earned };
   }
 
-  /** How many spirits should be out tonight (sleepers included). */
+  /** How attractive the market is: sum over all buildings. */
+  popularity(): number {
+    let sum = 0;
+    for (const b of this.buildings.values()) sum += popularityOf(b.def);
+    return sum;
+  }
+
+  /**
+   * How many spirits come tonight (sleepers included): a few always come,
+   * every attractive building draws more, reputation scales it, the area caps it.
+   */
   guestsTonight(): number {
-    return GUESTS_BASE + Math.floor(this.reputation / GUESTS_PER_REPUTATION);
+    const repFactor = 0.6 + this.reputation / 125;
+    const wanted = (GUESTS_BASE + this.popularity() * GUESTS_PER_POPULARITY) * repFactor;
+    return Math.min(GUEST_CAP, Math.round(wanted));
   }
 
   // ---------------------------------------------------------------------------

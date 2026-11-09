@@ -2,6 +2,17 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-09 – Restaurants, viele neue Stände, Geld-Wachstum
+- **Restaurants** als offene Räume: Küche mit Koch, Tische, Kellner trägt das Essen, Gäste sitzen sichtbar und essen ca. 15 s
+- Sieben Restaurants: Moonbroth Ramen, Mistleaf Pho, Floating Dumpling House, Firefly Curry House, Ember Grill, Starfish Sushi Bar, Bubbling Cauldron Hot Pot
+- Neuer Job **Kellner** (Waiter); Gebäude können mehrere Jobs und Plätze haben
+- Acht neue Stände: Firefly Skewers, Moon Mochi, Dream Floss, Cauldron Bubble Tea, Ghost Goldfish Scooping, Spirit Mask Stand, Lantern Ring Toss, Paper Crane Fortunes
+- Neues Bedürfnis **Spaß** 🎏, neue Reiter **Food** und **Fun**
+- **Gelüste**: Gäste wollen oft eine bestimmte Küche
+- **Beliebtheit** (★ oben) bestimmt die Gästezahl; Startgeld 650 statt 2500
+- Gäste-Laune: nur noch erfüllte gegen gescheiterte Wünsche; fehlende Angebote kosten Geld statt Ruf; Essen und Trinken sind häufigere Wünsche
+- Gäste verteilen sich zufälliger auf mehrere Stände
+
 ## 2026-11-09 – Volle Nächte: Wellen, Schlangen, Geduld (Branch `feature/night-life`)
 - Neues Konzept dokumentiert: Bereiche mit Level statt Zeitalter, Beliebtheit, Gästezahlen bis in die Tausende (Umsetzung folgt)
 - **Gäste kommen in drei Wellen** über die ganze Nacht (Abendansturm, Mitternacht, Nachzügler) statt alle am Anfang

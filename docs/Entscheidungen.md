@@ -13,6 +13,18 @@ Vorlage:
 
 ---
 
+## 2026-11-09 – Restaurants mit Koch und Kellner, viele Küchen
+**Status:** entschieden (Idee des Nutzers; Detailfragen mit den empfohlenen Varianten beantwortet)
+**Entscheidung:** Neue Gebäudeart **Restaurant**: offener Raum mit Küche und Tischen, Gäste sichtbar am Tisch, Koch kocht, Kellner (neuer Job) serviert, Essen dauert ca. 15 s. Koch und Kellner sind Pflicht. Sieben Restaurants verschiedener asiatischer Küchen mit Zauber-Einschlag, dazu acht neue Stände und das neue Bedürfnis **Spaß**. Die Nudelbude bleibt als billiger Imbiss. Gäste haben oft **Gelüste** nach einer Küche. Platzmangel und ein chaotischer Markt sind gewollt.
+**Warum:** Mehr Tiefe und Vielfalt, mehr zu verwalten in der Nacht, größere Gebäude für einen größeren Markt.
+**Verworfen:** Geschlossene Restaurants mit Zahlenanzeige; Kellner nur als Beschleuniger; Essen nur noch im Restaurant.
+
+## 2026-11-09 – Wenig Startgeld, Wachstum über Beliebtheit
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Start mit 650 Münzen. Jedes Gebäude hat einen Beliebtheitswert; die Summe bestimmt die Gästezahl (mal Ruf-Faktor, gedeckelt je Bereich). Fehlende Angebote kosten Einnahmen, aber keinen Ruf. Gebäude-Stufen folgen später.
+**Warum:** Man soll klein anfangen und spürbar schneller wachsen, statt am Anfang zu viel Geld zu haben.
+**Verworfen (vorerst):** Jedes weitere gleiche Gebäude teurer; reichere Gäste bei hohem Ruf.
+
 ## 2026-11-09 – Bereiche mit Level statt Zeitalter
 **Status:** entschieden (Idee des Nutzers), Umsetzung geplant
 **Entscheidung:** Die Karte wird in Bereiche geteilt, die mit **Level + Münzen** freigeschaltet werden (wie in Hay Day): 1. Nachtmarkt (Start, ohne Hotel, bis 100 Gäste), 2. Hotel-Viertel jenseits des Flusses (Hotelgäste kommen in der nächsten Nacht dazu, bis ca. 500), 3. modernes Neon-Viertel rechts daneben (2000–3000 Gäste). Das Level ist **sichtbar mit Balken**. Die **Zeitalter entfallen**: Moderne Gebäude gibt es nur im Neon-Viertel, der alte Markt bleibt traditionell.

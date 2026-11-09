@@ -21,6 +21,9 @@ export const TEX = {
   path: (era: number) => `path_${era}`,
   boat: (id: string) => `boat_${id}`,
   worker: (role: string) => `worker_${role}`,
+  /** Low front wall of a restaurant, drawn in front of the guests. */
+  front: (id: string) => `front_${id}`,
+  plate: 'plate',
   litter: 'litter',
   slime: 'slime',
 } as const;
@@ -281,6 +284,14 @@ function drawStall(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   ctx.fillRect(3, counterTop - 3, w - 6, 5);
   ctx.fillStyle = shade(main, -0.35);
   for (let x = 12; x < w - 8; x += 12) ctx.fillRect(x, counterTop + 4, 1, 18);
+
+  // Sign with what the stall sells.
+  if (def.sign) {
+    ctx.font = '15px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(def.sign, w / 2, (awnBottom + counterTop) / 2 + 2);
+  }
 
   // Things on the counter.
   if (def.id === 'noodle') {
@@ -957,6 +968,125 @@ function drawRestroom(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   roof(ctx, 2, w - 2, bottom - wallH + 5, 6, roofColor);
 }
 
+type Pt = { x: number; y: number };
+
+/**
+ * Where things are inside a restaurant, relative to the top-left corner of
+ * its footprint: stoves (cooks), the pass (waiters pick up dishes), tables
+ * with a seat (guest) and a serve spot (waiter). Shared by graphics and logic.
+ */
+export function restaurantLayout(def: BuildingDef): { stoves: Pt[]; pass: Pt; tables: Array<{ table: Pt; seat: Pt; serve: Pt }> } {
+  const W = def.w * TILE;
+  const H = def.h * TILE;
+  const cooks = Math.max(1, def.staff?.filter((r) => r === 'cook').length ?? 1);
+  // Cooks on the left part of the kitchen, the pass (where waiters pick up) on the right.
+  const stoves = Array.from({ length: cooks }, (_, i) => ({ x: W * (cooks === 1 ? 0.32 : 0.22 + (0.3 * i) / (cooks - 1)), y: H * 0.24 }));
+  const n = def.restaurant?.tables ?? 0;
+  const cols = Math.max(1, Math.ceil(n / 2));
+  const tables = Array.from({ length: n }, (_, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const table = { x: (W * (col + 0.5)) / cols + 6, y: H * (0.58 + row * 0.26) };
+    return { table, seat: { x: table.x - 17, y: table.y + 5 }, serve: { x: table.x + 17, y: table.y + 4 } };
+  });
+  return { stoves, pass: { x: W * 0.76, y: H * 0.44 }, tables };
+}
+
+/** Restaurant floor, back wall with sign, kitchen counter and tables (the front wall is separate). */
+function drawRestaurant(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  const { main, roof: roofColor, accent } = def.colors;
+  const y0 = def.rise; // top of the footprint inside the texture
+  const H = h - y0;
+  const L = restaurantLayout(def);
+
+  // Floor: wooden planks.
+  ctx.fillStyle = '#6b4f38';
+  ctx.fillRect(0, y0, w, H);
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  for (let y = y0 + 8; y < h; y += 10) ctx.fillRect(0, y, w, 1);
+  ctx.fillStyle = 'rgba(255,220,170,0.06)';
+  for (let x = 0; x < w; x += 37) ctx.fillRect(x, y0, 1, H);
+
+  // Side walls.
+  ctx.fillStyle = shade(main, -0.35);
+  ctx.fillRect(0, y0 - 6, 6, H + 6);
+  ctx.fillRect(w - 6, y0 - 6, 6, H + 6);
+
+  // Back wall with roof edge.
+  ctx.fillStyle = main;
+  ctx.fillRect(0, 10, w, y0 + 6);
+  ctx.fillStyle = shade(main, -0.4);
+  for (let x = 0; x < w; x += 24) ctx.fillRect(x, 10, 2, y0 + 6);
+  ctx.fillStyle = roofColor;
+  ctx.fillRect(-2, 2, w + 4, 12);
+  ctx.fillStyle = shade(roofColor, -0.35);
+  ctx.fillRect(-2, 12, w + 4, 3);
+
+  // Sign with the dish.
+  const sw = Math.min(110, w * 0.45);
+  ctx.fillStyle = shade(roofColor, -0.2);
+  ctx.fillRect(w / 2 - sw / 2, 16, sw, 26);
+  ctx.fillStyle = accent;
+  ctx.fillRect(w / 2 - sw / 2 + 2, 18, sw - 4, 22);
+  if (def.sign) {
+    ctx.font = '18px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(def.sign, w / 2, 30);
+  }
+  hangingLantern(ctx, 16, 30, 6);
+  hangingLantern(ctx, w - 16, 30, 6);
+
+  // Kitchen: counter with pots and steam along the back.
+  const cy = y0 + H * 0.3;
+  ctx.fillStyle = shade(main, -0.25);
+  ctx.fillRect(w * 0.12, cy, w * 0.76, 12);
+  ctx.fillStyle = accent;
+  ctx.fillRect(w * 0.12, cy - 3, w * 0.76, 4);
+  for (const st of L.stoves) {
+    ctx.fillStyle = '#2a2a33';
+    ctx.beginPath();
+    ctx.ellipse(st.x + 14, cy - 3, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(st.x + 12, cy - 6);
+    ctx.quadraticCurveTo(st.x + 8, cy - 12, st.x + 13, cy - 18);
+    ctx.stroke();
+  }
+
+  // Tables with cushions.
+  for (const t of L.tables) {
+    const tx = t.table.x;
+    const ty = y0 + t.table.y;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(tx, ty + 6, 15, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#3a2a22';
+    ctx.fillRect(tx - 13, ty - 4, 26, 12);
+    ctx.fillStyle = '#5a4030';
+    ctx.fillRect(tx - 13, ty - 6, 26, 5);
+    ctx.fillStyle = shade(roofColor, 0.1);
+    ctx.fillRect(t.seat.x - 6, y0 + t.seat.y - 3, 12, 6);
+  }
+}
+
+/** Low front wall with an opening in the middle. */
+function drawRestaurantFront(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+  const { main } = def.colors;
+  const gap = 34;
+  ctx.fillStyle = shade(main, -0.2);
+  ctx.fillRect(0, h - 12, w / 2 - gap / 2, 12);
+  ctx.fillRect(w / 2 + gap / 2, h - 12, w / 2 - gap / 2, 12);
+  ctx.fillStyle = shade(main, 0.15);
+  ctx.fillRect(0, h - 14, w / 2 - gap / 2, 3);
+  ctx.fillRect(w / 2 + gap / 2, h - 14, w / 2 - gap / 2, 3);
+  hangingLantern(ctx, w / 2 - gap / 2 - 4, h - 18, 4);
+  hangingLantern(ctx, w / 2 + gap / 2 + 4, h - 18, 4);
+}
+
 /** Staff house: one floor (lodge) or two floors (dormitory), with a curtain over the door. */
 function drawLodge(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   const footH = def.h * TILE;
@@ -1046,6 +1176,8 @@ function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
       return drawLodge(ctx, w, h, def);
     case 'bin':
       return drawBin(ctx, w, h, def);
+    case 'restaurant':
+      return drawRestaurant(ctx, w, h, def);
   }
 }
 
@@ -1248,6 +1380,9 @@ export function createTextures(scene: Phaser.Scene): void {
     const w = def.w * TILE;
     const h = def.h * TILE + def.rise;
     makeCanvas(scene, TEX.building(def.id), w, h, (ctx) => drawBuilding(ctx, w, h, def));
+    if (def.restaurant) {
+      makeCanvas(scene, TEX.front(def.id), w, 22, (ctx) => drawRestaurantFront(ctx, w, 22, def));
+    }
     if (def.crossing?.kind === 'boat') {
       makeCanvas(scene, TEX.boat(def.id), 36, 58, (ctx) => drawBoat(ctx, 36, 58, def));
     }
@@ -1275,6 +1410,16 @@ export function createTextures(scene: Phaser.Scene): void {
     makeCanvas(scene, TEX.worker(role), 36, 46, (ctx) => drawWorker(ctx, 36, 46, r.coat, r.band));
   }
   makeCanvas(scene, TEX.litter, TILE, TILE, (ctx) => drawLitter(ctx, TILE, TILE));
+  makeCanvas(scene, TEX.plate, 14, 8, (ctx) => {
+    ctx.fillStyle = '#f4f0e6';
+    ctx.beginPath();
+    ctx.ellipse(7, 5, 6.5, 2.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#d9a42b';
+    ctx.beginPath();
+    ctx.ellipse(7, 3.5, 3.5, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
   makeCanvas(scene, TEX.slime, TILE, TILE, (ctx) => drawSlime(ctx, TILE, TILE));
 
   makeCanvas(scene, TEX.shadow, 30, 12, (ctx) => {

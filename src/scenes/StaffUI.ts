@@ -368,23 +368,32 @@ export class StaffUI {
     if (def.hotel) line(STR.bedsUsed(state.sleepersIn(b.uid), def.hotel.beds, def.hotel.price));
     if (def.staffBeds) line(STR.staffHouse(state.staff.size, state.staffBeds()));
     if (def.bin) line(STR.catchesLitter, COLORS.uiTextDim);
-    const role = def.staff;
-    if (!role) return;
+    if (def.restaurant && def.cuisine) {
+      line(STR.restaurantInfo(STR.cuisines[def.cuisine], def.restaurant.tables), COLORS.uiTextDim);
+      if (state.phase === 'night') line(STR.tables(state.servingCount(b.uid), def.restaurant.tables));
+    }
+    if (!def.staff) return;
 
-    const roleName = STR.roles[role].toLowerCase();
-    const worker = state.staffAt(b.uid);
-    if (!worker) line(STR.noStaff(roleName), COLORS.uiRed);
+    const missing = state.missingRoles(b);
+    if (missing.length) line(STR.noStaff(missing.map((r) => STR.roles[r].toLowerCase()).join(' + ')), COLORS.uiRed);
     else if (state.phase === 'day') line(STR.dayClosed, COLORS.uiTextDim);
     else if (state.isOpen(b)) line(STR.open, COLORS.uiGreen);
     else line(STR.staffComing, COLORS.uiGold);
 
-    if (worker) {
-      line(STR.worker(`${STR.roleIcons[role]} ${worker.name}`, STR.staffStatus[this.statusOf(worker)]), COLORS.uiTextDim);
-      buttons.push([STR.unassign, () => state.assign(worker.id, null)]);
-      return;
+    for (const worker of state.staffOf(b.uid)) {
+      line(STR.worker(`${STR.roleIcons[worker.role]} ${worker.name}`, STR.staffStatus[this.statusOf(worker)]), COLORS.uiTextDim);
     }
-    const idle = state.idleStaff(role)[0];
-    if (idle) buttons.push([STR.assignIdle(idle.name), () => state.assign(idle.id, b.uid)]);
-    buttons.push([STR.hireAndAssign(STR.roles[role], STAFF[role].hire), () => this.hire(role, b.uid)]);
+
+    // Free places: give the job to someone idle, or hire. Otherwise offer to unassign.
+    const free = [...new Set(def.staff)].filter(
+      (r) => state.staffOf(b.uid).filter((m) => m.role === r).length < state.slotsFor(b, r),
+    );
+    for (const role of free.slice(0, 2)) {
+      const idle = state.idleStaff(role)[0];
+      if (idle) buttons.push([STR.assignIdle(idle.name), () => state.assign(idle.id, b.uid)]);
+      else buttons.push([STR.hireAndAssign(STR.roles[role], STAFF[role].hire), () => this.hire(role, b.uid)]);
+    }
+    const first = state.staffOf(b.uid)[0];
+    if (!free.length && first) buttons.push([STR.unassign, () => state.assign(first.id, null)]);
   }
 }

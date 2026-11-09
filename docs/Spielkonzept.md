@@ -84,10 +84,48 @@ Wege ändern ihr Aussehen automatisch mit dem Zeitalter.
   - Zufrieden ist ein Gast, wenn er mindestens die Hälfte seiner Wünsche erfüllt bekam; Schmutz und Wut in der Schlange ziehen ab
 - **Mana**: für Zauber (später)
 
+## Restaurants
+Für richtige Mahlzeiten gibt es **Restaurants**: offene Räume (4 × 3 oder 5 × 4 Felder), in die man von schräg oben hineinsieht.
+- Hinten die **Küche** mit Koch, vorne **Tische** (4 oder 6). Gäste stellen sich an, setzen sich, bestellen.
+- Der **Koch** kocht ein Gericht nach dem anderen, der **Kellner** trägt es vom Pass zum Tisch, der Gast isst etwa 15 Sekunden (je nach Gast) und zahlt.
+- Ein Restaurant braucht **mindestens einen Koch und einen Kellner**. Große Restaurants haben Platz für je zwei, das macht sie schneller.
+- Wer zu lange aufs Essen wartet (doppelte Geduld), geht wütend.
+- Restaurants bringen pro Gast deutlich mehr als Stände, brauchen aber viel Platz und Personal.
+
+| Restaurant | Küche | Größe | Tische | Preis pro Gast |
+|---|---|---|---|---|
+| Moonbroth Ramen | japanisch | 4 × 3 | 4 | 22 |
+| Mistleaf Pho | vietnamesisch | 4 × 3 | 4 | 24 |
+| Floating Dumpling House | chinesisch | 4 × 3 | 4 | 26 |
+| Firefly Curry House | thailändisch | 4 × 3 | 4 | 28 |
+| Ember Grill | koreanisch | 5 × 4 | 6 | 34 |
+| Starfish Sushi Bar | japanisch | 5 × 4 | 6 | 38 |
+| Bubbling Cauldron Hot Pot | Hexenküche | 5 × 4 | 6 | 42 |
+
+**Gelüste:** Etwa die Hälfte der Hunger-Wünsche ist ein Gelüst nach einer bestimmten Küche (Symbol über dem Kopf). Gäste nehmen dafür Umwege in Kauf; bekommen sie eine andere Küche, zählt das nur teilweise. So lohnt sich Vielfalt.
+
+## Stände (Auswahl, erweiterbar)
+Neben den Restaurants gibt es viele kleine Stände mit Zauber-Einschlag:
+- **Essen:** Noodle Stall, Firefly Skewers, Moon Mochi, Dream Floss (Zuckerwatte, die nach Träumen schmeckt)
+- **Trinken:** Tea House, Café, Cauldron Bubble Tea, Vending Machine
+- **Spaß** (neues Bedürfnis 🎏): Ghost Goldfish Scooping, Spirit Mask Stand, Lantern Ring Toss
+- **Glück:** Charm Stand, Paper Crane Fortunes, Moon Shrine, Arcade
+- Platzmangel ist gewollt: Der Markt darf eng und chaotisch werden, Wege, Schlangen und Personal wollen geplant sein.
+
+## Geld und Wachstum
+- Start mit wenig Geld (**650 Münzen**): genug für ein kleines Restaurant, Koch, Kellner und einen Imbiss.
+- **Beliebtheit (★):** Jedes Gebäude hat einen Beliebtheitswert (Restaurants 10–22, Stände 3–5, Deko 1). Gäste pro Nacht = (6 + Beliebtheit) × Ruf-Faktor, höchstens 120 (Bereich 1).
+- Mehr Gebäude → mehr Gäste → mehr Geld → mehr Gebäude. Test: Nacht 1 mit Ramen und Nudelbude ≈ 500 Gewinn, Nacht 2 mit zweitem Restaurant und Teehaus ≈ 1150.
+- Wünsche, die der Markt gar nicht anbietet, kosten nur Einnahmen, nicht den Ruf. Der Ruf hängt an Schlangen, Wut, Schmutz und falscher Küche.
+- Geplant: Gebäude-Stufen (z. B. Restaurant Stufe 2 mit mehr Tischen), weitere Gebäude teurer.
+
 ## Bedürfnisse und Gebäude
 | Bedürfnis | Gebäude | Personal | Bereich |
 |---|---|---|---|
-| Hunger | Noodle Stall | Koch | Markt |
+| Hunger | Restaurants | Koch + Kellner | Markt |
+| Hunger | Noodle Stall, Firefly Skewers, Moon Mochi | Koch | Markt |
+| Hunger | Dream Floss | Verkäufer | Markt |
+| Spaß | Goldfish, Masks, Ring Toss | Verkäufer | Markt |
 | Durst | Tea House, Café | Koch | Markt |
 | Durst | Vending Machine | – | Markt |
 | Glück/Magie | Charm Stand, Arcade | Verkäufer | Markt |
