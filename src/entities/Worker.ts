@@ -303,6 +303,7 @@ export class Worker extends Walker {
   }
 
   protected replan(): void {
+    if (!this.isAwake) return;
     this.path = [];
     if (this.mode === 'toHome' || (this.state.isDawn && !this.staysAtPost)) this.goHome();
     else this.goToWork();
@@ -392,6 +393,18 @@ export class Worker extends Walker {
     const homeGone = this.mode === 'toHome' && (this.homeUid === null || !this.state.buildings.has(this.homeUid));
     const moving = this.mode === 'toPost' || this.mode === 'toHome' || this.mode === 'roam';
     if (homeGone || (moving && this.pathBlocked())) this.replan();
+  }
+
+  /** Skipping to the morning: go to bed right away (hosts sleep in their hotel). */
+  goHomeNow(): void {
+    if (!this.isAwake) return;
+    const m = this.member;
+    if (m && m.role === 'host' && this.mode === 'onDuty' && m.post !== null) {
+      this.sleep(m.post);
+      return;
+    }
+    const home = (m?.restAt != null ? this.state.buildings.get(m.restAt) : undefined) ?? this.state.staffHouses()[0];
+    if (home) this.sleep(home.uid);
   }
 
   /** The sun rises. Returns false if the worker was caught outside. */

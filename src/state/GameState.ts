@@ -11,9 +11,8 @@ import {
   GUESTS_PER_REPUTATION,
   HAPPY_THRESHOLD,
   NIGHT_MS,
-  REP_HAPPY,
   REP_LOST,
-  REP_UNHAPPY,
+  REP_MOOD,
   REPUTATION_MAX,
   REPUTATION_START,
   RIVER_TOP,
@@ -80,6 +79,7 @@ export interface NightReport {
   lost: number;
   happy: number;
   unhappy: number;
+  angry: number;
   earned: number;
   rooms: number;
   wages: number;
@@ -181,7 +181,13 @@ export class GameState extends Emitter<StateEvents> {
   private litter = new Uint8Array(GRID_W * GRID_H);
   private slime = new Uint8Array(GRID_W * GRID_H);
 
-  private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, earned: 0, staffLost: 0, cleaned: 0 };
+  private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0 };
+  /** Guests the scene still plans to let in tonight. */
+  pendingArrivals = 0;
+
+  // --- queues at buildings: uid -> spirit ids in line / guests being served ---
+  private lines = new Map<number, number[]>();
+  private serving = new Map<number, number>();
   private sales = new Map<BuildingId, Sale>();
   /** The last morning report (for the finances panel). */
   lastReport: NightReport | null = null;
@@ -364,6 +370,8 @@ export class GameState extends Emitter<StateEvents> {
     this.reserved.delete(uid);
     this.onBridge.delete(uid);
     this.waitingAt.delete(uid);
+    this.lines.delete(uid);
+    this.serving.delete(uid);
     const refund = Math.floor(def.cost * DEMOLISH_REFUND);
     this.addMoney(refund);
     this.emit('removed', building);
@@ -614,6 +622,56 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   // ---------------------------------------------------------------------------
+  // queues
+  // ---------------------------------------------------------------------------
+
+  /** Get in line at a building. */
+  joinQueue(uid: number, spiritId: number): void {
+    const line = this.lines.get(uid) ?? [];
+    if (!line.includes(spiritId)) line.push(spiritId);
+    this.lines.set(uid, line);
+  }
+
+  leaveQueue(uid: number, spiritId: number): void {
+    const line = this.lines.get(uid);
+    if (!line) return;
+    const i = line.indexOf(spiritId);
+    if (i >= 0) line.splice(i, 1);
+  }
+
+  /** Place in line (0 = next), or -1. */
+  queuePosition(uid: number, spiritId: number): number {
+    return this.lines.get(uid)?.indexOf(spiritId) ?? -1;
+  }
+
+  queueLength(uid: number): number {
+    return this.lines.get(uid)?.length ?? 0;
+  }
+
+  /** The first guest in line gets served if the building is open and has a free place. */
+  tryServe(uid: number, spiritId: number): boolean {
+    const b = this.buildings.get(uid);
+    if (!b || !this.isOpen(b)) return false;
+    const line = this.lines.get(uid);
+    if (!line || line[0] !== spiritId) return false;
+    const busy = this.serving.get(uid) ?? 0;
+    if (busy >= (b.def.service?.slots ?? 1)) return false;
+    line.shift();
+    this.serving.set(uid, busy + 1);
+    return true;
+  }
+
+  endServe(uid: number): void {
+    const n = this.serving.get(uid) ?? 0;
+    if (n > 0) this.serving.set(uid, n - 1);
+  }
+
+  /** A guest gave up waiting. */
+  recordAngry(): void {
+    this.night.angry++;
+  }
+
+  // ---------------------------------------------------------------------------
   // bridges
   // ---------------------------------------------------------------------------
 
@@ -788,6 +846,16 @@ export class GameState extends Emitter<StateEvents> {
     this.setSpeed(steps[(i + 1) % steps.length]);
   }
 
+  /** The night can be skipped once every guest is gone and nobody else is coming. */
+  get canSkipNight(): boolean {
+    return this.phase === 'night' && this.spiritCount === 0 && this.pendingArrivals === 0;
+  }
+
+  /** Jump straight to the morning (the scene sends workers home first). */
+  endNightNow(): void {
+    if (this.phase === 'night') this.endNight();
+  }
+
   /** Skip the rest of the day. */
   startNightNow(): void {
     if (this.phase === 'day') this.timeLeft = 0;
@@ -812,7 +880,7 @@ export class GameState extends Emitter<StateEvents> {
     this.phase = 'night';
     this.timeLeft = NIGHT_MS;
     this.dawnStarted = false;
-    this.night = { safe: 0, lost: 0, happy: 0, unhappy: 0, earned: 0, staffLost: 0, cleaned: 0 };
+    this.night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0 };
     this.sales.clear();
     if (this.tool) this.setTool(null);
     this.emit('phase', 'night');
@@ -824,6 +892,9 @@ export class GameState extends Emitter<StateEvents> {
     this.reserved.clear();
     this.onBridge.clear();
     this.waitingAt.clear();
+    this.lines.clear();
+    this.serving.clear();
+    this.pendingArrivals = 0;
 
     const rooms = this.hotels().reduce((sum, h) => sum + (this.sleepers.get(h.uid) ?? 0) * h.def.hotel!.price, 0);
     if (rooms > 0) this.addMoney(rooms);
@@ -832,7 +903,8 @@ export class GameState extends Emitter<StateEvents> {
     for (const m of this.staff.values()) m.onDuty = false;
 
     const n = this.night;
-    const repDelta = n.happy * REP_HAPPY + n.unhappy * REP_UNHAPPY + n.lost * REP_LOST;
+    const guests = Math.max(1, n.safe + n.lost);
+    const repDelta = Math.round((REP_MOOD * (n.happy - n.unhappy) + REP_LOST * n.lost) / guests);
     this.reputation = Math.max(0, Math.min(REPUTATION_MAX, this.reputation + repDelta));
     this.emit('reputation', this.reputation);
 
@@ -846,6 +918,7 @@ export class GameState extends Emitter<StateEvents> {
       lost: n.lost,
       happy: n.happy,
       unhappy: n.unhappy,
+      angry: n.angry,
       earned: n.earned,
       rooms,
       wages,

@@ -167,9 +167,13 @@ export class UIScene extends Phaser.Scene {
     if (this.clockText.text !== clock) {
       this.clockText.setText(clock).setColor(state.isDawn ? COLORS.uiRed : COLORS.uiText);
     }
+    // Day: start the night. Night: skip to the morning once everyone is gone.
     const day = state.phase === 'day';
-    this.nightButton.bg.setVisible(day);
-    this.nightButton.label.setVisible(day);
+    const show = day || state.canSkipNight;
+    this.nightButton.bg.setVisible(show);
+    this.nightButton.label.setVisible(show);
+    const label = day ? STR.startNight : STR.skipNight;
+    if (this.nightButton.label.text !== label) this.nightButton.label.setText(label);
 
     const rep = STR.reputation(state.reputation);
     const spirits = STR.spirits(state.spiritCount);
@@ -234,7 +238,7 @@ export class UIScene extends Phaser.Scene {
     const parts: Phaser.GameObjects.GameObject[] = [bg, this.clockText];
 
     // Speed buttons and "start night" on the right side of the panel.
-    const nightW = 104;
+    const nightW = 128;
     let x = w - 6 - nightW - 6 - SPEEDS.length * 32;
     SPEEDS.forEach((speed, i) => {
       const b = this.smallButton(x, 5, 30, h - 10, STR.speedLabels[i], () => state.setSpeed(speed));
@@ -242,7 +246,7 @@ export class UIScene extends Phaser.Scene {
       parts.push(b.bg, b.label);
       x += 32;
     });
-    this.nightButton = this.smallButton(w - 6 - nightW, 5, nightW, h - 10, STR.startNight, () => state.startNightNow());
+    this.nightButton = this.smallButton(w - 6 - nightW, 5, nightW, h - 10, STR.startNight, () => this.nightOrMorning());
     parts.push(this.nightButton.bg, this.nightButton.label);
 
     this.timePanel = this.add.container(0, HUD_HEIGHT, parts);
@@ -455,7 +459,13 @@ export class UIScene extends Phaser.Scene {
     kb.on('keydown-I', () => this.toggleFinance());
     kb.on('keydown-SPACE', () => state.togglePause());
     kb.on('keydown-F', () => state.cycleSpeed());
-    kb.on('keydown-N', () => state.startNightNow());
+    kb.on('keydown-N', () => this.nightOrMorning());
+  }
+
+  /** "Start night" by day, "skip to morning" once the night is over. */
+  private nightOrMorning(): void {
+    if (state.phase === 'day') state.startNightNow();
+    else (this.scene.get('MarketScene') as MarketScene).skipToMorning();
   }
 
   private toggleFinance(): void {
@@ -486,6 +496,7 @@ export class UIScene extends Phaser.Scene {
   private showReport(r: NightReport): void {
     this.report?.destroy();
     const lines = [STR.report.guests(r.safe, r.lost), STR.report.happy(r.happy, r.unhappy)];
+    if (r.angry > 0) lines.push(STR.report.angry(r.angry));
     if (r.staffLost > 0) lines.push(STR.report.staffLost(r.staffLost));
     lines.push(STR.report.cleaned(r.cleaned, r.dirty), STR.report.profit(r.net));
     const title = this.add

@@ -13,6 +13,23 @@ Vorlage:
 
 ---
 
+## 2026-11-09 – Bereiche mit Level statt Zeitalter
+**Status:** entschieden (Idee des Nutzers), Umsetzung geplant
+**Entscheidung:** Die Karte wird in Bereiche geteilt, die mit **Level + Münzen** freigeschaltet werden (wie in Hay Day): 1. Nachtmarkt (Start, ohne Hotel, bis 100 Gäste), 2. Hotel-Viertel jenseits des Flusses (Hotelgäste kommen in der nächsten Nacht dazu, bis ca. 500), 3. modernes Neon-Viertel rechts daneben (2000–3000 Gäste). Das Level ist **sichtbar mit Balken**. Die **Zeitalter entfallen**: Moderne Gebäude gibt es nur im Neon-Viertel, der alte Markt bleibt traditionell.
+**Warum:** Das Alte bleibt erhalten statt ersetzt zu werden; Wachstum fühlt sich räumlich an; klares Ziel für jedes Level.
+**Verworfen:** Zeitalter zusätzlich behalten; Bereich = Zeitalter; Level versteckt; Bereiche öffnen automatisch; Bereiche nebeneinander oder Moderne im Norden.
+**Ersetzt (später):** „Zeitalter: Ruf schaltet frei, Münzen kaufen“.
+
+## 2026-11-09 – Beliebtheit bestimmt die Gästezahl
+**Status:** vorgeschlagen
+**Entscheidung:** Stände und Dekoration haben einen Beliebtheitswert. Die Summe bestimmt, wie viele Gäste kommen, begrenzt durch die freigeschalteten Bereiche. Der Ruf (Zufriedenheit) wirkt als Verstärker. Erfahrung für das Level kommt aus zufriedenen Gästen und neuen Gebäuden.
+**Warum:** Wunsch des Nutzers: Je mehr Stände und Deko, desto mehr Gäste.
+
+## 2026-11-09 – Volle Nächte: Wellen, Schlangen, Geduld, Charaktere
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Gäste kommen über die ganze Nacht in Wellen, bleiben länger und haben mehr Wünsche. Stände bedienen nur wenige Gäste gleichzeitig, dahinter bilden sich Schlangen. Jeder Gast hat eine Geduld; wird sie überschritten, wird er wütend (😠), verlässt die Schlange und ist unzufrieden. Geistertypen unterscheiden sich in Geduld und Vorlieben. Dazu: höheres Startgeld, längere Nacht, Knopf „Zum Morgen springen“.
+**Warum:** Bisher war die Nacht nach einer halben Minute vorbei und der Rest leer.
+
 ## 2026-11-09 – Personal als Reiter in der Bauleiste, Finanzen als eigenes Fenster
 **Status:** entschieden (Wunsch des Nutzers)
 **Entscheidung:** Arbeiter werden über einen Reiter **Workers** in der Bauleiste eingestellt und ausgewählt, genauso wie Gebäude. Ein Klick auf eine Job-Karte stellt sofort ein (wie ein Gebäude kaufen); Entlassen geht über das Infofenster des Arbeiters. Ein Fenster **Finances** zeigt Lohnkosten, Verkäufe pro Gebäude, Zimmergeld und Gewinn.
@@ -65,7 +82,7 @@ Vorlage:
 **Verworfen:** Begrenzung pro Nacht statt gleichzeitig.
 
 ## 2026-11-08 – Zeitalter: Ruf schaltet frei, Münzen kaufen
-**Status:** entschieden (Idee des Nutzers)
+**Status:** wird ersetzt durch „Bereiche mit Level statt Zeitalter“ (2026-11-09)
 **Entscheidung:** Drei Zeitalter: Laternenzeit → Dampfzeit (Ruf 60, 1200 Münzen) → Neon-Zeit (Ruf 75, 3000 Münzen). Jedes bringt neue, teurere Gebäude, vor allem größere Hotels und bessere Übergänge. Wege ändern mit dem Zeitalter ihr Aussehen.
 **Warum:** Langfristiges Ziel und das Gefühl, dass sich die Welt von altmodisch zu modern entwickelt.
 **Verworfen:** Fortschritt nur nach Anzahl der Nächte, Fortschritt bis in die Gegenwart.

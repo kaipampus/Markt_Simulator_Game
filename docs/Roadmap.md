@@ -59,6 +59,25 @@ Konzept: [[Spielkonzept]] · Entscheidungen: [[Entscheidungen]] · Verlauf: [[Ch
 - [ ] Mülleimer laufen voll und müssen geleert werden
 - [ ] Fährleute für Fähren, Personalhaus der Neon-Zeit
 
+## Phase 3c – Volle Nächte, Bereiche und große Gästezahlen
+Schritt 1 – Nachtleben:
+- [x] Gäste kommen in Wellen über die ganze Nacht, bleiben länger, mehr Wünsche
+- [x] Warteschlangen an Ständen (begrenzte Plätze), Geduld, wütende Gäste (😠)
+- [x] Geistertypen mit eigener Geduld und Vorlieben (neu: Vielfraß)
+- [x] Knopf „Zum Morgen springen“, höheres Startgeld, längere Nacht
+- [ ] Balancing: Einnahmen sind mit längeren Nächten deutlich höher, Preise und Kosten anpassen
+
+Schritt 2 – Level und Bereiche:
+- [ ] Level mit Balken, Erfahrung aus zufriedenen Gästen und Gebäuden
+- [ ] Beliebtheitswert für Stände und Deko bestimmt die Gästezahl
+- [ ] Bereich 1 Nachtmarkt (ohne Hotel), Bereich 2 Hotel-Viertel gesperrt bis Level + Münzen
+- [ ] Zeitalter entfernen, Gebäude neu auf die Bereiche verteilen
+
+Schritt 3 – Neon-Viertel und Größe:
+- [ ] Karte nach rechts erweitern, Bereich 3 Neon-Viertel mit modernen Gebäuden
+- [ ] Größere Hotels und Übergänge für hunderte Gäste
+- [ ] Technik für tausende Gäste: Belastungstest, gemeinsame Wegkarten, vereinfachte Darstellung
+
 ## Phase 4 – Magie
 - [ ] Mana und Schreine
 - [ ] Zauber-Leiste mit ersten Zaubern

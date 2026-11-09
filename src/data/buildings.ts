@@ -91,6 +91,8 @@ export interface BuildingDef {
   crossing?: Crossing;
   /** Need this building satisfies, and what a visit pays. */
   provides?: { need: Need; price: number };
+  /** How many guests are served at once and how long one visit takes (ms). Others queue. */
+  service?: { slots: number; ms: number };
   /** Beds in a hotel and what one night costs. */
   hotel?: { beds: number; price: number };
   /** Needs a worker with this job on duty to be open. */
@@ -205,6 +207,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'stall',
     colors: { main: '#8b5a36', roof: '#c8372d', accent: '#f4e6c8' },
     provides: { need: 'hunger', price: 12 },
+    service: { slots: 1, ms: 2200 },
     staff: 'cook',
   },
   {
@@ -219,6 +222,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'house',
     colors: { main: '#8a5a3c', roof: '#2f3f5a', accent: '#ffcf7a' },
     provides: { need: 'thirst', price: 10 },
+    service: { slots: 2, ms: 2800 },
     glow: { x: 0.5, y: 0.82, radius: 70 },
     staff: 'cook',
   },
@@ -234,6 +238,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'stall',
     colors: { main: '#6e4a33', roof: '#6b4aa0', accent: '#f1e7d0' },
     provides: { need: 'luck', price: 15 },
+    service: { slots: 1, ms: 1800 },
     staff: 'clerk',
   },
   {
@@ -248,6 +253,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'torii',
     colors: { main: '#c8372d', roof: '#1e1a1a', accent: '#d8d2c4' },
     provides: { need: 'luck', price: 6 },
+    service: { slots: 2, ms: 1600 },
   },
   {
     id: 'cafe',
@@ -261,6 +267,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'house',
     colors: { main: '#6d4c3d', roof: '#3d5a46', accent: '#ffd9a0' },
     provides: { need: 'thirst', price: 16 },
+    service: { slots: 3, ms: 2600 },
     glow: { x: 0.5, y: 0.82, radius: 80 },
     staff: 'cook',
   },
@@ -276,6 +283,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'vending',
     colors: { main: '#d93a3a', roof: '#2a2a33', accent: '#bff6ff' },
     provides: { need: 'thirst', price: 6 },
+    service: { slots: 1, ms: 1000 },
     glow: { x: 0.5, y: 0.5, radius: 50, color: 0x9fe8ff },
   },
   {
@@ -290,6 +298,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'arcade',
     colors: { main: '#2b2440', roof: '#ff4fa3', accent: '#5ff2ff' },
     provides: { need: 'luck', price: 22 },
+    service: { slots: 4, ms: 4000 },
     glow: { x: 0.5, y: 0.4, radius: 110, color: 0xff6fc0 },
     staff: 'clerk',
   },
@@ -307,6 +316,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'brazier',
     colors: { main: '#3a3236', roof: '#1e1a1a', accent: '#ff9a3c' },
     provides: { need: 'warmth', price: 4 },
+    service: { slots: 3, ms: 2500 },
     glow: { x: 0.5, y: 0.35, radius: 80 },
   },
   {
@@ -321,6 +331,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     style: 'restroom',
     colors: { main: '#7a6650', roof: '#3b4f45', accent: '#e8dcc0' },
     provides: { need: 'relief', price: 3 },
+    service: { slots: 1, ms: 1800 },
   },
   {
     id: 'bin',

@@ -26,7 +26,7 @@ Then open http://localhost:5173.
 | Zoom | Mouse wheel |
 | Pause / resume | `Space` |
 | Game speed 1× / 2× / 4× | `F` |
-| Start the night now | `N` |
+| Start the night / skip to morning (when all guests are gone) | `N` |
 | Workers (hire, see who works where) | **Workers** tab in the bottom bar, or `P` |
 | Finances (wages, sales, profit) | **Finances** button at the top, or `I` |
 | Select a stall, hotel or worker | Left-click (no tool selected) |

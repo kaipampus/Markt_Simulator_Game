@@ -2,6 +2,20 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-09 – Volle Nächte: Wellen, Schlangen, Geduld (Branch `feature/night-life`)
+- Neues Konzept dokumentiert: Bereiche mit Level statt Zeitalter, Beliebtheit, Gästezahlen bis in die Tausende (Umsetzung folgt)
+- **Gäste kommen in drei Wellen** über die ganze Nacht (Abendansturm, Mitternacht, Nachzügler) statt alle am Anfang
+- Gäste haben **3–6 Wünsche**, Wünsche können sich wiederholen; zwischen den Käufen bummeln sie ein Stück
+- **Warteschlangen**: Jeder Stand bedient nur wenige Gäste gleichzeitig (z. B. Nudelbude 1, Teehaus 2, Spielhalle 4) mit eigener Bedienzeit; Gäste stellen sich an und wählen Stände mit kürzerer Schlange
+- **Geduld**: Wer zu lange wartet, wird ungeduldig (😤), dann wütend (😠), verlässt die Schlange und ist unzufriedener
+- **Geistertypen** mit eigener Geduld und Vorlieben: Elder geduldig, muss oft aufs Klo; Sprite ungeduldig, mag Glück; neu der **Vielfraß** (Glutton), immer hungrig und schnell sauer
+- Über Ständen mit langer Schlange steht 👥 und die Anzahl
+- Knopf **„☀ Skip to morning“** (Taste N), sobald alle Gäste weg sind; Arbeiter gehen dabei sofort ins Bett
+- Nacht dauert 4 Minuten, Startgeld 2500, Grundzahl der Gäste höher (20 + Ruf/2)
+- Ruf ändert sich jetzt nach Anteilen statt pro Gast, damit er auch bei vielen Gästen sinnvoll bleibt
+- Das Leuchten der Gäste ist schwächer, damit viele Gäste keinen weißen Fleck ergeben
+- Daten der Geistertypen und Wellen in `src/data/spirits.ts`
+
 ## 2026-11-09 – Übersichtlichere Oberfläche: Workers-Reiter und Finanzen
 - Personal hat jetzt einen eigenen Reiter **Workers** in der Bauleiste (neben Decor) statt eines schwebenden Fensters: links eine Karte pro Job (Bild, Einstellungspreis, Lohn pro Nacht, Anzahl), Klick stellt ein; rechts alle Arbeiter als Namensschilder mit Statuspunkt, Klick wählt aus und zeigt sie auf der Karte
 - Neues Fenster **Finances** (Knopf oben oder Taste I): Lohnkosten pro Job und Nacht, was Gäste heute Nacht und letzte Nacht bei welchem Gebäude gekauft haben, Zimmergeld, gezahlte Löhne und Gewinn

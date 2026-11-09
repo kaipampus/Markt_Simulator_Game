@@ -18,6 +18,7 @@ export const STR = {
   paused: 'Paused',
   speedLabels: ['⏸', '1×', '2×', '4×'],
   startNight: '☾ Start night',
+  skipNight: '☀ Skip to morning',
 
   eras: ['Lantern Age', 'Steam Age', 'Neon Age'],
   eraNext: (name: string, rep: number, cost: number) => `Next: ${name}  ·  Reputation ${rep}  ·  ${cost} coins`,
@@ -26,7 +27,7 @@ export const STR = {
   eraStarted: (name: string) => `The ${name} begins!`,
   lockedUntil: (name: string) => name,
 
-  hintIdle: 'Space pause · F speed · N start night · P workers · I finances · Drag or WASD to move · Wheel to zoom',
+  hintIdle: 'Space pause · F speed · N start night / skip to morning · P workers · I finances · Drag or WASD to move · Wheel to zoom',
   hintPlacing: 'Left-click to build  ·  Right-click or Esc to cancel',
   hintPainting: 'Hold the left mouse button and drag to lay paths  ·  Right-click or Esc to cancel',
   hintDemolish: 'Click a building to demolish (50% refund)  ·  Right-click or Esc to cancel',
@@ -108,6 +109,9 @@ export const STR = {
   } satisfies Record<Need, string>,
   homeIcon: '💤',
   waitIcon: '⏳',
+  impatientIcon: '😤',
+  angryIcon: '😠',
+  queueBadge: (n: number) => `👥 ${n}`,
 
   // --- staff ---------------------------------------------------------------
   staffTitle: (n: number, beds: number, wages: number) => `Staff ${n} / ${beds} beds  ·  wages ${wages} per night`,
@@ -206,6 +210,7 @@ export const STR = {
     title: (day: number) => `Morning ${day}`,
     guests: (safe: number, lost: number) => `${safe} spirits safe · ${lost} lost to the sun`,
     happy: (h: number, u: number) => `${h} happy · ${u} unhappy`,
+    angry: (n: number) => `${n} left a queue in anger`,
     profit: (n: number) => `Profit ${n >= 0 ? '+' : '−'}${Math.abs(n)}  (details: I)`,
     staffLost: (n: number) => `${n} workers lost to the sun`,
     cleaned: (n: number, dirty: number) => `${n} spots cleaned · ${dirty} still dirty`,

@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import {
-  ARRIVAL_WINDOW,
+  ARRIVAL_END_MARGIN_MS,
   BAR_HEIGHT,
   COLORS,
   DAWN_WARNING_MS,
@@ -22,6 +22,7 @@ import {
   ZOOM_MIN,
 } from '../config';
 import { GATE, getBuilding, type BuildingDef } from '../data/buildings';
+import { WAVES } from '../data/spirits';
 import { STR } from '../data/strings';
 import { Ferry } from '../entities/Ferry';
 import { Spirit } from '../entities/Spirit';
@@ -79,7 +80,9 @@ export class MarketScene extends Phaser.Scene {
   private footprint!: Phaser.GameObjects.Graphics;
   private hoveredUid: number | null = null;
   private drag: DragState | null = null;
-  private arrivals?: Phaser.Time.TimerEvent;
+  /** Night time (ms, game speed) at which each of tonight's new guests arrives, in order. */
+  private arrivals: number[] = [];
+  private nightClock = 0;
   private keys!: Record<'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd', Phaser.Input.Keyboard.Key>;
   private unsubscribe: Array<() => void> = [];
 
@@ -162,6 +165,7 @@ export class MarketScene extends Phaser.Scene {
     this.spirits = this.spirits.filter((s) => !s.isDone);
     state.setSpiritCount(this.spirits.length);
     for (const w of this.workers.values()) w.update(time, worldDelta);
+    this.letGuestsIn(worldDelta);
     this.updateBadges();
     this.drawSelection();
   }
@@ -173,8 +177,10 @@ export class MarketScene extends Phaser.Scene {
       const b = state.buildings.get(uid);
       if (!b) continue;
       let icon = '';
+      const line = state.queueLength(uid);
       if (!state.isServed(b)) icon = STR.noStaffIcon;
       else if (state.phase === 'night' && !state.isOpen(b)) icon = STR.staffComingIcon;
+      else if (line >= 3) icon = STR.queueBadge(line);
       if (view.badge.text !== icon) view.badge.setText(icon);
       view.badge.setVisible(icon !== '');
     }
@@ -202,36 +208,62 @@ export class MarketScene extends Phaser.Scene {
     this.setLight('night', 4000);
     for (const w of this.workers.values()) w.wake();
 
-    // Last night's hotel guests wake up first.
+    // Last night's hotel guests wake up first, spread over the early night.
     let woken = 0;
     for (const { hotel, count } of state.takeSleepers()) {
       for (let i = 0; i < count; i++) {
         const cells = state.entranceCells(hotel);
         const start = cells.length ? Phaser.Utils.Array.GetRandom(cells) : Phaser.Utils.Array.GetRandom([...state.gateCells]);
-        this.spawnSpirit(start, 500 + woken * 450);
+        this.spawnSpirit(start, 500 + Math.random() * 25_000);
         woken++;
       }
     }
 
-    // Then new guests arrive at the gate during the first part of the night.
-    const arrivals = Math.max(0, state.guestsTonight() - woken);
-    this.arrivals?.remove();
-    if (arrivals > 0) {
-      const interval = (NIGHT_MS * ARRIVAL_WINDOW) / arrivals;
-      this.arrivals = this.time.addEvent({
-        delay: interval,
-        repeat: arrivals - 1,
-        startAt: interval - 800,
-        callback: () => {
-          if (!state.isDawn) this.spawnSpirit(Phaser.Utils.Array.GetRandom([...state.gateCells]), 300);
-        },
-      });
+    // New guests arrive at the gate in waves over the whole night.
+    const count = Math.max(0, state.guestsTonight() - woken);
+    const window = NIGHT_MS - DAWN_WARNING_MS - ARRIVAL_END_MARGIN_MS;
+    this.arrivals = Array.from({ length: count }, () => this.arrivalTime(window)).sort((a, b) => a - b);
+    this.nightClock = 0;
+    state.pendingArrivals = this.arrivals.length;
+  }
+
+  /** A random arrival time following the waves in data/spirits.ts. */
+  private arrivalTime(window: number): number {
+    let r = Math.random();
+    let wave: (typeof WAVES)[number] = WAVES[WAVES.length - 1];
+    for (const w of WAVES) {
+      r -= w.share;
+      if (r <= 0) {
+        wave = w;
+        break;
+      }
     }
+    // Rough bell curve: average of three random numbers.
+    const bell = (Math.random() + Math.random() + Math.random()) / 3 - 0.5;
+    const t = wave.at + bell * wave.spread * 3.4;
+    return Phaser.Math.Clamp(t, 0, 1) * window;
+  }
+
+  private letGuestsIn(worldDelta: number): void {
+    if (state.phase !== 'night' || !this.arrivals.length) return;
+    this.nightClock += worldDelta;
+    while (this.arrivals.length && this.arrivals[0] <= this.nightClock) {
+      this.arrivals.shift();
+      if (!state.isDawn) this.spawnSpirit(Phaser.Utils.Array.GetRandom([...state.gateCells]), 200);
+    }
+    state.pendingArrivals = this.arrivals.length;
+  }
+
+  /** Everyone is gone: send the workers home and jump to the morning. */
+  skipToMorning(): void {
+    if (!state.canSkipNight) return;
+    for (const w of this.workers.values()) w.goHomeNow();
+    state.endNightNow();
   }
 
   private onSunrise(): void {
-    this.arrivals?.remove();
-    this.arrivals = undefined;
+    this.arrivals = [];
+    state.pendingArrivals = 0;
     for (const s of this.spirits) {
       if (s.isDone) continue;
       const p = s.position;
@@ -332,7 +364,7 @@ export class MarketScene extends Phaser.Scene {
     }
 
     let badge: Phaser.GameObjects.Text | undefined;
-    if (def.staff) {
+    if (def.staff || def.provides) {
       badge = this.add
         .text(b.tx * TILE + (def.w * TILE) / 2, bottom - def.h * TILE - def.rise + 4, '', {
           fontFamily: FONT_UI,

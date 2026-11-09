@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { DEPTH, FONT_UI, SPIRIT_SPEED, VISIT_MS } from '../config';
 import { NEEDS, type Need } from '../data/buildings';
+import { ANGER_MOOD, SPIRIT_KINDS, STROLL_PAUSE, WISHES, type SpiritKind } from '../data/spirits';
 import { DIRT, HOLD_MS } from '../data/staff';
 import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
@@ -8,19 +9,38 @@ import type { GameState } from '../state/GameState';
 import { cellsInRange, cheapest, costTo, pathTo, type Cell, type Field } from '../state/pathfinding';
 import { Walker, type WalkerWorld } from './Walker';
 
-export type SpiritKind = 'wisp' | 'elder' | 'sprite' | 'ooze';
+export type { SpiritKind } from '../data/spirits';
 
-const KINDS: Record<SpiritKind, { speed: number; scale: number; alpha: number; tints: number[] }> = {
-  wisp: { speed: 1, scale: 1, alpha: 0.92, tints: [0xffffff, 0xd8e6ff, 0xe6d8ff, 0xd8fff0, 0xffdbe8] },
-  elder: { speed: 0.55, scale: 1.2, alpha: 0.92, tints: [0xb8c0d0, 0xc4bccb] },
-  sprite: { speed: 1.35, scale: 0.8, alpha: 0.92, tints: [0xfff0c8, 0xd0fff4] },
-  /** Slimy guest: leaves trails on the paths and does not mind dirt itself. */
-  ooze: { speed: 0.8, scale: 1.05, alpha: 0.82, tints: [0x9fe8a0, 0xb8f0a0, 0x8fd8b8] },
-};
-
+/** Pick a guest type according to the weights in data/spirits.ts. */
 export function randomKind(): SpiritKind {
-  const r = Math.random();
-  return r < 0.5 ? 'wisp' : r < 0.72 ? 'elder' : r < 0.87 ? 'sprite' : 'ooze';
+  const kinds = Object.keys(SPIRIT_KINDS) as SpiritKind[];
+  const total = kinds.reduce((sum, k) => sum + SPIRIT_KINDS[k].weight, 0);
+  let r = Math.random() * total;
+  for (const k of kinds) {
+    r -= SPIRIT_KINDS[k].weight;
+    if (r <= 0) return k;
+  }
+  return 'wisp';
+}
+
+/** A list of wishes for tonight. Wishes may repeat, but never twice in a row. */
+function rollWishes(kind: SpiritKind): Need[] {
+  const weights = SPIRIT_KINDS[kind].needs ?? {};
+  const count = Phaser.Math.Between(WISHES.min, WISHES.max);
+  const out: Need[] = [];
+  while (out.length < count) {
+    const options = NEEDS.filter((n) => n !== out[out.length - 1]);
+    const total = options.reduce((sum, n) => sum + (weights[n] ?? 1), 0);
+    let r = Math.random() * total;
+    for (const n of options) {
+      r -= weights[n] ?? 1;
+      if (r <= 0) {
+        out.push(n);
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 type Goal =
@@ -29,16 +49,29 @@ type Goal =
   | { kind: 'gate' }
   | { kind: 'wander' };
 
-/** 'holding' = standing at a staffed building whose worker has not arrived yet. */
-type Phase = 'waiting' | 'walking' | 'holding' | 'visiting' | 'safe' | 'lost';
+/**
+ * waiting  – standing around before the next decision
+ * walking  – on the way (also while riding a ferry)
+ * queueing – in line at a stall
+ * holding  – at a hotel whose host has not arrived yet
+ * visiting – being served
+ */
+type Phase = 'waiting' | 'walking' | 'queueing' | 'holding' | 'visiting' | 'safe' | 'lost';
+
+let nextSpiritId = 1;
+
+/** How long the angry face stays visible (ms). */
+const ANGRY_SHOW_MS = 3500;
 
 /**
- * A spirit guest. At night it works through its needs (visiting stalls and
- * paying), then heads for a hotel bed or the gate. At dawn it drops
- * everything and hurries home; if the sun catches it outside, it is lost.
- * Dirty paths spoil its mood; slimy guests leave trails, others drop litter.
+ * A spirit guest. At night it works through its wishes: walks to a stall,
+ * queues, gets served and pays, strolls a bit, then goes for the next wish.
+ * Waiting too long makes it angry. Afterwards it heads for a hotel bed or the
+ * gate. At dawn it drops everything and hurries home; if the sun catches it
+ * outside, it is lost. Dirty paths spoil its mood; slimy guests leave trails.
  */
 export class Spirit extends Walker {
+  readonly id = nextSpiritId++;
   readonly kind: SpiritKind;
   private body: Phaser.GameObjects.Image;
   private shadow: Phaser.GameObjects.Image;
@@ -48,12 +81,20 @@ export class Spirit extends Walker {
   private phase: Phase = 'waiting';
   private goal: Goal | null = null;
   private waitMs: number;
+  /** Time spent in the current queue. */
+  private waited = 0;
+  /** Building we are being served at (needs endServe when done). */
+  private servedAt: number | null = null;
+  /** Building we are in line at. */
+  private queuedAt: number | null = null;
+  /** Remaining time the angry face is shown. */
+  private angryMs = 0;
 
   private needs: Need[];
   private readonly totalNeeds: number;
   private met = 0;
-  /** Dirty cells walked over tonight. */
   private dirtSeen = 0;
+  private angerCount = 0;
 
   private readonly seed = Math.random() * 1000;
 
@@ -67,12 +108,10 @@ export class Spirit extends Walker {
   ) {
     super(scene, state, world, start);
     this.kind = kind;
-    const k = KINDS[kind];
+    const k = SPIRIT_KINDS[kind];
     this.speed = SPIRIT_SPEED * k.speed * Phaser.Math.FloatBetween(0.9, 1.1);
     this.waitMs = delayMs;
-
-    // 2–3 different needs for tonight.
-    this.needs = Phaser.Utils.Array.Shuffle([...NEEDS]).slice(0, Phaser.Math.Between(2, 3));
+    this.needs = rollWishes(kind);
     this.totalNeeds = this.needs.length;
 
     this.shadow = scene.add.image(this.x, this.y, TEX.shadow).setAlpha(0).setScale(k.scale);
@@ -85,7 +124,7 @@ export class Spirit extends Walker {
     this.aura = scene.add
       .image(this.x, this.y, TEX.glow)
       .setBlendMode(Phaser.BlendModes.ADD)
-      .setTint(kind === 'ooze' ? 0x9fffb0 : 0x9fc4ff)
+      .setTint(k.slimy ? 0x9fffb0 : 0x9fc4ff)
       .setScale(0.32 * k.scale)
       .setAlpha(0);
     world.glowLayer.add(this.aura);
@@ -101,7 +140,9 @@ export class Spirit extends Walker {
       .setVisible(false);
 
     scene.tweens.add({ targets: [this.body], alpha: k.alpha, duration: 700 });
-    scene.tweens.add({ targets: [this.shadow, this.aura], alpha: 1, duration: 700 });
+    scene.tweens.add({ targets: this.shadow, alpha: 1, duration: 700 });
+    // Faint aura: with many guests the glows add up.
+    scene.tweens.add({ targets: this.aura, alpha: 0.35, duration: 700 });
   }
 
   /** True once the spirit is home or lost; the scene can drop it. */
@@ -109,9 +150,13 @@ export class Spirit extends Walker {
     return this.phase === 'safe' || this.phase === 'lost';
   }
 
+  private get def() {
+    return SPIRIT_KINDS[this.kind];
+  }
+
   private get satisfaction(): number {
-    const mood = Math.min(DIRT.moodMax, this.dirtSeen * DIRT.moodPerCell);
-    return this.met / Math.max(1, this.totalNeeds) - mood;
+    const dirt = Math.min(DIRT.moodMax, this.dirtSeen * DIRT.moodPerCell);
+    return this.met / Math.max(1, this.totalNeeds) - dirt - this.angerCount * ANGER_MOOD;
   }
 
   private get headingHome(): boolean {
@@ -127,20 +172,29 @@ export class Spirit extends Walker {
   /** `delta` is already scaled by the game speed. */
   update(time: number, delta: number): void {
     if (this.isDone) return;
+    if (this.angryMs > 0) this.angryMs -= delta;
 
     const busy = this.phase === 'visiting' || this.riding;
     if (this.state.isDawn && !this.headingHome && !busy) this.goHome();
 
-    if (this.phase === 'waiting') {
-      this.waitMs -= delta;
-      if (this.waitMs <= 0) this.decide();
-    } else if (this.phase === 'holding') {
-      this.hold(delta);
-    } else if (this.phase === 'visiting') {
-      this.waitMs -= delta;
-      if (this.waitMs <= 0) this.finishVisit();
-    } else if (this.phase === 'walking') {
-      this.walk(delta);
+    switch (this.phase) {
+      case 'waiting':
+        this.waitMs -= delta;
+        if (this.waitMs <= 0) this.decide();
+        break;
+      case 'queueing':
+        this.queue(delta);
+        break;
+      case 'holding':
+        this.hold(delta);
+        break;
+      case 'visiting':
+        this.waitMs -= delta;
+        if (this.waitMs <= 0) this.finishVisit();
+        break;
+      case 'walking':
+        this.walk(delta);
+        break;
     }
 
     this.render(time);
@@ -148,20 +202,33 @@ export class Spirit extends Walker {
 
   private render(time: number): void {
     const bob = Math.sin(time / 320 + this.seed) * 3;
-    const k = KINDS[this.kind].scale;
-    this.body.setPosition(this.x, this.y - 4 + bob).setDepth(this.y);
+    const k = this.def.scale;
+    // Guests in line stand a little apart instead of on top of each other.
+    let ox = 0;
+    let oy = 0;
+    if (this.phase === 'queueing' && this.queuedAt !== null) {
+      const pos = Math.max(0, this.state.queuePosition(this.queuedAt, this.id));
+      ox = ((pos % 4) - 1.5) * 9;
+      oy = Math.floor(pos / 4) * 6;
+    }
+    const x = this.x + ox;
+    const y = this.y + oy;
+    this.body.setPosition(x, y - 4 + bob).setDepth(y);
     this.shadow
-      .setPosition(this.x, this.y)
+      .setPosition(x, y)
       .setScale(k * (1 - bob * 0.04))
-      .setDepth(this.y - 0.5)
+      .setDepth(y - 0.5)
       .setVisible(!this.boarded);
-    this.aura.setPosition(this.x, this.y - 20 * k + bob);
+    this.aura.setPosition(x, y - 20 * k + bob);
 
     let icon = '';
-    if (this.queueing || this.phase === 'holding') icon = STR.waitIcon;
+    if (this.angryMs > 0) icon = STR.angryIcon;
+    else if (this.phase === 'queueing') icon = this.waited > this.def.patience * 0.65 ? STR.impatientIcon : STR.waitIcon;
+    else if (this.queueing || this.phase === 'holding') icon = STR.waitIcon;
     else if (this.headingHome) icon = STR.homeIcon;
     else if (this.needs.length > 0) icon = STR.needIcons[this.needs[0]];
-    this.bubble.setText(icon).setVisible(icon !== '').setPosition(this.x, this.y - 44 * k + bob);
+    if (this.bubble.text !== icon) this.bubble.setText(icon);
+    this.bubble.setVisible(icon !== '').setPosition(x, y - 44 * k + bob);
   }
 
   /** Called whenever buildings change, so spirits never walk through removed paths. */
@@ -169,19 +236,22 @@ export class Spirit extends Walker {
     if (this.isDone || !this.goal || this.riding) return;
     const goal = this.goal;
     const targetGone = (goal.kind === 'visit' || goal.kind === 'hotel') && !this.state.buildings.has(goal.uid);
-    if (!targetGone && !this.pathBlocked()) return;
-    if (this.phase === 'visiting' && !targetGone) return;
-    this.replan();
+    if (this.phase === 'visiting' || this.phase === 'queueing' || this.phase === 'holding') {
+      if (targetGone) this.replan();
+      return;
+    }
+    if (targetGone || this.pathBlocked()) this.replan();
   }
 
   protected replan(): void {
+    this.leaveLine();
     this.path = [];
     if (this.headingHome) this.goHome();
     else this.decide();
   }
 
   protected onEnterCell(c: Cell): void {
-    if (this.kind === 'ooze') {
+    if (this.def.slimy) {
       if (Math.random() < DIRT.slimeChance) this.state.addDirt(c, 'slime');
       return;
     }
@@ -206,8 +276,17 @@ export class Spirit extends Walker {
     return true;
   }
 
-  /** Pick the next need and walk to the cheapest building that satisfies it. */
+  /** Leave the queue or the service place we are at. */
+  private leaveLine(): void {
+    if (this.queuedAt !== null) this.state.leaveQueue(this.queuedAt, this.id);
+    if (this.servedAt !== null) this.state.endServe(this.servedAt);
+    this.queuedAt = null;
+    this.servedAt = null;
+  }
+
+  /** Pick the next wish and walk to the best building for it (short queues preferred). */
   private decide(): void {
+    this.leaveLine();
     if (this.state.isDawn || this.needs.length === 0) {
       this.goHome();
       return;
@@ -219,21 +298,28 @@ export class Spirit extends Walker {
     for (const b of this.state.providersOf(need)) {
       const cell = cheapest(field, this.state.entranceCells(b));
       if (!cell) continue;
-      const cost = costTo(field, cell);
+      const slots = b.def.service?.slots ?? 1;
+      const cost = costTo(field, cell) + (this.state.queueLength(b.uid) / slots) * 3;
       if (!best || cost < best.cost) best = { uid: b.uid, cell, cost };
     }
 
     if (best && this.walkTo({ kind: 'visit', uid: best.uid, need }, field, best.cell)) return;
 
-    // Nothing reachable provides this need: give up on it and stroll a bit.
+    // Nothing reachable provides this wish: give up on it and stroll a bit.
     this.needs.shift();
-    const spots = cellsInRange(field, 2, 6);
+    this.stroll(field);
+  }
+
+  /** Wander to a nearby spot, then think about the next wish. */
+  private stroll(field = this.search()): void {
+    const spots = cellsInRange(field, 2, 7);
     if (spots.length && this.walkTo({ kind: 'wander' }, field, Phaser.Utils.Array.GetRandom(spots))) return;
     this.wait(800);
   }
 
   /** Head for a free hotel bed or the gate, whichever makes sense. */
   private goHome(skipHotels = false): void {
+    this.leaveLine();
     if (this.goal?.kind === 'hotel') this.state.releaseBed(this.goal.uid);
     this.goal = null;
     const field = this.search();
@@ -263,13 +349,13 @@ export class Spirit extends Walker {
   }
 
   // ---------------------------------------------------------------------------
-  // arriving, staffed buildings
+  // arriving, queues, staffed buildings
   // ---------------------------------------------------------------------------
 
   protected arrive(): void {
     const goal = this.goal;
     if (!goal || goal.kind === 'wander') {
-      this.wait(Phaser.Math.Between(300, 900));
+      this.wait(Phaser.Math.Between(STROLL_PAUSE.min, STROLL_PAUSE.max));
       return;
     }
     if (goal.kind === 'gate') {
@@ -282,60 +368,85 @@ export class Spirit extends Walker {
       this.replan();
       return;
     }
-    if (this.state.isOpen(b)) this.enter();
+    if (goal.kind === 'visit') {
+      this.state.joinQueue(b.uid, this.id);
+      this.queuedAt = b.uid;
+      this.waited = 0;
+      this.phase = 'queueing';
+      this.queue(0);
+      return;
+    }
+    // Hotel: check in as soon as the host is there.
+    if (this.state.isOpen(b)) this.checkIn(b.uid);
     else {
-      // The worker is still on the way: wait in front of the building.
       this.phase = 'holding';
       this.waitMs = HOLD_MS;
     }
   }
 
+  /** In line: get served when it is our turn, or give up when patience runs out. */
+  private queue(delta: number): void {
+    const goal = this.goal;
+    const uid = this.queuedAt;
+    const b = uid !== null ? this.state.buildings.get(uid) : undefined;
+    if (goal?.kind !== 'visit' || !b || !this.state.isServed(b)) {
+      this.replan();
+      return;
+    }
+    if (this.state.tryServe(b.uid, this.id)) {
+      this.queuedAt = null;
+      this.servedAt = b.uid;
+      this.phase = 'visiting';
+      this.waitMs = b.def.service?.ms ?? VISIT_MS;
+      return;
+    }
+    this.waited += delta;
+    if (this.waited < this.def.patience) return;
+
+    // Waited too long: leave angry and skip this wish.
+    this.leaveLine();
+    this.angerCount++;
+    this.angryMs = ANGRY_SHOW_MS;
+    this.state.recordAngry();
+    this.needs.shift();
+    this.goal = null;
+    this.stroll();
+  }
+
   private hold(delta: number): void {
     const goal = this.goal;
-    const b = goal && (goal.kind === 'visit' || goal.kind === 'hotel') ? this.state.buildings.get(goal.uid) : undefined;
+    const b = goal?.kind === 'hotel' ? this.state.buildings.get(goal.uid) : undefined;
     if (!b || !this.state.isServed(b)) {
       this.replan();
       return;
     }
     if (this.state.isOpen(b)) {
-      this.enter();
+      this.checkIn(b.uid);
       return;
     }
     this.waitMs -= delta;
-    if (this.waitMs > 0) return;
-    // Waited long enough.
-    if (goal?.kind === 'hotel') this.goHome(true);
-    else {
-      this.needs.shift();
-      this.goal = null;
-      this.decide();
-    }
+    if (this.waitMs <= 0) this.goHome(true);
   }
 
-  /** At an open building: start the visit, or check into the hotel. */
-  private enter(): void {
-    const goal = this.goal;
-    if (goal?.kind === 'visit') {
-      this.phase = 'visiting';
-      this.waitMs = VISIT_MS;
-    } else if (goal?.kind === 'hotel') {
-      this.state.checkIn(goal.uid);
-      this.state.recordSafe(this.satisfaction);
-      this.leave();
-    }
+  private checkIn(uid: number): void {
+    this.state.checkIn(uid);
+    this.state.recordSafe(this.satisfaction);
+    this.leave();
   }
 
   private finishVisit(): void {
     const goal = this.goal;
+    const uid = this.servedAt;
+    this.leaveLine();
     if (goal?.kind !== 'visit') {
       this.decide();
       return;
     }
-    const b = this.state.buildings.get(goal.uid);
+    const b = uid !== null ? this.state.buildings.get(uid) : undefined;
     if (b?.def.provides) {
       this.state.earn(b.def.provides.price, this.cell, b.def.id);
       this.met++;
-      this.needs = this.needs.filter((n) => n !== goal.need);
+      this.needs.shift();
       // Food and drinks come with wrappers and cups.
       const messy = goal.need === 'hunger' || goal.need === 'thirst';
       if (messy && !this.state.nearBin(this.cell) && Math.random() < DIRT.litterChance) {
@@ -343,11 +454,12 @@ export class Spirit extends Walker {
       }
     }
     this.goal = null;
-    this.wait(250);
+    this.stroll();
   }
 
   /** Fade out safely (into a hotel or through the gate). */
   private leave(): void {
+    this.leaveLine();
     this.releaseCrossings();
     this.phase = 'safe';
     this.bubble.setVisible(false);
@@ -362,6 +474,7 @@ export class Spirit extends Walker {
   /** Caught by the sun. */
   burn(): void {
     if (this.isDone) return;
+    this.leaveLine();
     this.releaseCrossings();
     if (this.goal?.kind === 'hotel') this.state.releaseBed(this.goal.uid);
     this.phase = 'lost';

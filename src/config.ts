@@ -18,7 +18,7 @@ export const WORLD_H = GRID_H * TILE;
 /** Extra space around the map the camera may scroll into. */
 export const WORLD_PADDING = 160;
 
-export const START_MONEY = 800;
+export const START_MONEY = 2500;
 
 /** Share of the build cost returned when demolishing. */
 export const DEMOLISH_REFUND = 0.5;
@@ -27,18 +27,18 @@ export const DEMOLISH_REFUND = 0.5;
 
 export const FIRST_DAY_MS = 90_000;
 export const DAY_MS = 45_000;
-export const NIGHT_MS = 150_000;
+export const NIGHT_MS = 240_000;
 /** Last part of the night in which every spirit hurries home. */
-export const DAWN_WARNING_MS = 35_000;
-/** New guests arrive during this first share of the night. */
-export const ARRIVAL_WINDOW = 0.45;
+export const DAWN_WARNING_MS = 40_000;
+/** New guests stop arriving this long before the dawn warning, so late guests still have time to shop. */
+export const ARRIVAL_END_MARGIN_MS = 30_000;
 
 // --- Spirits -------------------------------------------------------------------
 
 /** Base walking speed in pixels per second (multiplied by spirit kind and terrain). */
 export const SPIRIT_SPEED = 52;
-/** How long a spirit spends at a stall (ms). */
-export const VISIT_MS = 1400;
+/** How long a visit takes at buildings without their own service time (ms). */
+export const VISIT_MS = 2000;
 /** Game speed steps (0 = paused). */
 export const SPEEDS = [0, 1, 2, 4] as const;
 
@@ -48,19 +48,22 @@ export const BRIDGE_QUEUE_COST = 0.5;
 export const FERRY_CELL_COST = 2;
 
 /** Hard upper limit of spirits on the map. */
-export const SPIRIT_HARD_CAP = 45;
+export const SPIRIT_HARD_CAP = 250;
 
 /** Guests per night = GUESTS_BASE + reputation / GUESTS_PER_REPUTATION. */
-export const GUESTS_BASE = 6;
-export const GUESTS_PER_REPUTATION = 5;
+export const GUESTS_BASE = 20;
+export const GUESTS_PER_REPUTATION = 2;
 
 // --- Reputation ----------------------------------------------------------------
 
 export const REPUTATION_START = 50;
 export const REPUTATION_MAX = 100;
-export const REP_HAPPY = 1;
-export const REP_UNHAPPY = -1;
-export const REP_LOST = -5;
+/**
+ * Reputation change per night, based on shares so it works for 20 and 2000 guests:
+ * REP_MOOD × (happy − unhappy) / guests  +  REP_LOST × lost / guests.
+ */
+export const REP_MOOD = 10;
+export const REP_LOST = -25;
 /** A spirit counts as happy when at least this share of its needs was met. */
 export const HAPPY_THRESHOLD = 0.5;
 
@@ -76,7 +79,7 @@ export const HUD_HEIGHT = 44;
 export const BAR_HEIGHT = 122;
 /** Time controls panel right below the top bar (centred). */
 export const TIME_PANEL_HEIGHT = 34;
-export const TIME_PANEL_HALF_WIDTH = 230;
+export const TIME_PANEL_HALF_WIDTH = 248;
 /** Era panel below the top bar (left). */
 export const ERA_PANEL_WIDTH = 330;
 export const ERA_PANEL_HEIGHT = 58;
