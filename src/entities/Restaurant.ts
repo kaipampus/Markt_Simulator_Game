@@ -1,7 +1,7 @@
 import { TILE } from '../config';
 import type { Role } from '../data/staff';
 import type { GameState, PlacedBuilding } from '../state/GameState';
-import { restaurantLayout } from './layout';
+import { restaurantLayout, stepInside, type P3 } from './layout';
 
 /** A guest sitting at a table. */
 export interface Diner {
@@ -11,13 +11,14 @@ export interface Diner {
 }
 
 type TableState = 'free' | 'seated' | 'ordered' | 'cooking' | 'ready' | 'served';
-type Pt = { x: number; y: number };
 
 /** A cook or waiter inside the restaurant (logic only; views draw it). */
 export interface StaffFigure {
   readonly role: Role;
   x: number;
   y: number;
+  /** Height above the ground (3D units): above 0 on the stairs and the second floor. */
+  z: number;
   facingLeft: boolean;
   /** Carrying a dish. */
   plate: boolean;
@@ -57,6 +58,16 @@ export class Restaurant {
     this.ox = building.tx * TILE;
     this.oy = building.ty * TILE;
     this.tables = Array.from({ length: def.restaurant?.tables ?? 0 }, () => ({ guest: null, state: 'free' as TableState }));
+    const st = this.layout.stairs;
+    this.stairs = st ? { bottom: this.world(st.bottom), top: this.world(st.top) } : null;
+  }
+
+  /**
+   * Moves a point (world pixels, z in 3D units) towards `to`, using the
+   * stairs between the floors. True once it got there.
+   */
+  stepTowards(p: P3, to: P3, dist: number): boolean {
+    return stepInside(p, to, dist, this.stairs);
   }
 
   /** Cooks and waiters on duty, for drawing. */
@@ -64,8 +75,10 @@ export class Restaurant {
     return [...this.cooks, ...this.waiters];
   }
 
-  private world(p: Pt): Pt {
-    return { x: this.ox + p.x, y: this.oy + p.y };
+  private readonly stairs: { bottom: P3; top: P3 } | null;
+
+  private world(p: { x: number; y: number; z?: number }): P3 {
+    return { x: this.ox + p.x, y: this.oy + p.y, z: p.z ?? 0 };
   }
 
   /** Take a free table; returns its number or null. */
@@ -76,8 +89,8 @@ export class Restaurant {
     return i;
   }
 
-  /** Where a guest sits at table i (world position of the feet). */
-  seatPos(i: number): Pt {
+  /** Where a guest sits at table i (world position of the feet, z = floor height). */
+  seatPos(i: number): P3 {
     return this.world(this.layout.tables[i].seat);
   }
 
@@ -102,21 +115,12 @@ export class Restaurant {
     }
   }
 
-  /** Moves a figure towards a point; true when it got there. */
-  private walk(f: StaffFigure, to: Pt, delta: number): boolean {
-    const dx = to.x - f.x;
-    const dy = to.y - f.y;
-    const dist = Math.hypot(dx, dy);
-    const step = (WALK_SPEED * delta) / 1000;
-    if (dist <= step) {
-      f.x = to.x;
-      f.y = to.y;
-      return true;
-    }
-    f.x += (dx / dist) * step;
-    f.y += (dy / dist) * step;
-    if (Math.abs(dx) > 0.5) f.facingLeft = dx < 0;
-    return false;
+  /** Moves a figure towards a point (up or down the stairs if needed); true when it got there. */
+  private walk(f: StaffFigure, to: P3, delta: number): boolean {
+    const x0 = f.x;
+    const done = this.stepTowards(f, to, (WALK_SPEED * delta) / 1000);
+    if (Math.abs(f.x - x0) > 0.01) f.facingLeft = f.x < x0;
+    return done;
   }
 
   /** `delta` is already scaled by the game speed. */
@@ -190,7 +194,7 @@ export class Restaurant {
   private sync(list: StaffFigure[], role: Role, n: number): void {
     while (list.length < n) {
       const start = role === 'cook' ? this.world(this.layout.stoves[list.length % this.layout.stoves.length]) : this.world(this.layout.pass);
-      list.push({ role, x: start.x, y: start.y, facingLeft: false, plate: false, busy: false, task: null });
+      list.push({ role, x: start.x, y: start.y, z: 0, facingLeft: false, plate: false, busy: false, task: null });
     }
     while (list.length > n) {
       const f = list.pop()!;

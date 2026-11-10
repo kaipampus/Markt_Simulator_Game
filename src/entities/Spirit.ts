@@ -17,7 +17,7 @@ import {
 import { DIRT, HOLD_MS } from '../data/staff';
 import { STR } from '../data/strings';
 import type { GameState } from '../state/GameState';
-import { between, floatBetween, lerp, pick } from '../state/random';
+import { between, floatBetween, pick } from '../state/random';
 import { cellsInRange, cheapest, costTo, pathTo, type Cell, type Field } from '../state/pathfinding';
 import { Walker, type WalkerWorld } from './Walker';
 
@@ -80,6 +80,8 @@ let nextSpiritId = 1;
 
 /** How long the angry face stays visible (ms). */
 const ANGRY_SHOW_MS = 3500;
+/** Walking speed inside a restaurant, door to seat (world pixels per second). */
+const DINE_WALK_SPEED = 140;
 
 /**
  * A spirit guest. At night it works through its wishes: walks to a stall,
@@ -114,7 +116,9 @@ export class Spirit extends Walker {
   private dineMs = 0;
   /** Where we stood before walking in (we leave the same way). */
   private door: { x: number; y: number } | null = null;
-  private seat: { x: number; y: number } | null = null;
+  private seat: { x: number; y: number; z: number } | null = null;
+  /** Height above the ground (3D units): on the stairs or the second floor of a restaurant. */
+  lift = 0;
 
   private needs: Need[];
   /** Craving for each wish (same order as `needs`); only hunger wishes can have one. */
@@ -324,6 +328,7 @@ export class Spirit extends Walker {
       this.x = this.door.x;
       this.y = this.door.y;
     }
+    this.lift = 0;
     this.queuedAt = null;
     this.servedAt = null;
     this.table = null;
@@ -491,12 +496,14 @@ export class Spirit extends Walker {
       return;
     }
     if (this.dine === 'enter') {
-      this.dineMs += delta;
-      const t = Math.min(1, this.dineMs / 700);
-      this.x = lerp(this.door.x, this.seat.x, t);
-      this.y = lerp(this.door.y, this.seat.y, t);
-      if (Math.abs(this.seat.x - this.door.x) > 1) this.face(this.seat.x < this.door.x);
-      if (t >= 1) {
+      // Walk to the seat (up the stairs for a table on the second floor).
+      const p = { x: this.x, y: this.y, z: this.lift };
+      const there = r.stepTowards(p, this.seat, (DINE_WALK_SPEED * delta) / 1000);
+      if (Math.abs(p.x - this.x) > 0.01) this.face(p.x < this.x);
+      this.x = p.x;
+      this.y = p.y;
+      this.lift = p.z;
+      if (there) {
         this.face(false);
         r.order(this.table);
         this.dine = 'wait';

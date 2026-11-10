@@ -19,6 +19,7 @@ import { state, unlockLevel, type NightReport, type PopularityParts, type Tool }
 import type { MarketScene } from './MarketScene';
 import { FinanceUI } from './FinanceUI';
 import { StaffUI } from './StaffUI';
+import { toggleQuality } from '../world3d/quality';
 
 const BTN_W = 86;
 const BTN_H = 84;
@@ -501,6 +502,7 @@ export class UIScene extends Phaser.Scene {
       }
     });
     kb.on('keydown-I', () => this.toggleFinance());
+    kb.on('keydown-G', () => this.flashHint(STR.graphics(toggleQuality())));
     kb.on('keydown-SPACE', () => state.togglePause());
     kb.on('keydown-F', () => state.cycleSpeed());
     kb.on('keydown-N', () => this.nightOrMorning());

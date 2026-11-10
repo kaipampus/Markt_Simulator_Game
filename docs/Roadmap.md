@@ -74,6 +74,7 @@ Schritt 1b – Restaurants, Vielfalt, Geld:
 - [x] Gebäude mit mehreren Jobs (z. B. 2 Köche + 2 Kellner)
 - [x] Beliebtheit bestimmt die Gästezahl, Startgeld 650
 - [x] Gebäude-Stufen (mehr Tische, höhere Preise, Restaurants wachsen auf Stufe 3)
+- [x] Restaurants bis Stufe 5: mehr Tische, höchstens 2 Köche und 2 Kellner, ab Stufe 4 zweite Etage mit Treppe (in 3D)
 - [ ] Noch mehr Stände und Küchen (z. B. indisch, Street-Food-Wagen, Zauberbuden)
 - [ ] Eigene Grafiken statt Platzhaltern für Restaurants
 
@@ -86,7 +87,7 @@ Schritt 2 – Level und Bereiche:
 - [x] Zeitalter-Code aufräumen
 - [x] Beliebtheitswert für Stände und Deko bestimmt die Gästezahl (vorgezogen)
 - [x] Beliebtheits-Skala dynamisch pro Nacht (Laune, Warten, Schmutz, Verluste, Angebot, Neues, Gewöhnung)
-- [ ] Balancing der Beliebtheit über viele Nächte im echten Spiel
+- [ ] Balancing der Beliebtheit über viele Nächte im echten Spiel (erste Runde 2026-11-10: schnelleres Wachstum, Neues bringt feste Gästezahl; mit dem Test-Bot gemessen, im echten Spiel noch prüfen)
 - [x] Bereich 1 Nachtmarkt (ohne Hotel), Bereich 2 Hotel-Viertel gesperrt bis Level + Münzen
 - [x] Zeitalter-Kauf entfernt, Gebäude nach Level verteilt (moderne Gebäude vorerst Level 10)
 
@@ -100,7 +101,8 @@ Schritt 3 – Neon-Viertel und Größe:
 - [x] Schritt A: Spielfiguren von Phaser trennen (Logik für Geister, Arbeiter, Fähren, Restaurants ohne Grafik-Bibliothek)
 - [x] Schritt B: 3D-Welt statt Phaser-Szene: Boden, Gebäude, Wege, Schmutz, Türmatten, Licht, Figuren, Auswahl und Bau-Vorschau per Mausklick in 3D, Kamera mit Grenzen
 - [ ] Schritt C: Oberfläche als HTML/CSS (Leisten, Bauleiste, Fenster, Berichte, Titelmenü)
-- [ ] Schritt D: Phaser entfernen, Leistung für viele Gäste (Instancing), Modelle verfeinern
+- [x] Leistung, erste Runde: Pixel-Ratio begrenzt, weniger Nachtlichter, kleinere Schattenkarte, Grafik-Einstellung Hoch/Niedrig (Taste G)
+- [ ] Schritt D: Phaser entfernen, Leistung für viele Gäste (Instancing, Gebäude-Teile zusammenfassen), Modelle verfeinern
 
 ## Phase 4 – Magie
 - [ ] Mana und Schreine

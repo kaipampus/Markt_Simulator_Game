@@ -8,18 +8,21 @@ import * as THREE from 'three';
 import { GRID_H, GRID_W, RIVER_ROWS, RIVER_TOP, TILE } from '../config';
 import { LabelLayer } from './labels';
 import { glowing } from './models';
+import { getQuality, onQuality, QUALITY, type QualitySettings } from './quality';
 
 /** Lighting presets. */
 export type Light = 'day' | 'dawn' | 'night';
 const NIGHT_MIX: Record<Light, number> = { day: 0, dawn: 0.55, night: 1 };
+const DAY_SKY = new THREE.Color('#9fc4e8');
+const NIGHT_SKY = new THREE.Color('#05070f');
 
 /** Camera limits. */
 const PITCH_MIN = 0.12; // almost straight down
 const PITCH_MAX = 1.38; // almost from the side
 const DIST_MIN = 5;
 const DIST_MAX = 46;
-/** How many real lights exist; they move to the lamps nearest the camera. */
-const LIGHT_POOL = 24;
+/** How often the real lights move to the lamps nearest the camera (seconds). */
+const LIGHT_PICK_EVERY = 0.25;
 
 interface Lamp {
   pos: THREE.Vector3;
@@ -61,17 +64,23 @@ export class World3D {
   private mixMs = 1;
   private pool: THREE.PointLight[] = [];
   private lamps = new Set<Lamp>();
+  /** Lamps the pool lights shine at (re-picked every LIGHT_PICK_EVERY seconds). */
+  private lit: Lamp[] = [];
+  private pickIn = 0;
   private time = 0;
+  private quality: QualitySettings = QUALITY[getQuality()];
+  private stopQuality: () => void;
+  private bg = new THREE.Color();
 
   private raycaster = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private areaLock?: THREE.Mesh;
 
   constructor(private container: HTMLElement, labelRoot: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    this.renderer = new THREE.WebGLRenderer({ antialias: this.quality.antialias, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(this.quality.pixelRatio, window.devicePixelRatio));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 250);
@@ -80,8 +89,37 @@ export class World3D {
     this.scene.add(this.buildings, this.workers);
     this.addGround();
     this.addLights();
+    this.applyQuality();
+    this.stopQuality = onQuality((q) => {
+      this.quality = QUALITY[q];
+      this.applyQuality();
+    });
     this.resize();
     window.addEventListener('resize', this.onResize);
+  }
+
+  /**
+   * Pixel ratio, number of real lights and shadows for the chosen quality.
+   * Changing the number of lights or shadows makes three.js rebuild its
+   * shaders once, so this only happens when the player switches.
+   */
+  private applyQuality(): void {
+    const q = this.quality;
+    this.renderer.setPixelRatio(Math.min(q.pixelRatio, window.devicePixelRatio));
+    this.resize();
+    while (this.pool.length < q.lights) {
+      const l = new THREE.PointLight(0xffb060, 0, 7, 1.6);
+      this.pool.push(l);
+      this.scene.add(l);
+    }
+    while (this.pool.length > q.lights) this.scene.remove(this.pool.pop()!);
+    this.sun.castShadow = q.shadows;
+    if (this.sun.shadow.mapSize.x !== q.shadowMap) {
+      this.sun.shadow.mapSize.set(q.shadowMap, q.shadowMap);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
+    this.pickIn = 0;
   }
 
   private onResize = () => this.resize();
@@ -147,16 +185,8 @@ export class World3D {
   private addLights(): void {
     this.sun.position.set(GRID_W / 2 + 18, 30, GRID_H / 2 + 18);
     this.sun.target.position.set(GRID_W / 2, 0, GRID_H / 2);
-    this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
     Object.assign(this.sun.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 120 });
     this.scene.add(this.hemi, this.sun, this.sun.target, this.moon);
-    for (let i = 0; i < LIGHT_POOL; i++) {
-      const l = new THREE.PointLight(0xffb060, 0, 7, 1.6);
-      l.visible = true;
-      this.pool.push(l);
-      this.scene.add(l);
-    }
     this.scene.fog = new THREE.FogExp2(0x9fc4e8, 0.004);
   }
 
@@ -172,35 +202,42 @@ export class World3D {
   addLamp(pos: THREE.Vector3, color: number, power: number, distance: number): Lamp {
     const lamp = { pos, color, power, distance };
     this.lamps.add(lamp);
+    this.pickIn = 0;
     return lamp;
   }
 
   removeLamp(lamp: Lamp): void {
     this.lamps.delete(lamp);
+    this.pickIn = 0;
   }
 
-  private applyLight(): void {
+  private applyLight(dt: number): void {
     const k = this.mix;
-    const day = new THREE.Color('#9fc4e8');
-    const night = new THREE.Color('#05070f');
-    const bg = day.lerp(night, k);
+    const bg = this.bg.set(DAY_SKY).lerp(NIGHT_SKY, k);
     this.scene.background = bg;
     const fog = this.scene.fog as THREE.FogExp2;
     fog.color.copy(bg);
     fog.density = THREE.MathUtils.lerp(0.004, 0.018, k);
     this.hemi.intensity = THREE.MathUtils.lerp(1.15, 0.07, k);
     this.sun.intensity = THREE.MathUtils.lerp(2.3, 0, k);
-    this.sun.castShadow = k < 0.8;
+    // At night the sun gives no light, so its shadow map is not redrawn (turning
+    // castShadow off instead would make three.js rebuild every shader at dusk).
+    this.renderer.shadowMap.autoUpdate = k < 0.8;
     this.moon.intensity = THREE.MathUtils.lerp(0, 0.6, k);
     for (const m of glowing) m.emissiveIntensity = 1.6 * k;
 
     // Real lights go to the lamps closest to where the camera looks.
-    const near = [...this.lamps]
-      .map((l) => ({ l, d: l.pos.distanceToSquared(this.target) }))
-      .sort((a, b) => a.d - b.d)
-      .slice(0, LIGHT_POOL);
+    this.pickIn -= dt;
+    if (this.pickIn <= 0) {
+      this.pickIn = LIGHT_PICK_EVERY;
+      this.lit = [...this.lamps]
+        .map((l) => ({ l, d: l.pos.distanceToSquared(this.target) }))
+        .sort((a, b) => a.d - b.d)
+        .slice(0, this.pool.length)
+        .map((e) => e.l);
+    }
     this.pool.forEach((p, i) => {
-      const lamp = near[i]?.l;
+      const lamp = this.lit[i];
       if (!lamp || k < 0.05) {
         p.intensity = 0;
         return;
@@ -297,7 +334,7 @@ export class World3D {
       this.mix = this.mixFrom + (this.mixTo - this.mixFrom) * (t * t * (3 - 2 * t));
     }
     this.yaw += (this.yawTo - this.yaw) * Math.min(1, dt * 8);
-    this.applyLight();
+    this.applyLight(dt);
     this.placeCamera();
     this.renderer.render(this.scene, this.camera);
     const r = this.renderer.domElement;
@@ -306,6 +343,7 @@ export class World3D {
 
   dispose(): void {
     window.removeEventListener('resize', this.onResize);
+    this.stopQuality();
     this.labels.clear();
     this.renderer.dispose();
     this.renderer.domElement.remove();

@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { TILE } from '../config';
 import { getBuilding } from '../data/buildings';
 import type { Ferry } from '../entities/Ferry';
+import { DECK_HEIGHT } from '../entities/layout';
 import type { Restaurant, StaffFigure } from '../entities/Restaurant';
 import type { Spirit } from '../entities/Spirit';
 import type { Worker } from '../entities/Worker';
@@ -77,7 +78,7 @@ export class BuildingView3D {
     }
     if (def.staff || def.provides) {
       this.badge = world.labels.add('badge');
-      this.badge.pos.set(b.tx + def.w / 2, 1.9 + (def.restaurant ? 0.2 : 0), b.ty + def.h / 2);
+      this.badge.pos.set(b.tx + def.w / 2, 1.9 + (def.restaurant ? (def.restaurant.upper ? DECK_HEIGHT + 0.9 : 0.2) : 0), b.ty + def.h / 2);
     }
     if (animate && def.id !== 'path') {
       this.grow = 1;
@@ -177,10 +178,11 @@ export class SpiritView3D {
     const x = px(p.x);
     const z = px(p.y) + 0.1;
     const bob = Math.sin(time / 320 + s.seed) * 0.05;
-    this.fig.group.position.set(x, 0.02 + bob + (s.onBoat ? 0.15 : 0), z);
+    const y = s.lift + (s.onBoat ? 0.15 : 0);
+    this.fig.group.position.set(x, 0.02 + bob + y, z);
     face(this.fig.group, x, z, this.last, s.facingLeft);
     this.world.labels.setText(this.bubble, s.icon);
-    this.bubble.pos.set(x, 1.05 * s.scale + bob, z);
+    this.bubble.pos.set(x, 1.05 * s.scale + bob + y, z);
   }
 
   destroy(): void {
@@ -321,7 +323,7 @@ export class RestaurantStaffView3D {
       const x = px(f.x);
       const z = px(f.y);
       const bob = Math.sin(time / (f.busy ? 120 : 300) + f.x) * 0.03;
-      v.fig.group.position.set(x, bob, z);
+      v.fig.group.position.set(x, bob + f.z, z);
       face(v.fig.group, x, z, v.last, f.facingLeft);
       v.plate.visible = f.plate;
     }

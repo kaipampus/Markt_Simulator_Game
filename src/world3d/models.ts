@@ -6,8 +6,10 @@
  * the world lights the ones near the camera (see LightPool in World3D).
  */
 import * as THREE from 'three';
+import { TILE } from '../config';
 import type { BuildingDef } from '../data/buildings';
 import { STAFF, type Role } from '../data/staff';
+import { DECK_DEPTH, DECK_HEIGHT, restaurantLayout } from '../entities/layout';
 
 /** A light spot of a model, in the model's own coordinates. */
 export interface LampSpot {
@@ -181,7 +183,8 @@ function restaurant(def: BuildingDef, ew: boolean): THREE.Group {
   g.add(box(W, 0.04, D, mat('#6b4f38'), 0, 0, 0));
   g.add(box(W - 0.1, 0.05, D * 0.38, mat('#8f8a80'), 0, 0, -D / 2 + D * 0.19));
   g.add(box(W, 1.5, 0.12, wallMat, 0, 0, -D / 2 + 0.06));
-  g.add(box(W + 0.2, 0.12, 0.4, mat(roof), 0, 1.5, -D / 2 + 0.1));
+  const deck = (def.restaurant?.upper ?? 0) > 0;
+  g.add(box(W + 0.2, 0.12, 0.4, mat(roof), 0, deck ? DECK_HEIGHT + 0.75 : 1.5, -D / 2 + 0.1));
   const low = 0.45;
   const gap = 0.9;
   // Doors sit in the middle cell of a side (like the game's door cells).
@@ -211,21 +214,67 @@ function restaurant(def: BuildingDef, ew: boolean): THREE.Group {
     s.position.set(W * 0.25, 1.05, -D / 2 + 0.13);
     g.add(s);
   }
-  const n = def.restaurant?.tables ?? 4;
-  const rows = def.h >= 5 && n > 6 ? 3 : 2;
-  const cols = Math.ceil(n / rows);
-  for (let i = 0; i < n; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = -W / 2 + (W * (col + 0.5)) / cols + 6 / 48;
-    const z = -D / 2 + D * (0.58 + (row * 0.3) / (rows - 1));
-    g.add(box(0.55, 0.32, 0.45, mat('#3a2a22'), x, 0, z));
-    g.add(box(0.3, 0.08, 0.3, mat(roof), x - 0.35, 0, z + 0.1));
+  // Tables and seats where the game logic puts the guests (layout.ts).
+  const layout = restaurantLayout(def);
+  const at = (p: { x: number; y: number }) => [p.x / TILE - W / 2, p.y / TILE - D / 2] as const;
+  for (const t of layout.tables) {
+    const [x, z] = at(t.table);
+    g.add(box(0.55, 0.32, 0.45, mat('#3a2a22'), x, t.table.z, z));
+    g.add(box(0.3, 0.08, 0.3, mat(roof), x - 0.35, t.table.z, z + 0.1));
   }
+  if (layout.stairs) upperFloor(g, W, D, layout.stairs, at, wallMat, mat(roof), accent);
   paperLantern(g, -W / 2 + 0.3, 1.25, -D / 2 + 0.25);
   paperLantern(g, W / 2 - 0.3, 1.25, -D / 2 + 0.25);
-  lamp(g, 0, 1.6, 0, 0xffc890, 7, Math.max(W, D) * 1.1);
+  lamp(g, 0, deck ? DECK_HEIGHT + 1.2 : 1.6, 0, 0xffc890, 7, Math.max(W, D) * 1.1);
   return g;
+}
+
+/**
+ * Second floor of a restaurant: a deck over the kitchen on posts, with a
+ * railing, a low back wall, lanterns and stairs along its front edge.
+ */
+function upperFloor(
+  g: THREE.Group,
+  W: number,
+  D: number,
+  stairs: { bottom: { x: number; y: number }; top: { x: number; y: number } },
+  at: (p: { x: number; y: number }) => readonly [number, number],
+  wallMat: THREE.Material,
+  roofMat: THREE.Material,
+  accent: string,
+): void {
+  const y = DECK_HEIGHT;
+  const depth = D * DECK_DEPTH;
+  const front = -D / 2 + depth;
+  const wood = mat('#6b4f38');
+  const dark = mat('#2a1d1a');
+  // Floor and the beam along its front edge.
+  g.add(box(W, 0.1, depth, wood, 0, y - 0.1, -D / 2 + depth / 2));
+  g.add(box(W, 0.14, 0.12, dark, 0, y - 0.2, front - 0.06));
+  // Posts under the front edge (none where the stairs come up).
+  for (const x of [-W / 2 + 0.08, W / 2 - 0.08, W * 0.36]) g.add(box(0.12, y - 0.1, 0.12, dark, x, 0, front - 0.06));
+  // Low walls on the back and the sides, a railing along the front with a gap at the top of the stairs.
+  g.add(box(W, 0.75, 0.12, wallMat, 0, y, -D / 2 + 0.06));
+  for (const x of [-W / 2 + 0.06, W / 2 - 0.06]) g.add(box(0.12, 0.45, depth, wallMat, x, y, -D / 2 + depth / 2));
+  const [topX] = at(stairs.top);
+  const gapFrom = topX - 0.35;
+  const gapTo = topX + 0.35;
+  for (const [a, b] of [[-W / 2, gapFrom], [gapTo, W / 2]] as const) {
+    if (b - a < 0.05) continue;
+    g.add(box(b - a, 0.05, 0.06, roofMat, (a + b) / 2, y + 0.4, front - 0.04));
+    for (let x = a + 0.15; x < b - 0.05; x += 0.45) g.add(box(0.05, 0.4, 0.05, dark, x, y, front - 0.04));
+  }
+  // Stairs: steps rising from left to right in front of the deck.
+  const [x0, zc] = at(stairs.bottom);
+  const steps = 8;
+  const run = (topX - x0) / steps;
+  for (let i = 0; i < steps; i++) {
+    const h = (y * (i + 1)) / steps;
+    g.add(box(run + 0.01, h, 0.42, wood, x0 + run * (i + 0.5), 0, zc));
+  }
+  g.add(box(topX - x0, 0.05, 0.05, roofMat, (x0 + topX) / 2, y * 0.5 + 0.45, zc + 0.22));
+  // A garland of lanterns over the upper floor.
+  for (let i = 0; i < 3; i++) paperLantern(g, -W / 2 + (W * (i + 0.5)) / 3, y + 1.05, -D / 2 + 0.25, 0.11, i === 1 ? accent : '#d9452b');
 }
 
 /** House, lodge, hotel, restroom: walls, glowing windows and a hipped roof. */

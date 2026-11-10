@@ -2,6 +2,19 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-10 – Schnelleres Wachstum, Restaurants bis Stufe 5, bessere Leistung (Branch `feature/balance-tiers`)
+- **Balancing**: Restaurants kosten pro Gericht 2–3 Münzen mehr (Ramen 14 statt 12), Stände 1 Münze mehr; Löhne niedriger (Koch 10, Kellner 8, Verkäufer 8, Gastgeber 14, Putzkraft 7)
+- Erfahrung pro eingenommener Münze 0,3 statt 0,4, damit die Level trotz höherer Einnahmen etwa im alten Tempo kommen (Level 6 etwa nach Nacht 6, Level 8 nach Nacht 8)
+- **Beliebtheit wächst schneller**: jeder neue Stand oder jedes neue Restaurant bringt 1,5 neugierige Gäste (höchstens 5 pro Nacht), Zufriedenheit bis +16 % (vorher 12 %), Schmutz kostet weniger (höchstens −6 %)
+- Gemessen mit einem Test-Bot (baut Wege, kauft nach fester Wunschliste, stellt Personal ein, 4× Tempo), Nacht 1–6:
+  - vorher: Gäste 15 → 14 → 15 → 16 → 17 → 18 → 19 (+1 pro Nacht), Gewinn 194 / 248 / 226 / 131 / 197 / 200
+  - jetzt: Gäste 15 → 16 → 21 → 26 → 30 → 37 → 43 (+4 bis +7 bei guten Nächten), Gewinn 262 / 214 / 365 / 491 / 511 / 658, Nacht 7–8: +6 / +8 Gäste, Gewinn je 964; ab Nacht 2 reicht es für 2–4 Stände samt Personal pro Tag
+- **Restaurants bis Stufe 5**: Stufe 2 +2 Tische und zweiter Kellner, Stufe 3 Raum +1 Reihe, +2 Tische, zweiter Koch, **Stufe 4 zweite Etage** über der Küche mit Treppe, Geländer und Laternen (4 Tische oben, schnellere Herde), Stufe 5 8 Tische oben. Kleines Restaurant 4 → 6 → 8 → 12 → 16 Tische, höchstens 2 Köche und 2 Kellner. Stufe 4 ab Level 6, Stufe 5 ab Level 8
+- Gäste, Köche und Kellner laufen über die Treppe nach oben (Höhe in der Spiellogik, `src/entities/layout.ts`); Infotext zum Ausbau zeigt, was die nächste Stufe bringt
+- Ältere Spielstände: Arbeiter über der neuen Höchstzahl eines Restaurants verlieren beim Laden ihren Platz
+- **Leistung**: Pixel-Ratio höchstens 1,5, 10 statt 24 Nachtlichter (nur 4× pro Sekunde neu verteilt), Schattenkarte 1024 statt 2048 mit einfacherer Filterung, nachts kein Schatten-Neuzeichnen, kein Shader-Neubau mehr bei Dämmerung. GPU-Zeit pro Bild (1440 × 900, gleicher Markt): Nacht 14,4 → 4,0 ms, Tag 6,7 → 3,6 ms
+- **Taste G**: Grafik Hoch/Niedrig (Niedrig: Pixel-Ratio 1, 4 Lichter, keine Schatten, ohne Kantenglättung nach Neuladen; Nacht 2,8 ms, Tag 1,2 ms); wird im Browser gemerkt
+
 ## 2026-11-10 – Umstieg auf 3D, Schritt B: das Spiel läuft in 3D (Branch `feature/3d-migration`)
 - Die Spielwelt wird jetzt mit Three.js in 3D gezeichnet (`src/world3d/`); die Oberfläche (noch Phaser) liegt durchsichtig darüber
 - **Kamera**: rechte Maustaste ziehen = drehen und neigen (fast senkrecht bis fast seitlich), linke Maustaste ziehen = verschieben, Mausrad = zoomen, **Q/E** = 45° drehen, WASD/Pfeile = verschieben

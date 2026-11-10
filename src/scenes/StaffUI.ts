@@ -1,8 +1,8 @@
 import * as Phaser from 'phaser';
 import { BAR_HEIGHT, COLORS, FONT_TITLE, FONT_UI } from '../config';
-import { getBuilding } from '../data/buildings';
+import { getBuilding, type BuildingDef } from '../data/buildings';
 import { ROLES, STAFF, type Role } from '../data/staff';
-import { maxTier, TIER_LEVEL, upgradeCost } from '../data/upgrades';
+import { applyTier, maxTier, TIER_LEVEL, TIER_PRICE, upgradeCost } from '../data/upgrades';
 import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
 import { hasDoors, state, type PlacedBuilding, type StaffMember, type StaffStatus } from '../state/GameState';
@@ -387,7 +387,7 @@ export class StaffUI {
       if (b.tier < max && state.canBuild) {
         const next = b.tier + 1;
         const check = state.checkUpgrade(b.uid);
-        const info = def.restaurant ? (next === 2 ? STR.upgradeInfo.restaurant2 : STR.upgradeInfo.restaurant3) : def.hotel ? STR.upgradeInfo.hotel : STR.upgradeInfo.stall;
+        const info = def.restaurant ? restaurantUpgradeInfo(base, b.tier) : def.hotel ? STR.upgradeInfo.hotel : STR.upgradeInfo.stall;
         const label = check === 'level' ? STR.upgradeLocked(TIER_LEVEL[next]) : STR.upgrade(upgradeCost(base, next));
         const hover = check === 'space' ? `${info}  ·  ${STR.upgradeNoSpace}` : info;
         buttons.push([label, () => this.upgrade(b.uid), check === 'ok', hover]);
@@ -425,4 +425,25 @@ export class StaffUI {
     const first = state.staffOf(b.uid)[0];
     if (!free.length && first) buttons.push([STR.unassign, () => state.assign(first.id, null)]);
   }
+}
+
+/** What the next restaurant tier adds, worked out from the tier data. */
+function restaurantUpgradeInfo(base: BuildingDef, tier: number): string {
+  const now = applyTier(base, tier);
+  const next = applyTier(base, tier + 1);
+  const r0 = now.restaurant!;
+  const r1 = next.restaurant!;
+  const count = (d: BuildingDef, role: Role) => d.staff?.filter((r) => r === role).length ?? 0;
+  const upper0 = r0.upper ?? 0;
+  const upper1 = r1.upper ?? 0;
+  return STR.upgradeInfo.restaurant(tier + 1, {
+    tables: r1.tables - upper1 - (r0.tables - upper0),
+    upstairs: upper1 - upper0,
+    newFloor: upper0 === 0 && upper1 > 0,
+    waiter: count(next, 'waiter') > count(now, 'waiter'),
+    cook: count(next, 'cook') > count(now, 'cook'),
+    grows: next.h > now.h,
+    faster: r1.cookMs < r0.cookMs,
+    pricePct: Math.round((TIER_PRICE[tier + 1] - 1) * 100),
+  });
 }

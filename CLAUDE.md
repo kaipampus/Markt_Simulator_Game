@@ -29,7 +29,7 @@ Details: [[docs/Spielkonzept]] · Fahrplan: [[docs/Roadmap]] · Entscheidungen: 
 - `state/`: Spielzustand (Geld, belegte Felder), unabhängig von der Darstellung
 - `scenes/`: `MarketScene` (Spiellogik antreiben, Maus und Tasten auf der Karte, zeichnet über `world3d/`) und `UIScene` (Oberfläche, noch Phaser, liegt durchsichtig über dem 3D-Bild)
 - `entities/`: Spielfiguren als reine Logik ohne Grafik (Geister, Arbeiter, Fähren, Restaurants); `Walker` ist die gemeinsame Laufklasse
-- `world3d/`: 3D-Darstellung mit Three.js: `World3D` (Kamera, Licht, Boden, Mausauswahl), `models` (Modelle aus Code, Toon-Look), `views` (zeichnen Gebäude und Figuren), `labels` (Sprechblasen als HTML)
+- `world3d/`: 3D-Darstellung mit Three.js: `World3D` (Kamera, Licht, Boden, Mausauswahl), `models` (Modelle aus Code, Toon-Look), `views` (zeichnen Gebäude und Figuren), `labels` (Sprechblasen als HTML), `quality` (Grafikstufe Hoch/Niedrig, Taste G)
 - `gfx/`: Platzhalter-Grafiken, die per Code erzeugt werden
 
 ## Arbeitsablauf

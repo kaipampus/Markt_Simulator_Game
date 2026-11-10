@@ -21,7 +21,8 @@ export const STR = {
   skipNight: '☀ Skip to morning',
 
 
-  hintIdle: 'Space pause · F speed · N start night / skip to morning · P workers · I finances · Drag or WASD to move · Wheel to zoom',
+  hintIdle: 'Space pause · F speed · N start night / skip to morning · P workers · I finances · G graphics · Drag or WASD to move · Wheel to zoom',
+  graphics: (q: 'high' | 'low') => (q === 'low' ? 'Graphics: low (faster; smooth edges after a reload)' : 'Graphics: high'),
   hintPlacing: 'Left-click to build  ·  R turns the doors  ·  Right-click or Esc to cancel',
   hintPainting: 'Hold the left mouse button and drag to lay paths  ·  Right-click or Esc to cancel',
   hintDemolish: 'Click a building to demolish (50% refund)  ·  Right-click or Esc to cancel',
@@ -261,8 +262,18 @@ export const STR = {
   upgrade: (cost: number) => `⬆ Upgrade (${cost})`,
   upgradeLocked: (level: number) => `⬆ Upgrade: level ${level}`,
   upgradeInfo: {
-    restaurant2: 'Tier 2: +2 tables, room for a second waiter, prices +20%',
-    restaurant3: 'Tier 3: the room grows by one row (needs free space below), +2 tables, another cook, prices +40%',
+    restaurant: (tier: number, o: { tables: number; upstairs: number; newFloor: boolean; waiter: boolean; cook: boolean; grows: boolean; faster: boolean; pricePct: number }) => {
+      const parts: string[] = [];
+      if (o.grows) parts.push('the room grows by one row (needs free space below)');
+      if (o.newFloor) parts.push('a second floor with stairs');
+      if (o.tables > 0) parts.push(`+${o.tables} tables`);
+      if (o.upstairs > 0) parts.push(`+${o.upstairs} tables upstairs`);
+      if (o.waiter) parts.push('room for another waiter');
+      if (o.cook) parts.push('another cook');
+      if (o.faster) parts.push('faster stoves');
+      parts.push(`prices +${o.pricePct}%`);
+      return `Tier ${tier}: ${parts.join(', ')}`;
+    },
     stall: 'Next tier: one more guest served at once, higher prices',
     hotel: 'Next tier: more beds',
   },
