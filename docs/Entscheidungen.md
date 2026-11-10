@@ -13,6 +13,51 @@ Vorlage:
 
 ---
 
+## 2026-11-10 – Kamera auch von der Seite (Wunsch, später)
+**Status:** offen (Wunsch des Nutzers, Umsetzung frühestens in Phase 5)
+**Wunsch:** Nicht nur schräg von oben, sondern die Kamera optional neigen und auch von der Seite auf den Markt schauen können.
+**Folge:** Mit der jetzigen 2D-Technik (fertig gezeichnete 3/4-Bilder) geht das nicht frei. Möglichkeiten: (a) Umstieg auf echte 3D-Darstellung, z. B. Three.js mit einfachen Low-Poly-Modellen; Drehen, Neigen und Zoomen wären dann natürlich, der Spielzustand bleibt unverändert. (b) Bei 2D bleiben mit wenigen festen Blickwinkeln, für die jede Grafik mehrfach gezeichnet werden muss. Empfehlung: (a), zu entscheiden vor der Grafikphase.
+
+## 2026-11-10 – Ganze Gebäude drehen
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** R dreht das ganze Gebäude um 90°, nicht nur die Tür. Längliche Gebäude belegen gedreht andere Felder; ohne Platz geht das Drehen nicht. Rück- und Seitenansichten sind vorerst einfache Platzhalter.
+**Warum:** Ein Stand, der zur Wand schaut, während die Tür hinten ist, wirkte unlogisch.
+
+## 2026-11-10 – Dunkle Nächte mit echten Lichtinseln, längere Tage
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Die Nacht ist eine dunkle, kühl-blaue Schicht; Lampen und Feuerschalen schneiden große Lichtinseln hinein, Restaurants mittlere, Stände kleine. Tage dauern 3 bzw. 2 Minuten, und zu Tagesbeginn springt das Tempo auf 1×.
+**Warum:** Mehr Atmosphäre und ein Grund, Laternen zu bauen; man soll nicht versehentlich durch den Tag rasen.
+
+## 2026-11-10 – Beliebtheit ist die Gästezahl, Wachstum in Prozent
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Die Beliebtheit gibt direkt an, wie viele Gäste pro Nacht kommen. Sie ändert sich jeden Morgen um einen Prozentsatz (Laune, Warten, Schmutz, Verluste, Angebot, Neues, Nachtbau), mindestens um einen Gast. Bereiche heben nur die Obergrenze. Ohne Probleme wächst sie stetig; es gibt keinen Gewöhnungs-Abzug mehr. Dazu ist die Wirtschaft gebremst: niedrigere Preise, höhere Löhne, teurere Hotels und Hotel-Viertel.
+**Warum:** Gleiche Beliebtheit soll gleich viele Gäste bedeuten; das Öffnen eines Bereichs darf die Gästezahl nicht vervierfachen. Geld soll schnell, aber nicht explosionsartig wachsen.
+**Ersetzt:** Gäste = 6 + Beliebtheit × Faktor je Bereich; Änderung in festen Punkten mit Gewöhnung.
+
+## 2026-11-10 – Nachts bauen erlaubt, aber teuer
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Bauen und Abreißen sind auch nachts möglich, kosten dann das Dreifache, und jede nächtliche Bauaktion senkt die Beliebtheit um 1 (höchstens 5 pro Nacht). Drehen und Ausbauen bleiben tagsüber, weil dabei Gebäude samt Gästen neu aufgebaut werden.
+**Warum:** Die Nacht beginnt manchmal unbemerkt; eine strikte Sperre war zu umständlich. Der Preis hält die Aufteilung „tags bauen, nachts verwalten“ trotzdem sinnvoll.
+**Ersetzt teilweise:** „Tagsüber bauen, nachts verwalten“ (Bauen nachts gesperrt).
+
+## 2026-11-10 – Beliebtheit statt Ruf, dynamisch pro Nacht
+**Status:** entschieden (Idee des Nutzers)
+**Entscheidung:** Eine Beliebtheits-Skala (0–100) bestimmt die Gästezahl. Sie wird jeden Morgen aus der Nacht berechnet: Zufriedenheit, Wartezeit/Wut, Sauberkeit, verlorene Gäste, Angebot im Vergleich zu einer jede Nacht steigenden Erwartung, Bonus für Neues und eine kleine Gewöhnung. Dadurch entsteht ein Kreislauf: wenige Gäste → kurze Schlangen → zufrieden → beliebter → mehr Gäste → längere Schlangen → weniger beliebt. Wer nicht weiterbaut, verliert langsam Gäste.
+**Warum:** Wachstum soll sich verdienen lassen und immer wieder neuen Druck erzeugen.
+**Ersetzt:** Ruf (0–100) als Verstärker und Gästezahl nach Kapazität ([[#2026-11-09 – Level statt Zeitalter umgesetzt, Gästezahl nach Kapazität]]).
+
+## 2026-11-10 – Speichern im Browser, nur bei Tag
+**Status:** entschieden
+**Entscheidung:** Der Spielstand liegt im `localStorage` des Browsers und wird jeden Morgen sowie nach Änderungen am Tag automatisch geschrieben. Gespeichert wird nur der Tageszustand (Gebäude, Personal, Geld, Level, Schmutz, schlafende Hotelgäste), nicht die laufende Nacht. Beim Start bietet ein Titelmenü „Weiterspielen“ oder „Neues Spiel“.
+**Warum:** Tagsüber ist niemand unterwegs, der Zustand ist klein und eindeutig. Eine Nacht mitten im Ablauf zu speichern (Positionen, Schlangen, Fähren) wäre aufwendig und fehleranfällig.
+**Verworfen:** Speichern jederzeit inklusive Nacht; Speicherdatei zum Herunterladen (später möglich).
+
+## 2026-11-10 – Ausbaustufen für Gebäude
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Restaurants, Stände und Hotels haben drei Stufen. Restaurants bekommen Tische und Personalplätze dazu und wachsen auf Stufe 3 um eine Reihe (wenn Platz ist). Ausbau nur tagsüber, ab einem Level und gegen Münzen. Ein ausgebautes Gebäude behält seine Bauart, nutzt aber eine verbesserte Definition (`data/upgrades.ts`).
+**Warum:** Wachstum ohne immer neue Fläche; Platzmangel bleibt spürbar, weil Vergrößern freien Raum braucht.
+**Verworfen:** Frei wählbare Vergrößerung in alle Richtungen (vorerst; die Grafik müsste dafür flexibler sein).
+
 ## 2026-11-09 – Feste Türen und Drehen
 **Status:** entschieden (Wunsch des Nutzers)
 **Entscheidung:** Gebäude mit Gästen oder Personal haben feste Türen: Restaurants zwei gegenüberliegende, alle anderen eine in der Mitte einer Seite. Nur über die Türen kommt man hinein; ein Weg, der irgendwo an der Seite vorbeiführt, reicht nicht. Mit R dreht man beim Bauen (oder tagsüber nachträglich) die Türen um 90°. Bei Restaurants ändert sich die Grafik (Türen vorn/hinten oder links/rechts), bei anderen Gebäuden zeigt eine Türmatte die Tür (echte Grafiken folgen in Phase 5).

@@ -2,6 +2,45 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-10 – Gebäude drehen sich ganz, dunkle Nächte, längere Tage (Branch `feature/turn-buildings`)
+- **Drehen (R)** dreht jetzt das ganze Gebäude: Tür nach vorn = Vorderansicht, nach hinten = Rückansicht, zur Seite = Seitenansicht. Längliche Gebäude drehen ihre Grundfläche mit (2 × 1 wird 1 × 2); Drehen prüft, ob dafür Platz ist. Restaurants behalten ihre Größe und wechseln zwischen Türen vorn/hinten und links/rechts
+- Seiten- und Rückansichten als einfache Platzhalter-Grafik; der Arbeiter steht bei Seitenansicht neben der Theke
+- **Nacht deutlich dunkler und kühl-blau**: Laternen, Gaslampen, Neonschilder und Feuerschalen erhellen einen großen Bereich, Restaurants ihren Raum, Häuser etwas, Stände nur ihre Theke
+- **Tage länger**: erster Tag 3 Minuten, danach 2 Minuten (vorher 90 und 45 Sekunden)
+- Bei Tagesbeginn springt das Tempo automatisch auf 1× zurück
+
+## 2026-11-10 – Beliebtheit = Gäste, langsameres Geld
+- **Beliebtheit ist jetzt genau die Zahl der Gäste pro Nacht** (Start 15, mindestens 8). Ein neuer Bereich hebt nur die Obergrenze (Markt 100, mit Hotel-Viertel 400), die Gästezahl springt dadurch nicht mehr
+- Änderung pro Nacht in **Prozent** (mindestens ±1 Gast): Laune bis ±12 %, Wut und Warten, Schmutz bis −8 %, verlorene Gäste bis −40 %, zu wenig Angebot bis −8 %, Neues +2 % je Stand (bis +8 %), Nachtbau −1 % je Aktion; die Gewöhnung entfällt, damit es bei gutem Betrieb stetig wächst
+- **Wirtschaft gebremst**: Preise pro Besuch etwa 45 % niedriger, Löhne verdoppelt, Gasthaus 600, Grand Hotel 1800, Sky Hotel 5000, Hotel-Viertel 4000 Münzen; Erfahrung 0,4 XP pro Münze, damit Level gleich schnell kommen
+- Test: Nacht 1 etwa 190 Münzen Gewinn (vorher 450), Beliebtheit 15 → 16 → 18
+
+## 2026-11-10 – Bauen auch nachts (teuer)
+- Bauen und Abreißen gehen jetzt auch nachts, kosten dann aber das **Dreifache**; jede Aktion in der Nacht kostet 1 Beliebtheit (höchstens 5 pro Nacht, im Bericht „🚧 night work“)
+- Preise in der Bauleiste zeigen nachts den dreifachen Preis; eigener Hinweistext beim Bauen in der Nacht
+- Drehen und Ausbauen bleiben tagsüber; bei Einbruch der Nacht wird das Bauwerkzeug weiter abgewählt, damit man nicht versehentlich teuer baut
+
+## 2026-11-10 – Fix: Putzkräfte teilen sich auf
+- Putzkräfte reservieren die verschmutzte Stelle, zu der sie gehen; andere Putzkräfte suchen sich eine andere. Vorher liefen mehrere zum selben Fleck
+
+## 2026-11-10 – Beliebtheits-Skala (Branch `feature/popularity`)
+- Neue **Beliebtheit** (0–100, Start 10) ersetzt den Ruf und bestimmt die Gästezahl: 6 + Beliebtheit × 0,94 (nur Markt, bis 100 Gäste) bzw. × 3,94 (mit Hotel-Viertel, bis 400)
+- Jeden Morgen neu berechnet aus: Zufriedenheit, Wartezeit und Wut, Sauberkeit, vom Sonnenaufgang erwischten Gästen, Angebot im Vergleich zur (jede Nacht steigenden) Erwartung, Bonus für neue Stände, kleine Gewöhnung
+- Anzeige oben „★ Popularity 14 · 19 guests“; Mauszeiger darauf erklärt die Skala und zeigt die Anteile der letzten Nacht
+- Morgenbericht zeigt die Änderung und ihre Anteile (😊 Laune, ⏳ Warten, 🧹 Schmutz, ☀ verloren, 🛍 Angebot, ✨ Neues, 💤 Gewöhnung)
+- Schmutz zählt pro Gast jede verschmutzte Stelle nur einmal
+- Werte in `src/data/popularity.ts`; alte Spielstände übernehmen den Ruf als Beliebtheit
+
+## 2026-11-10 – Speichern und Laden, Ausbaustufen (Branch `feature/save-and-upgrades`)
+- **Speichern**: automatisch jeden Morgen und nach Änderungen am Tag im Browser (localStorage). Die Nacht selbst wird nicht gespeichert; wer nachts neu lädt, macht am Morgen davor weiter
+- **Titelmenü** mit „Continue“ (Tag, Level, Münzen des Spielstands) und „New game“ (zweiter Klick bestätigt das Löschen)
+- **Ausbaustufen** (Stufe 1–3) über das Infofenster, nur tagsüber:
+  - Restaurants: Stufe 2 (ab Level 3, 80 % des Baupreises) +2 Tische, Platz für einen zweiten Kellner, Preise +20 %; Stufe 3 (ab Level 5, 150 %) der Raum wächst um eine Reihe nach unten (muss frei sein), +2 Tische, ein weiterer Koch, Preise +40 %; Sterne auf dem Schild
+  - Stände: pro Stufe ein Bedienplatz mehr, höhere Preise
+  - Hotels: 1,5- bzw. 2-fache Betten
+- Infofenster zeigt Stufe, Ausbau-Kosten und was der Ausbau bringt; Knöpfe in zwei Reihen
+- Zeitalter-Code entfernt (Level-Panel, Daten, Texte)
+
 ## 2026-11-09 – Türen, Drehen, Level statt Zeitalter, sichtbare Küche
 - **Türen**: Gebäude mit Gästen oder Personal haben feste Türen (Matte vor der Tür). Restaurants haben zwei gegenüberliegende, alle anderen eine. Gäste und Arbeiter nutzen nur die Türen; die Tür muss an einem Weg liegen
 - **Drehen** mit R beim Bauen (Vorschau zeigt die Türen grün/orange) oder tagsüber für ein ausgewähltes Gebäude (auch Knopf im Infofenster)

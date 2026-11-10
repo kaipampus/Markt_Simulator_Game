@@ -2,7 +2,6 @@
  * Building definitions. Gameplay values live here so balancing never needs
  * a code change elsewhere. Display names live in strings.ts.
  */
-import type { Era } from './eras';
 import type { Role } from './staff';
 
 export type BuildingId =
@@ -86,7 +85,6 @@ export type Crossing =
 
 export interface BuildingDef {
   id: BuildingId;
-  era: Era;
   category: Category;
   cost: number;
   /** Footprint in grid cells. */
@@ -120,6 +118,8 @@ export interface BuildingDef {
   popularity?: number;
   /** Emoji painted on the sign of the placeholder graphic. */
   sign?: string;
+  /** Set on upgraded copies of a definition (see data/upgrades.ts). */
+  tier?: number;
   /** Beds for workers (staff houses). */
   staffBeds?: number;
   /** Catches litter around it. */
@@ -138,7 +138,6 @@ function restaurant(
 ): BuildingDef {
   return {
     id,
-    era: 0,
     category: 'food',
     cost: o.cost,
     w: o.w,
@@ -164,7 +163,6 @@ function stall(
 ): BuildingDef {
   return {
     id,
-    era: 0,
     category,
     cost: o.cost,
     w: o.w ?? 1,
@@ -181,24 +179,24 @@ function stall(
 }
 
 const RESTAURANTS: readonly BuildingDef[] = [
-  restaurant('r_ramen', 'japanese', { cost: 260, price: 22, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍜', colors: { main: '#8a5a3c', roof: '#c8372d', accent: '#f4e6c8' } }),
-  restaurant('r_pho', 'vietnamese', { cost: 300, price: 24, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍲', colors: { main: '#6e7a4a', roof: '#3d6b4a', accent: '#f3e9c8' } }),
-  restaurant('r_dimsum', 'chinese', { cost: 340, price: 26, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 11, sign: '🥟', colors: { main: '#9a3a2a', roof: '#d9a42b', accent: '#ffe6b0' } }),
-  restaurant('r_curry', 'thai', { cost: 380, price: 28, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 12, sign: '🍛', colors: { main: '#a8743a', roof: '#6b2a5a', accent: '#ffd98a' } }),
-  restaurant('r_bbq', 'korean', { cost: 750, price: 34, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 18, sign: '🔥', colors: { main: '#5a4a44', roof: '#2a2a33', accent: '#ffb070' } }),
-  restaurant('r_sushi', 'japanese', { cost: 850, price: 38, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 20, sign: '🍣', colors: { main: '#c9a77a', roof: '#2f3f5a', accent: '#f4f0e6' } }),
-  restaurant('r_hotpot', 'magic', { cost: 1000, price: 42, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 22, sign: '🫕', colors: { main: '#4a3a6a', roof: '#7a2e5a', accent: '#c8f0ff' } }),
+  restaurant('r_ramen', 'japanese', { cost: 260, price: 12, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍜', colors: { main: '#8a5a3c', roof: '#c8372d', accent: '#f4e6c8' } }),
+  restaurant('r_pho', 'vietnamese', { cost: 300, price: 13, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍲', colors: { main: '#6e7a4a', roof: '#3d6b4a', accent: '#f3e9c8' } }),
+  restaurant('r_dimsum', 'chinese', { cost: 340, price: 14, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 11, sign: '🥟', colors: { main: '#9a3a2a', roof: '#d9a42b', accent: '#ffe6b0' } }),
+  restaurant('r_curry', 'thai', { cost: 380, price: 15, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 12, sign: '🍛', colors: { main: '#a8743a', roof: '#6b2a5a', accent: '#ffd98a' } }),
+  restaurant('r_bbq', 'korean', { cost: 750, price: 19, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 18, sign: '🔥', colors: { main: '#5a4a44', roof: '#2a2a33', accent: '#ffb070' } }),
+  restaurant('r_sushi', 'japanese', { cost: 850, price: 21, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 20, sign: '🍣', colors: { main: '#c9a77a', roof: '#2f3f5a', accent: '#f4f0e6' } }),
+  restaurant('r_hotpot', 'magic', { cost: 1000, price: 23, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 22, sign: '🫕', colors: { main: '#4a3a6a', roof: '#7a2e5a', accent: '#c8f0ff' } }),
 ];
 
 const NEW_STALLS: readonly BuildingDef[] = [
-  stall('skewers', 'food', { cost: 70, need: 'hunger', price: 7, staff: 'cook', slots: 2, ms: 1800, popularity: 3, sign: '🍢', colors: { main: '#6a4a33', roof: '#d9452b', accent: '#ffd27a' } }),
-  stall('mochi', 'food', { cost: 80, need: 'hunger', price: 8, staff: 'cook', slots: 1, ms: 1600, popularity: 3, sign: '🍡', colors: { main: '#7a5a4a', roof: '#f29ab8', accent: '#fff4f8' } }),
-  stall('dreamfloss', 'food', { cost: 90, need: 'hunger', price: 9, staff: 'clerk', slots: 2, ms: 1400, popularity: 4, sign: '🍭', colors: { main: '#5a4a7a', roof: '#b89aff', accent: '#ffe0f4' } }),
-  stall('bubbletea', 'food', { cost: 110, need: 'thirst', price: 9, w: 2, staff: 'cook', slots: 2, ms: 1800, popularity: 4, sign: '🧋', colors: { main: '#6a5040', roof: '#3fb8a8', accent: '#f4e6c8' } }),
-  stall('goldfish', 'market', { cost: 90, need: 'fun', price: 8, w: 2, staff: 'clerk', slots: 3, ms: 3500, popularity: 4, sign: '🎏', colors: { main: '#3a5a7a', roof: '#d9452b', accent: '#f4f8ff' } }),
-  stall('masks', 'market', { cost: 100, need: 'fun', price: 10, staff: 'clerk', slots: 2, ms: 2200, popularity: 4, sign: '👺', colors: { main: '#5a3a33', roof: '#2a2a33', accent: '#ff6b5a' } }),
-  stall('ringtoss', 'market', { cost: 120, need: 'fun', price: 9, w: 2, staff: 'clerk', slots: 3, ms: 3000, popularity: 5, sign: '🎯', colors: { main: '#4a3a2a', roof: '#f2b45a', accent: '#c8372d' } }),
-  stall('fortune', 'market', { cost: 110, need: 'luck', price: 12, staff: 'clerk', slots: 1, ms: 2400, popularity: 4, sign: '🔮', colors: { main: '#2a2440', roof: '#6b4aa0', accent: '#e8d0ff' } }),
+  stall('skewers', 'food', { cost: 70, need: 'hunger', price: 4, staff: 'cook', slots: 2, ms: 1800, popularity: 3, sign: '🍢', colors: { main: '#6a4a33', roof: '#d9452b', accent: '#ffd27a' } }),
+  stall('mochi', 'food', { cost: 80, need: 'hunger', price: 4, staff: 'cook', slots: 1, ms: 1600, popularity: 3, sign: '🍡', colors: { main: '#7a5a4a', roof: '#f29ab8', accent: '#fff4f8' } }),
+  stall('dreamfloss', 'food', { cost: 90, need: 'hunger', price: 5, staff: 'clerk', slots: 2, ms: 1400, popularity: 4, sign: '🍭', colors: { main: '#5a4a7a', roof: '#b89aff', accent: '#ffe0f4' } }),
+  stall('bubbletea', 'food', { cost: 110, need: 'thirst', price: 5, w: 2, staff: 'cook', slots: 2, ms: 1800, popularity: 4, sign: '🧋', colors: { main: '#6a5040', roof: '#3fb8a8', accent: '#f4e6c8' } }),
+  stall('goldfish', 'market', { cost: 90, need: 'fun', price: 4, w: 2, staff: 'clerk', slots: 3, ms: 3500, popularity: 4, sign: '🎏', colors: { main: '#3a5a7a', roof: '#d9452b', accent: '#f4f8ff' } }),
+  stall('masks', 'market', { cost: 100, need: 'fun', price: 6, staff: 'clerk', slots: 2, ms: 2200, popularity: 4, sign: '👺', colors: { main: '#5a3a33', roof: '#2a2a33', accent: '#ff6b5a' } }),
+  stall('ringtoss', 'market', { cost: 120, need: 'fun', price: 5, w: 2, staff: 'clerk', slots: 3, ms: 3000, popularity: 5, sign: '🎯', colors: { main: '#4a3a2a', roof: '#f2b45a', accent: '#c8372d' } }),
+  stall('fortune', 'market', { cost: 110, need: 'luck', price: 7, staff: 'clerk', slots: 1, ms: 2400, popularity: 4, sign: '🔮', colors: { main: '#2a2440', roof: '#6b4aa0', accent: '#e8d0ff' } }),
 ];
 
 export const BUILDINGS: readonly BuildingDef[] = [
@@ -207,7 +205,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // --- transport ---------------------------------------------------------
   {
     id: 'path',
-    era: 0,
     category: 'transport',
     cost: 5,
     w: 1,
@@ -221,7 +218,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'bridge',
-    era: 0,
     category: 'transport',
     cost: 60,
     w: 1,
@@ -235,7 +231,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'bridge_stone',
-    era: 1,
     category: 'transport',
     cost: 180,
     w: 1,
@@ -249,7 +244,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'ferry_steam',
-    era: 1,
     category: 'transport',
     cost: 250,
     w: 1,
@@ -263,7 +257,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'bridge_steel',
-    era: 2,
     category: 'transport',
     cost: 400,
     w: 1,
@@ -277,7 +270,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'ferry_motor',
-    era: 2,
     category: 'transport',
     cost: 500,
     w: 1,
@@ -293,7 +285,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // --- market --------------------------------------------------------------
   {
     id: 'noodle',
-    era: 0,
     category: 'food',
     cost: 80,
     w: 2,
@@ -302,13 +293,12 @@ export const BUILDINGS: readonly BuildingDef[] = [
     zone: 'market',
     style: 'stall',
     colors: { main: '#8b5a36', roof: '#c8372d', accent: '#f4e6c8' },
-    provides: { need: 'hunger', price: 12 },
+    provides: { need: 'hunger', price: 7 },
     service: { slots: 1, ms: 2200 },
     staff: ['cook'],
   },
   {
     id: 'tea',
-    era: 0,
     category: 'food',
     cost: 150,
     w: 2,
@@ -317,14 +307,13 @@ export const BUILDINGS: readonly BuildingDef[] = [
     zone: 'market',
     style: 'house',
     colors: { main: '#8a5a3c', roof: '#2f3f5a', accent: '#ffcf7a' },
-    provides: { need: 'thirst', price: 10 },
+    provides: { need: 'thirst', price: 6 },
     service: { slots: 2, ms: 2800 },
     glow: { x: 0.5, y: 0.82, radius: 70 },
     staff: ['cook'],
   },
   {
     id: 'charm',
-    era: 0,
     category: 'market',
     cost: 60,
     w: 1,
@@ -333,13 +322,12 @@ export const BUILDINGS: readonly BuildingDef[] = [
     zone: 'market',
     style: 'stall',
     colors: { main: '#6e4a33', roof: '#6b4aa0', accent: '#f1e7d0' },
-    provides: { need: 'luck', price: 15 },
+    provides: { need: 'luck', price: 8 },
     service: { slots: 1, ms: 1800 },
     staff: ['clerk'],
   },
   {
     id: 'shrine',
-    era: 0,
     category: 'market',
     cost: 120,
     w: 1,
@@ -348,12 +336,11 @@ export const BUILDINGS: readonly BuildingDef[] = [
     zone: 'market',
     style: 'torii',
     colors: { main: '#c8372d', roof: '#1e1a1a', accent: '#d8d2c4' },
-    provides: { need: 'luck', price: 6 },
+    provides: { need: 'luck', price: 3 },
     service: { slots: 2, ms: 1600 },
   },
   {
     id: 'cafe',
-    era: 1,
     category: 'food',
     cost: 220,
     w: 2,
@@ -362,14 +349,13 @@ export const BUILDINGS: readonly BuildingDef[] = [
     zone: 'market',
     style: 'house',
     colors: { main: '#6d4c3d', roof: '#3d5a46', accent: '#ffd9a0' },
-    provides: { need: 'thirst', price: 16 },
+    provides: { need: 'thirst', price: 9 },
     service: { slots: 3, ms: 2600 },
     glow: { x: 0.5, y: 0.82, radius: 80 },
     staff: ['cook'],
   },
   {
     id: 'vending',
-    era: 2,
     category: 'food',
     cost: 90,
     w: 1,
@@ -378,13 +364,12 @@ export const BUILDINGS: readonly BuildingDef[] = [
     zone: 'market',
     style: 'vending',
     colors: { main: '#d93a3a', roof: '#2a2a33', accent: '#bff6ff' },
-    provides: { need: 'thirst', price: 6 },
+    provides: { need: 'thirst', price: 3 },
     service: { slots: 1, ms: 1000 },
     glow: { x: 0.5, y: 0.5, radius: 50, color: 0x9fe8ff },
   },
   {
     id: 'arcade',
-    era: 2,
     category: 'market',
     cost: 450,
     w: 2,
@@ -393,7 +378,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     zone: 'market',
     style: 'arcade',
     colors: { main: '#2b2440', roof: '#ff4fa3', accent: '#5ff2ff' },
-    provides: { need: 'luck', price: 22 },
+    provides: { need: 'luck', price: 12 },
     service: { slots: 4, ms: 4000 },
     glow: { x: 0.5, y: 0.4, radius: 110, color: 0xff6fc0 },
     staff: ['clerk'],
@@ -402,7 +387,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // --- services ------------------------------------------------------------
   {
     id: 'brazier',
-    era: 0,
     category: 'services',
     cost: 40,
     w: 1,
@@ -411,13 +395,12 @@ export const BUILDINGS: readonly BuildingDef[] = [
     zone: 'land',
     style: 'brazier',
     colors: { main: '#3a3236', roof: '#1e1a1a', accent: '#ff9a3c' },
-    provides: { need: 'warmth', price: 4 },
+    provides: { need: 'warmth', price: 2 },
     service: { slots: 3, ms: 2500 },
     glow: { x: 0.5, y: 0.35, radius: 80 },
   },
   {
     id: 'restroom',
-    era: 0,
     category: 'services',
     cost: 50,
     w: 1,
@@ -426,12 +409,11 @@ export const BUILDINGS: readonly BuildingDef[] = [
     zone: 'land',
     style: 'restroom',
     colors: { main: '#7a6650', roof: '#3b4f45', accent: '#e8dcc0' },
-    provides: { need: 'relief', price: 3 },
+    provides: { need: 'relief', price: 2 },
     service: { slots: 1, ms: 1800 },
   },
   {
     id: 'bin',
-    era: 0,
     category: 'services',
     cost: 20,
     w: 1,
@@ -446,52 +428,48 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // --- hotels --------------------------------------------------------------
   {
     id: 'hotel',
-    era: 0,
     category: 'hotels',
-    cost: 300,
+    cost: 600,
     w: 4,
     h: 3,
     rise: 120,
     zone: 'hotel',
     style: 'hotel',
     colors: { main: '#c9a77a', roof: '#7a2e2a', accent: '#ffd48a' },
-    hotel: { beds: 12, price: 8 },
+    hotel: { beds: 12, price: 5 },
     glow: { x: 0.5, y: 0.88, radius: 110 },
     staff: ['host'],
   },
   {
     id: 'hotel_grand',
-    era: 1,
     category: 'hotels',
-    cost: 900,
+    cost: 1800,
     w: 5,
     h: 3,
     rise: 170,
     zone: 'hotel',
     style: 'hotel',
     colors: { main: '#a8553e', roof: '#3b3b46', accent: '#ffe0a0' },
-    hotel: { beds: 24, price: 10 },
+    hotel: { beds: 24, price: 6 },
     glow: { x: 0.5, y: 0.9, radius: 140 },
     staff: ['host'],
   },
   {
     id: 'hotel_sky',
-    era: 2,
     category: 'hotels',
-    cost: 2400,
+    cost: 5000,
     w: 5,
     h: 4,
     rise: 240,
     zone: 'hotel',
     style: 'hotel',
     colors: { main: '#3a4a66', roof: '#22283a', accent: '#bfe8ff' },
-    hotel: { beds: 40, price: 12 },
+    hotel: { beds: 40, price: 7 },
     glow: { x: 0.5, y: 0.3, radius: 170, color: 0xff6fc0 },
     staff: ['host'],
   },
   {
     id: 'staff_lodge',
-    era: 0,
     category: 'hotels',
     cost: 120,
     w: 2,
@@ -505,7 +483,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'staff_dorm',
-    era: 1,
     category: 'hotels',
     cost: 320,
     w: 3,
@@ -521,7 +498,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // --- decor ---------------------------------------------------------------
   {
     id: 'lantern',
-    era: 0,
     category: 'decor',
     cost: 15,
     w: 1,
@@ -534,7 +510,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'gaslamp',
-    era: 1,
     category: 'decor',
     cost: 30,
     w: 1,
@@ -547,7 +522,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'neon',
-    era: 2,
     category: 'decor',
     cost: 60,
     w: 1,

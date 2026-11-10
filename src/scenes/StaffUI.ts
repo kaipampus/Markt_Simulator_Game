@@ -1,6 +1,8 @@
 import * as Phaser from 'phaser';
 import { BAR_HEIGHT, COLORS, FONT_TITLE, FONT_UI } from '../config';
+import { getBuilding } from '../data/buildings';
 import { ROLES, STAFF, type Role } from '../data/staff';
+import { maxTier, TIER_LEVEL, upgradeCost } from '../data/upgrades';
 import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
 import { hasDoors, state, type PlacedBuilding, type StaffMember, type StaffStatus } from '../state/GameState';
@@ -185,6 +187,13 @@ export class StaffUI {
     return m.status === 'asleep' && m.role !== 'cleaner' && m.post === null ? 'off' : m.status;
   }
 
+  private upgrade(uid: number): void {
+    const result = state.upgrade(uid);
+    const b = state.buildings.get(uid);
+    if (result === 'ok' && b) this.hooks.flash(STR.upgraded(b.tier));
+    else if (result === 'space') this.hooks.flash(STR.upgradeNoSpace);
+  }
+
   /** Hire a worker; explains in the hint line why it did not work. */
   private hire(role: Role, post?: number): void {
     const result = state.hire(role, post);
@@ -314,7 +323,7 @@ export class StaffUI {
       parts.push(this.text(10, row, s, COLORS.uiGold, 15).setFontFamily(FONT_TITLE));
       row += 24;
     };
-    const buttons: Array<[string, () => void]> = [];
+    const buttons: Array<[string, () => void, boolean?, string?]> = [];
 
     if (sel?.kind === 'building') {
       const b = state.buildings.get(sel.uid);
@@ -336,11 +345,14 @@ export class StaffUI {
       return this.hideInfo();
     }
 
-    if (buttons.length) {
-      const bw = Math.floor((INFO_W - 20 - (buttons.length - 1) * 6) / buttons.length);
-      buttons.forEach(([label, fn], i) => parts.push(...this.button(10 + i * (bw + 6), row + 2, bw, label, fn)));
-      row += 30;
+    // Buttons, two per row.
+    for (let i = 0; i < buttons.length; i += 2) {
+      const pair = buttons.slice(i, i + 2);
+      const bw = Math.floor((INFO_W - 20 - (pair.length - 1) * 6) / pair.length);
+      pair.forEach(([label, fn, enabled, hover], j) => parts.push(...this.button(10 + j * (bw + 6), row + 2, bw, label, fn, enabled ?? true, hover)));
+      row += 28;
     }
+    if (buttons.length) row += 2;
 
     const h = row + 6;
     const x = this.scene.scale.width - INFO_W - 8;
@@ -361,10 +373,26 @@ export class StaffUI {
   private describeBuilding(
     b: PlacedBuilding,
     line: (s: string, color?: string) => void,
-    buttons: Array<[string, () => void]>,
+    buttons: Array<[string, () => void, boolean?, string?]>,
   ): void {
     const { def } = b;
-    if (hasDoors(def) && state.canBuild) buttons.push([STR.rotate, () => state.rotate(b.uid)]);
+    if (hasDoors(def) && state.canBuild) {
+      buttons.push([STR.rotate, () => !state.rotate(b.uid) && this.hooks.flash(STR.cantTurn)]);
+    }
+    // Upgrades (by day).
+    const base = getBuilding(def.id);
+    const max = maxTier(base);
+    if (max > 1) {
+      line(STR.tier(b.tier, max), COLORS.uiTextDim);
+      if (b.tier < max && state.canBuild) {
+        const next = b.tier + 1;
+        const check = state.checkUpgrade(b.uid);
+        const info = def.restaurant ? (next === 2 ? STR.upgradeInfo.restaurant2 : STR.upgradeInfo.restaurant3) : def.hotel ? STR.upgradeInfo.hotel : STR.upgradeInfo.stall;
+        const label = check === 'level' ? STR.upgradeLocked(TIER_LEVEL[next]) : STR.upgrade(upgradeCost(base, next));
+        const hover = check === 'space' ? `${info}  ·  ${STR.upgradeNoSpace}` : info;
+        buttons.push([label, () => this.upgrade(b.uid), check === 'ok', hover]);
+      }
+    }
     if (def.provides) line(STR.sells(STR.needIcons[def.provides.need], def.provides.price), COLORS.uiTextDim);
     if (def.hotel) line(STR.bedsUsed(state.sleepersIn(b.uid), def.hotel.beds, def.hotel.price));
     if (def.staffBeds) line(STR.staffHouse(state.staff.size, state.staffBeds()));

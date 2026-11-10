@@ -17,8 +17,8 @@ export const TEX = {
   coin: 'coin',
   dust: 'dust',
   building: (id: string) => `b_${id}`,
-  /** Path look for an era. */
-  path: (era: number) => `path_${era}`,
+  /** Path look (0 = dirt; 1 stone and 2 asphalt are kept for later districts). */
+  path: (look = 0) => `path_${look}`,
   boat: (id: string) => `boat_${id}`,
   worker: (role: string) => `worker_${role}`,
   /** Front part drawn in front of guests and workers (restaurant wall, stall counter). */
@@ -26,7 +26,9 @@ export const TEX = {
   /** Stall without its counter (the worker stands between back and front). */
   back: (id: string) => `back_${id}`,
   /** Picture of a placed building; restaurants turned sideways have their own. */
-  view: (def: BuildingDef, rot: number) => `b_${def.id}${def.restaurant && rot % 2 === 1 ? '_ew' : ''}`,
+  view: (def: BuildingDef, rot: number) =>
+    `b_${def.id}${def.tier && def.tier > 1 && def.restaurant ? `_t${def.tier}` : ''}` +
+    (def.restaurant ? (rot % 2 === 1 ? '_ew' : '') : rot ? `_r${rot}` : ''),
   doormat: 'doormat',
   plate: 'plate',
   litter: 'litter',
@@ -171,7 +173,17 @@ function roof(ctx: Ctx, x0: number, x1: number, eaveY: number, ridgeY: number, c
 }
 
 /** Front wall with wooden beams, a lit door and optional windows. */
-function wall(ctx: Ctx, x0: number, x1: number, bottom: number, wallH: number, main: string, light: string, windows: boolean): void {
+function wall(
+  ctx: Ctx,
+  x0: number,
+  x1: number,
+  bottom: number,
+  wallH: number,
+  main: string,
+  light: string,
+  windows: boolean,
+  door = true,
+): void {
   const top = bottom - wallH;
   const w = x1 - x0;
 
@@ -191,6 +203,7 @@ function wall(ctx: Ctx, x0: number, x1: number, bottom: number, wallH: number, m
   ctx.fillRect(x0 - 2, bottom - 5, w + 4, 5);
 
   // Door.
+  if (door) {
   const dw = Math.min(20, w * 0.32);
   const dh = Math.min(wallH - 8, 30);
   const dx = x0 + (w - dw) / 2;
@@ -200,6 +213,7 @@ function wall(ctx: Ctx, x0: number, x1: number, bottom: number, wallH: number, m
   ctx.fillRect(dx, bottom - 5 - dh, dw, dh);
   ctx.fillStyle = 'rgba(120,60,20,0.35)';
   ctx.fillRect(dx + dw / 2 - 1, bottom - 5 - dh, 2, dh);
+  }
 
   if (windows && w > 70) {
     const ww = 14;
@@ -1004,11 +1018,13 @@ export function restaurantLayout(def: BuildingDef): {
   // Kitchen in the back part: stoves along the back wall, the pass counter in front of it.
   const stoves = Array.from({ length: cooks }, (_, i) => ({ x: W * (cooks === 1 ? 0.3 : 0.2 + (0.3 * i) / (cooks - 1)), y: H * 0.2 }));
   const n = def.restaurant?.tables ?? 0;
-  const cols = Math.max(1, Math.ceil(n / 2));
+  // Deeper rooms (5 rows) get a third row of tables.
+  const rows = def.h >= 5 && n > 6 ? 3 : 2;
+  const cols = Math.max(1, Math.ceil(n / rows));
   const tables = Array.from({ length: n }, (_, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const table = { x: (W * (col + 0.5)) / cols + 6, y: H * (0.6 + row * 0.24) };
+    const table = { x: (W * (col + 0.5)) / cols + 6, y: H * (0.58 + (row * 0.3) / (rows - 1)) };
     return { table, seat: { x: table.x - 17, y: table.y + 5 }, serve: { x: table.x + 17, y: table.y + 4 } };
   });
   return { stoves, drop: { x: W * 0.68, y: H * 0.3 }, pass: { x: W * 0.68, y: H * 0.47 }, tables };
@@ -1066,6 +1082,13 @@ function drawRestaurant(ctx: Ctx, w: number, h: number, def: BuildingDef, ew: bo
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(def.sign, sx + 50, 32);
+  }
+  // Stars for upgraded restaurants.
+  if (def.tier && def.tier > 1) {
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = '#d9a42b';
+    ctx.textAlign = 'center';
+    ctx.fillText('★'.repeat(def.tier - 1), sx + 50, 50);
   }
   hangingLantern(ctx, 16, 32, 6);
   hangingLantern(ctx, w - 16, 32, 6);
@@ -1201,10 +1224,125 @@ function drawBin(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   ctx.fillRect(w / 2 - 3, bottom - bh - 4, 6, 2);
 }
 
-function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
+// ---------------------------------------------------------------------------
+// turned buildings (door facing west, north or east)
+// ---------------------------------------------------------------------------
+
+/** Styles that look the same from every side. */
+const ROUND_STYLES = new Set(['brazier', 'lantern', 'gaslamp', 'neon', 'bin', 'path', 'bridge', 'ferry']);
+
+/**
+ * A stall seen from the back (rot 2: counter faces away) or from the side
+ * (rot 1: counter faces west/left, rot 3: east/right).
+ */
+function drawStallTurned(ctx: Ctx, w: number, h: number, def: BuildingDef, rot: number): void {
+  const footH = def.h * TILE;
+  footShadow(ctx, w / 2, w, h, footH);
+  const { main, roof: awning, accent } = def.colors;
+  const bottom = h - 4;
+
+  if (rot === 2) {
+    // Back: closed wooden panel, awning on top (same size as the front view).
+    const awnTop = Math.max(4, h - footH - def.rise + 8);
+    const awnBottom = awnTop + 20;
+    ctx.fillStyle = shade(main, -0.3);
+    ctx.fillRect(6, awnBottom - 2, w - 12, bottom - awnBottom + 2);
+    ctx.fillStyle = shade(main, -0.5);
+    for (let x = 12; x < w - 8; x += 10) ctx.fillRect(x, awnBottom, 1, bottom - awnBottom);
+    ctx.fillStyle = shade(main, -0.55);
+    ctx.fillRect(4, bottom - 6, w - 8, 6);
+    const stripes = Math.max(4, Math.round(w / 10));
+    for (let i = 0; i < stripes; i++) {
+      ctx.fillStyle = i % 2 === 0 ? awning : accent;
+      ctx.fillRect(2 + ((w - 4) / stripes) * i, awnTop, (w - 4) / stripes + 1, awnBottom - awnTop);
+    }
+    ctx.fillStyle = shade(awning, -0.5);
+    ctx.fillRect(2, awnTop - 2, w - 4, 3);
+    return;
+  }
+
+  // Side view: a low, long stall. The front face (its side wall) stands at the
+  // bottom, the striped awning roof covers the whole footprint above it, and
+  // the counter faces left (rot 1) or right (rot 3).
+  const left = rot === 1;
+  const faceH = 34;
+  const faceTop = bottom - faceH;
+  const roofTop = h - footH - def.rise * 0.35;
+  // Roof seen from above, stripes running along the stall.
+  const stripes = Math.max(3, Math.round(w / 12));
+  for (let i = 0; i < stripes; i++) {
+    ctx.fillStyle = i % 2 === 0 ? awning : accent;
+    ctx.fillRect(2 + ((w - 4) / stripes) * i, roofTop, (w - 4) / stripes + 1, faceTop - roofTop + 4);
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(left ? 2 : w * 0.5, roofTop, w * 0.5 - 2, faceTop - roofTop + 4);
+  ctx.fillStyle = shade(awning, -0.5);
+  ctx.fillRect(2, roofTop - 2, w - 4, 3);
+
+  // Side wall.
+  ctx.fillStyle = shade(main, -0.3);
+  ctx.fillRect(6, faceTop + 4, w - 12, faceH - 4);
+  ctx.fillStyle = shade(main, -0.5);
+  for (let y = faceTop + 12; y < bottom; y += 8) ctx.fillRect(6, y, w - 12, 1);
+  // Counter at the open side.
+  const cx = left ? 2 : w - 12;
+  ctx.fillStyle = main;
+  ctx.fillRect(cx, faceTop + 6, 10, faceH - 6);
+  ctx.fillStyle = shade(main, 0.25);
+  ctx.fillRect(cx - 1, faceTop + 3, 12, 4);
+  hangingLantern(ctx, left ? 9 : w - 9, faceTop + 2, 4);
+  if (def.sign) {
+    ctx.font = '13px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(def.sign, w / 2 + (left ? 4 : -4), faceTop + faceH / 2 + 2);
+  }
+}
+
+/**
+ * Any other building with a door, turned: back wall without a door (rot 2),
+ * or the long side with the door at the left (rot 1) or right (rot 3) end.
+ */
+function drawBlockTurned(ctx: Ctx, w: number, h: number, def: BuildingDef, rot: number): void {
+  const footH = def.h * TILE;
+  footShadow(ctx, w / 2, w, h, footH);
+  const { main, roof: roofColor, accent } = def.colors;
+  const bottom = h - 3;
+  const total = footH + def.rise;
+  const floors = def.rise > 110 ? 3 : def.rise > 60 ? 2 : 1;
+  const floorH = Math.round((total * (floors === 1 ? 0.4 : 0.62)) / floors);
+
+  let top = bottom;
+  for (let f = 0; f < floors; f++) {
+    const inset = 8 + f * 6;
+    wall(ctx, inset, w - inset, top, floorH, f === 0 ? main : shade(main, -0.06 * f), accent, w > 60, false);
+    top -= floorH;
+  }
+  roof(ctx, 0, w, top + 6, Math.max(6, top - total * 0.25), roofColor);
+
+  if (rot !== 2) {
+    // The door sits on the short side we look at from an angle.
+    const left = rot === 1;
+    const dh = Math.min(floorH - 8, 30);
+    const dx = left ? 6 : w - 20;
+    ctx.fillStyle = shade(main, -0.55);
+    ctx.fillRect(dx, bottom - 5 - dh, 14, dh);
+    ctx.fillStyle = accent;
+    ctx.fillRect(dx + 2, bottom - 3 - dh, 10, dh - 2);
+    ctx.fillStyle = '#2f4f7a';
+    ctx.fillRect(dx - 2, bottom - 7 - dh, 18, 7);
+    hangingLantern(ctx, left ? 4 : w - 4, bottom - dh - 4, 5);
+  }
+}
+
+function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef, rot = 0): void {
+  if (rot !== 0 && !def.restaurant && !ROUND_STYLES.has(def.style)) {
+    if (def.style === 'stall') return drawStallTurned(ctx, w, h, def, rot);
+    return drawBlockTurned(ctx, w, h, def, rot);
+  }
   switch (def.style) {
     case 'path':
-      return drawPath(ctx, w, h, def.era);
+      return drawPath(ctx, w, h, 0);
     case 'bridge':
       return drawBridge(ctx, w, h, def);
     case 'ferry':
@@ -1437,10 +1575,20 @@ function drawSlime(ctx: Ctx, w: number, h: number): void {
 export function createTextures(scene: Phaser.Scene): void {
   makeCanvas(scene, TEX.ground, WORLD_W, WORLD_H, drawGround);
 
-  for (const def of BUILDINGS) {
+  for (const def of BUILDINGS) ensureBuildingTextures(scene, def);
+  for (let era = 0; era < 3; era++) {
+    makeCanvas(scene, TEX.path(era), TILE, TILE, (ctx) => drawPath(ctx, TILE, TILE, era));
+  }
+  createSharedTextures(scene);
+}
+
+/** Textures of one building definition (also upgraded or turned ones); safe to call again. */
+export function ensureBuildingTextures(scene: Phaser.Scene, def: BuildingDef, rot = 0): void {
+  {
     const w = def.w * TILE;
     const h = def.h * TILE + def.rise;
-    makeCanvas(scene, TEX.building(def.id), w, h, (ctx) => drawBuilding(ctx, w, h, def));
+    makeCanvas(scene, TEX.view(def, 0), w, h, (ctx) => drawBuilding(ctx, w, h, def));
+    if (rot !== 0 && !def.restaurant) makeCanvas(scene, TEX.view(def, rot), w, h, (ctx) => drawBuilding(ctx, w, h, def, rot));
     if (def.restaurant) {
       makeCanvas(scene, TEX.view(def, 1), w, h, (ctx) => drawRestaurant(ctx, w, h, def, true));
       makeCanvas(scene, TEX.front(def.id), w, 22, (ctx) => drawRestaurantFront(ctx, w, 22, def, false));
@@ -1454,10 +1602,10 @@ export function createTextures(scene: Phaser.Scene): void {
       makeCanvas(scene, TEX.boat(def.id), 36, 58, (ctx) => drawBoat(ctx, 36, 58, def));
     }
   }
-  for (let era = 0; era < 3; era++) {
-    makeCanvas(scene, TEX.path(era), TILE, TILE, (ctx) => drawPath(ctx, TILE, TILE, era));
-  }
+}
 
+/** Gate, glow, figures, coins and other shared textures. */
+function createSharedTextures(scene: Phaser.Scene): void {
   const gw = GATE.w * TILE;
   const gh = GATE.h * TILE + GATE.rise;
   makeCanvas(scene, TEX.gate, gw, gh, (ctx) => drawTorii(ctx, gw, gh, '#c8372d', '#1e1a1a', true));

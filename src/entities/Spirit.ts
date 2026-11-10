@@ -124,6 +124,10 @@ export class Spirit extends Walker {
   private met = 0;
   private failed = 0;
   private dirtSeen = 0;
+  /** Dirty cells already counted (each spot only once per guest). */
+  private dirtyCellsSeen = new Set<number>();
+  /** Time spent waiting in queues and for food tonight (ms). */
+  private totalWait = 0;
   private angerCount = 0;
 
   private readonly seed = Math.random() * 1000;
@@ -191,6 +195,11 @@ export class Spirit extends Walker {
     const tried = this.met + this.failed;
     const share = tried > 0 ? this.met / tried : 0.5;
     return share - dirt - this.angerCount * ANGER_MOOD;
+  }
+
+  /** What the guest tells the market about its night. */
+  private get stats() {
+    return { satisfaction: this.satisfaction, waitShare: this.totalWait / this.def.patience, dirt: this.dirtSeen };
   }
 
   private get headingHome(): boolean {
@@ -296,7 +305,11 @@ export class Spirit extends Walker {
       if (Math.random() < DIRT.slimeChance) this.state.addDirt(c, 'slime');
       return;
     }
-    if (this.state.isDirty(c.tx, c.ty)) this.dirtSeen++;
+    const key = c.ty * 1000 + c.tx;
+    if (this.state.isDirty(c.tx, c.ty) && !this.dirtyCellsSeen.has(key)) {
+      this.dirtyCellsSeen.add(key);
+      this.dirtSeen++;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -418,7 +431,7 @@ export class Spirit extends Walker {
       return;
     }
     if (goal.kind === 'gate') {
-      this.state.recordSafe(this.satisfaction);
+      this.state.recordSafe(this.stats);
       this.leave();
       return;
     }
@@ -472,6 +485,7 @@ export class Spirit extends Walker {
       return;
     }
     this.waited += delta;
+    this.totalWait += delta;
     if (this.waited < this.def.patience) return;
 
     // Waited too long: leave angry and skip this wish.
@@ -507,6 +521,7 @@ export class Spirit extends Walker {
       }
     } else if (this.dine === 'wait') {
       this.waited += delta;
+      this.totalWait += delta;
       if (this.waited < this.def.patience * FOOD_PATIENCE) return;
       // The food takes too long.
       this.leaveLine();
@@ -548,7 +563,7 @@ export class Spirit extends Walker {
 
   private checkIn(uid: number): void {
     this.state.checkIn(uid);
-    this.state.recordSafe(this.satisfaction);
+    this.state.recordSafe(this.stats);
     this.leave();
   }
 

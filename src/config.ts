@@ -20,13 +20,16 @@ export const WORLD_PADDING = 160;
 
 export const START_MONEY = 650;
 
+/** Building at night costs this many times the normal price (and some popularity). */
+export const NIGHT_BUILD_COST = 3;
+
 /** Share of the build cost returned when demolishing. */
 export const DEMOLISH_REFUND = 0.5;
 
 // --- Time (milliseconds) -----------------------------------------------------
 
-export const FIRST_DAY_MS = 90_000;
-export const DAY_MS = 45_000;
+export const FIRST_DAY_MS = 180_000;
+export const DAY_MS = 120_000;
 export const NIGHT_MS = 240_000;
 /** Last part of the night in which every spirit hurries home. */
 export const DAWN_WARNING_MS = 40_000;
@@ -50,22 +53,9 @@ export const FERRY_CELL_COST = 2;
 /** Hard upper limit of spirits on the map. */
 export const SPIRIT_HARD_CAP = 250;
 
-/** Guests per night = (GUESTS_BASE + popularity × GUESTS_PER_POPULARITY) × reputation factor, at most GUEST_CAP. */
-export const GUESTS_BASE = 6;
-export const GUESTS_PER_POPULARITY = 1;
-/** Most guests per night for now (area 1). Later each unlocked area raises it. */
-export const GUEST_CAP = 120;
 
-// --- Reputation ----------------------------------------------------------------
+// --- Guest mood ------------------------------------------------------------------
 
-export const REPUTATION_START = 50;
-export const REPUTATION_MAX = 100;
-/**
- * Reputation change per night, based on shares so it works for 20 and 2000 guests:
- * REP_MOOD × (happy − unhappy) / guests  +  REP_LOST × lost / guests.
- */
-export const REP_MOOD = 10;
-export const REP_LOST = -25;
 /** A spirit counts as happy when at least this share of its needs was met. */
 export const HAPPY_THRESHOLD = 0.5;
 
@@ -82,9 +72,29 @@ export const BAR_HEIGHT = 122;
 /** Time controls panel right below the top bar (centred). */
 export const TIME_PANEL_HEIGHT = 34;
 export const TIME_PANEL_HALF_WIDTH = 248;
-/** Era panel below the top bar (left). */
-export const ERA_PANEL_WIDTH = 330;
-export const ERA_PANEL_HEIGHT = 58;
+/** Level panel below the top bar (left). */
+export const LEVEL_PANEL_WIDTH = 330;
+export const LEVEL_PANEL_HEIGHT = 58;
+
+// --- Night lighting ----------------------------------------------------------
+/**
+ * The night is a dark, cold layer; lights cut holes into it. `strength` 1 =
+ * fully lit at the centre, `radius` in pixels (or a factor of the building's
+ * own glow radius / size).
+ */
+export const NIGHT_DARKNESS = 'rgba(4, 9, 28, 0.9)';
+export const LIGHTS = {
+  /** Lanterns, gas lamps, neon signs, braziers: bright and wide. */
+  lamp: { strength: 0.97, radiusFactor: 2.1 },
+  /** Restaurants: the whole room is lit. */
+  restaurant: { strength: 0.75, radiusFactor: 0.75 },
+  /** Houses, hotels, staff lodges with lit windows. */
+  house: { strength: 0.6, radiusFactor: 1.5 },
+  /** Stalls and other small buildings: a little light. */
+  stall: { strength: 0.45, radius: 62 },
+  /** The two lanterns at the gate. */
+  gate: { strength: 0.9, radius: 120 },
+} as const;
 
 // --- Depth layers ----------------------------------------------------------------
 

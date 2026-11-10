@@ -10,7 +10,7 @@ function clock(ms: number): string {
 export const STR = {
   title: 'Spirit Night Market',
   spirits: (n: number) => `Spirits ${n}`,
-  reputation: (n: number) => `Reputation ${n}`,
+  popularityHud: (p: number, full: boolean) => `★ Popularity ${p} guests${full ? ' (area full)' : ''}`,
 
   clockDay: (day: number, ms: number) => `☀ Day ${day} · night in ${clock(ms)}`,
   clockNight: (day: number, ms: number) => `☾ Night ${day} · dawn in ${clock(ms)}`,
@@ -20,26 +20,22 @@ export const STR = {
   startNight: '☾ Start night',
   skipNight: '☀ Skip to morning',
 
-  eras: ['Lantern Age', 'Steam Age', 'Neon Age'],
-  eraNext: (name: string, rep: number, cost: number) => `Next: ${name}  ·  Reputation ${rep}  ·  ${cost} coins`,
-  eraBuy: (name: string, cost: number) => `Enter the ${name} (${cost})`,
-  eraFinal: 'The world is fully modern',
-  eraStarted: (name: string) => `The ${name} begins!`,
-  lockedUntil: (name: string) => name,
 
   hintIdle: 'Space pause · F speed · N start night / skip to morning · P workers · I finances · Drag or WASD to move · Wheel to zoom',
   hintPlacing: 'Left-click to build  ·  R turns the doors  ·  Right-click or Esc to cancel',
   hintPainting: 'Hold the left mouse button and drag to lay paths  ·  Right-click or Esc to cancel',
   hintDemolish: 'Click a building to demolish (50% refund)  ·  Right-click or Esc to cancel',
   hintFirstDay: 'Build by day: a restaurant next to the path (Food tab), hire a cook and a waiter (Workers tab, P), then start the night.',
-  hintNight: 'Night: building is closed. Manage the market: click stalls and workers, send cleaners to dirty paths.',
+  hintNight: 'Night: manage the market (click stalls and workers, send cleaners). Building still works, but costs 3× and the noise lowers popularity.',
+  hintNightBuild: 'Night construction: 3× the price, and the noise lowers popularity  ·  R turns the doors  ·  Esc to cancel',
   hintStaffSelected: (role: string) => `Click a ${role} building to move this worker there  ·  Esc to deselect`,
   hintCleanerSelected: 'Click a path to send this cleaner there  ·  Esc to deselect',
-  nightNoBuild: 'Building resumes at daybreak',
+  nightNoBuild: 'Only by day',
 
   notEnoughCoins: 'Not enough coins',
   areaLocked: 'This area is still closed',
   rotate: '↻ Turn (R)',
+  cantTurn: 'No room to turn it here',
   level: (n: number) => `Level ${n}`,
   levelXp: (xp: number, next: number | null) => (next === null ? `${xp} XP · top level` : `${xp} / ${next} XP`),
   levelNext: (names: string) => `Next level: ${names}`,
@@ -157,8 +153,20 @@ export const STR = {
   tables: (busy: number, total: number) => `Tables ${busy} / ${total} taken`,
   restaurantInfo: (cuisine: string, tables: number) => `${cuisine} kitchen · ${tables} tables`,
   needsJobs: (jobs: string) => `needs ${jobs}`,
-  popularity: (p: number, guests: number) => `★ ${p} → ${guests} guests`,
-  popularityInfo: 'Popularity: every stall, restaurant and decoration draws more guests',
+  popularityInfo:
+    'Popularity = guests per night. It grows by a few percent after a good night and with new offers; long queues, dirt, guests lost to the sun, night construction and too little variety make it shrink.',
+  popularityLast: (parts: string) => `Last night: ${parts}`,
+  /** Short labels for the parts of the popularity change. */
+  popParts: {
+    satisfaction: '😊 mood',
+    waiting: '⏳ waiting',
+    cleanliness: '🧹 dirt',
+    lost: '☀ lost',
+    offer: '🛍 offer',
+    novelty: '✨ new',
+    construction: '🚧 night work',
+    habit: '💤 habit',
+  },
   homeIcon: '💤',
   waitIcon: '⏳',
   impatientIcon: '😤',
@@ -240,6 +248,27 @@ export const STR = {
   staffComingIcon: '🚶',
   stuckIcon: '❓',
 
+  // --- title menu ------------------------------------------------------------
+  menu: {
+    continue: 'Continue',
+    newGame: 'New game',
+    confirmNew: 'Click again: delete the saved game',
+    saved: (day: number, level: number, money: number) => `Saved game: day ${day} · level ${level} · ${money} coins`,
+  },
+
+  // --- upgrades ------------------------------------------------------------------
+  tier: (tier: number, max: number) => `Tier ${tier} / ${max}`,
+  upgrade: (cost: number) => `⬆ Upgrade (${cost})`,
+  upgradeLocked: (level: number) => `⬆ Upgrade: level ${level}`,
+  upgradeInfo: {
+    restaurant2: 'Tier 2: +2 tables, room for a second waiter, prices +20%',
+    restaurant3: 'Tier 3: the room grows by one row (needs free space below), +2 tables, another cook, prices +40%',
+    stall: 'Next tier: one more guest served at once, higher prices',
+    hotel: 'Next tier: more beds',
+  },
+  upgradeNoSpace: 'Needs a free row below the building',
+  upgraded: (tier: number) => `Tier ${tier}!`,
+
   // --- tabs and finances -----------------------------------------------------
   workersTab: '👥 Workers',
   financeButton: '📊 Finances',
@@ -271,6 +300,6 @@ export const STR = {
     staffLost: (n: number) => `${n} workers lost to the sun`,
     xp: (xp: number, level: number) => `+${xp} XP · Level ${level}`,
     cleaned: (n: number, dirty: number) => `${n} spots cleaned · ${dirty} still dirty`,
-    reputation: (value: number, delta: number) => `Reputation ${value} (${delta >= 0 ? '+' : ''}${delta})`,
+    popularity: (value: number, delta: number) => `★ Popularity ${value} guests (${delta >= 0 ? '+' : ''}${delta})`,
   },
 } as const;

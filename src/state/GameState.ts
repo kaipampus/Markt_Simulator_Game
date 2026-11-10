@@ -3,26 +3,21 @@ import {
   DAWN_WARNING_MS,
   DAY_MS,
   DEMOLISH_REFUND,
+  NIGHT_BUILD_COST,
   FERRY_CELL_COST,
   FIRST_DAY_MS,
   GRID_H,
   GRID_W,
-  GUEST_CAP,
-  GUESTS_BASE,
-  GUESTS_PER_POPULARITY,
   HAPPY_THRESHOLD,
   NIGHT_MS,
-  REP_LOST,
-  REP_MOOD,
-  REPUTATION_MAX,
-  REPUTATION_START,
   RIVER_TOP,
   RIVER_ROWS,
   SPEEDS,
   START_MONEY,
 } from '../config';
 import { GATE, getBuilding, type BuildingDef, type BuildingId, type Need, type Zone } from '../data/buildings';
-import { ERAS, type Era } from '../data/eras';
+import { expectedOffers, POP, POPULARITY_MIN, POPULARITY_START } from '../data/popularity';
+import { applyTier, maxTier, TIER_LEVEL, upgradeCost } from '../data/upgrades';
 import { AREAS, LEVEL_XP, MARKET_GUEST_CAP, UNLOCK_LEVEL, XP_PER_COIN, XP_PER_HAPPY, type AreaId } from '../data/levels';
 import { DIRT, ROLES, STAFF, type Role } from '../data/staff';
 import { STR } from '../data/strings';
@@ -41,11 +36,25 @@ export interface PlacedBuilding {
   tx: number;
   ty: number;
   rot: Rot;
+  /** 1 = as built; upgrades raise it (def is then the upgraded definition). */
+  tier: number;
 }
+
+export type UpgradeResult = 'ok' | 'max' | 'level' | 'money' | 'night' | 'space';
 
 /** Buildings guests or workers go into have doors; restaurants have two opposite ones. */
 export function hasDoors(def: BuildingDef): boolean {
   return !!(def.provides || def.hotel || def.staffBeds || def.staff);
+}
+
+/**
+ * A building turned so its door faces side `rot`. Turned sideways (west or
+ * east), an oblong building also turns its footprint (a 2 × 1 stall becomes
+ * 1 × 2). Restaurants keep their footprint and just move their doors.
+ */
+export function orient(def: BuildingDef, rot: Rot): BuildingDef {
+  if (!hasDoors(def) || def.restaurant || rot % 2 === 0 || def.w === def.h) return def;
+  return { ...def, w: def.h, h: def.w };
 }
 
 export type PlaceResult = 'ok' | 'blocked' | 'zone' | 'adjacent' | 'locked' | 'money' | 'night' | 'area';
@@ -84,6 +93,27 @@ export interface Sale {
   coins: number;
 }
 
+/** The parts of one night's popularity change (percent of the popularity). */
+export interface PopularityParts {
+  satisfaction: number;
+  waiting: number;
+  cleanliness: number;
+  lost: number;
+  offer: number;
+  novelty: number;
+  /** Building at night. */
+  construction: number;
+}
+
+/** What a guest reports when it leaves safely. */
+export interface GuestStats {
+  satisfaction: number;
+  /** Time waited in queues and for food, as a share of its patience. */
+  waitShare: number;
+  /** Dirty cells walked over. */
+  dirt: number;
+}
+
 export interface NightReport {
   day: number;
   safe: number;
@@ -103,8 +133,10 @@ export interface NightReport {
   sales: Sale[];
   /** earned + rooms - wages */
   net: number;
-  repDelta: number;
-  reputation: number;
+  /** Popularity after the night, its change and where the change came from. */
+  popularity: number;
+  popDelta: number;
+  popParts: PopularityParts;
 }
 
 type StateEvents = {
@@ -112,9 +144,8 @@ type StateEvents = {
   tool: [Tool];
   placed: [PlacedBuilding];
   removed: [PlacedBuilding];
-  reputation: [number];
+  popularity: [number];
   speed: [number];
-  era: [Era];
   /** Night starts / day starts. */
   phase: [Phase];
   /** The dawn warning begins: everyone hurries home. */
@@ -136,12 +167,33 @@ type StateEvents = {
   area: [AreaId];
 };
 
+/** Everything needed to continue a game, written each morning (see state/storage.ts). */
+export interface SaveData {
+  version: 1;
+  savedAt: number;
+  day: number;
+  money: number;
+  popularity: number;
+  /** Older saves stored this instead of popularity. */
+  reputation?: number;
+  level: number;
+  xp: number;
+  areas: AreaId[];
+  buildings: Array<{ uid: number; id: BuildingId; tx: number; ty: number; rot: Rot; tier: number }>;
+  staff: Array<{ name: string; role: Role; post: number | null; restAt: number | null; focus: Cell | null }>;
+  /** Hotel uid -> guests sleeping there. */
+  sleepers: Array<[number, number]>;
+  /** Dirty cells: [cell index, litter, slime]. */
+  dirt: Array<[number, number, number]>;
+  lastReport: NightReport | null;
+}
+
 /**
  * How many guests a building draws per night. Follows its capacity, so the
  * crowd grows with what the market can actually serve: restaurants per
  * table, stalls per service place, decoration a little.
  */
-export function popularityOf(def: BuildingDef): number {
+export function capacityOf(def: BuildingDef): number {
   if (def.popularity !== undefined) return def.popularity;
   if (def.restaurant) return def.restaurant.tables * 2.5;
   if (def.provides) return (def.service?.slots ?? 1) * 2;
@@ -193,8 +245,12 @@ export class GameState extends Emitter<StateEvents> {
   /** Rotation for the next building to place (R). */
   buildRot: Rot = 0;
   spiritCount = 0;
-  reputation = REPUTATION_START;
-  era: Era = 0;
+  /** How many guests come per night; changes every morning (see data/popularity.ts). */
+  popularity = POPULARITY_START;
+  /** New stalls and restaurants built since the last night (bonus for novelty). */
+  private newAttractions = 0;
+  /** Buildings placed or torn down tonight (costs popularity). */
+  private nightWork = 0;
   level = 1;
   xp = 0;
   readonly areas = new Set<AreaId>();
@@ -228,9 +284,11 @@ export class GameState extends Emitter<StateEvents> {
 
   // --- cleanliness: per cell ---
   private litter = new Uint8Array(GRID_W * GRID_H);
+  /** Dirty cells a cleaner is already on the way to (cell index -> staff id), so cleaners split up. */
+  private cleanClaims = new Map<number, number>();
   private slime = new Uint8Array(GRID_W * GRID_H);
 
-  private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0 };
+  private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0, waitShare: 0, dirt: 0 };
   /** Guests the scene still plans to let in tonight. */
   pendingArrivals = 0;
 
@@ -391,9 +449,14 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('tool', this.tool);
   }
 
-  /** Building and demolishing only happen during the day. */
+  /** Turning and upgrading only happen during the day (building works at night too, at a price). */
   get canBuild(): boolean {
     return this.phase === 'day';
+  }
+
+  /** What placing a building costs right now (more at night). */
+  buildCost(def: BuildingDef): number {
+    return this.phase === 'night' ? def.cost * NIGHT_BUILD_COST : def.cost;
   }
 
   canAfford(cost: number): boolean {
@@ -406,30 +469,91 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   place(id: BuildingId, tx: number, ty: number, free = false, rot: Rot = 0): PlaceResult {
-    const def = getBuilding(id);
-    if (!free && !this.canBuild) return 'night';
+    const def = orient(getBuilding(id), rot);
     if (!free && !this.isUnlocked(def)) return 'locked';
     const check = this.checkPlace(def, tx, ty);
     if (check !== 'ok') return check;
-    if (!free && !this.canAfford(def.cost)) return 'money';
+    const cost = this.buildCost(def);
+    if (!free && !this.canAfford(cost)) return 'money';
 
-    const building: PlacedBuilding = { uid: this.nextUid++, def, tx, ty, rot };
+    const building: PlacedBuilding = { uid: this.nextUid++, def, tx, ty, rot, tier: 1 };
     this.buildings.set(building.uid, building);
     for (let x = 0; x < def.w; x++) {
       for (let y = 0; y < def.h; y++) this.setCell(tx + x, ty + y, building.uid);
     }
-    if (!free) this.addMoney(-def.cost);
+    if (!free) this.addMoney(-cost);
+    if (!free && this.phase === 'night') this.nightWork++;
+    if (!free && def.provides) this.newAttractions++;
     this.emit('placed', building);
     if (def.staff) this.autoAssign(building);
     return 'ok';
+  }
+
+  /** What upgrading a building to the next tier would cost, or why it cannot be done. */
+  checkUpgrade(uid: number): UpgradeResult {
+    const b = this.buildings.get(uid);
+    if (!b) return 'max';
+    const base = getBuilding(b.def.id);
+    if (b.tier >= maxTier(base)) return 'max';
+    if (!this.canBuild) return 'night';
+    if (this.level < TIER_LEVEL[b.tier + 1]) return 'level';
+    if (!this.canAfford(upgradeCost(base, b.tier + 1))) return 'money';
+    const next = orient(applyTier(base, b.tier + 1), b.rot);
+    // A bigger building needs the extra row below it to be free.
+    for (let y = b.ty + b.def.h; y < b.ty + next.h; y++) {
+      for (let x = b.tx; x < b.tx + next.w; x++) {
+        if (!this.inBounds(x, y) || this.cell(x, y) !== FREE || !this.isAreaOpen(x, y)) return 'space';
+        if (!zoneAllows(next.zone, this.terrainAt(x, y))) return 'space';
+      }
+    }
+    return 'ok';
+  }
+
+  /** Upgrade a building to the next tier (by day only). */
+  upgrade(uid: number): UpgradeResult {
+    const check = this.checkUpgrade(uid);
+    const b = this.buildings.get(uid);
+    if (check !== 'ok' || !b) return check;
+    const base = getBuilding(b.def.id);
+    this.addMoney(-upgradeCost(base, b.tier + 1));
+    this.emit('removed', b);
+    this.setTier(b, b.tier + 1);
+    this.emit('placed', b);
+    this.autoAssign(b);
+    if (this.selection?.kind === 'building' && this.selection.uid === uid) this.emit('selection', this.selection);
+    return 'ok';
+  }
+
+  /** Switch a building to a tier, taking the extra cells if it grows. */
+  private setTier(b: PlacedBuilding, tier: number): void {
+    const next = orient(applyTier(getBuilding(b.def.id), tier), b.rot);
+    for (let y = b.ty; y < b.ty + next.h; y++) {
+      for (let x = b.tx; x < b.tx + next.w; x++) this.setCell(x, y, b.uid);
+    }
+    b.def = next;
+    b.tier = tier;
   }
 
   /** Turn a building so its door(s) face the next side (by day only). */
   rotate(uid: number): boolean {
     const b = this.buildings.get(uid);
     if (!b || !this.canBuild || !hasDoors(b.def)) return false;
+    const rot = ((b.rot + 1) % 4) as Rot;
+    const next = orient(applyTier(getBuilding(b.def.id), b.tier), rot);
+    // A turned oblong building needs its new cells to be free.
+    for (let y = b.ty; y < b.ty + next.h; y++) {
+      for (let x = b.tx; x < b.tx + next.w; x++) {
+        if (!this.inBounds(x, y)) return false;
+        const c = this.cell(x, y);
+        if (c !== FREE && c !== uid) return false;
+        if (!this.isAreaOpen(x, y) || !zoneAllows(next.zone, this.terrainAt(x, y))) return false;
+      }
+    }
     this.emit('removed', b);
-    b.rot = ((b.rot + 1) % 4) as Rot;
+    for (let y = b.ty; y < b.ty + b.def.h; y++) for (let x = b.tx; x < b.tx + b.def.w; x++) this.setCell(x, y, FREE);
+    for (let y = b.ty; y < b.ty + next.h; y++) for (let x = b.tx; x < b.tx + next.w; x++) this.setCell(x, y, uid);
+    b.def = next;
+    b.rot = rot;
     this.emit('placed', b);
     if (this.selection?.kind === 'building' && this.selection.uid === uid) this.emit('selection', this.selection);
     return true;
@@ -471,7 +595,7 @@ export class GameState extends Emitter<StateEvents> {
   demolish(uid: number): DemolishResult {
     const building = this.buildings.get(uid);
     if (!building) return { result: 'ok', refund: 0 };
-    if (!this.canBuild) return { result: 'night' };
+    if (this.phase === 'night') this.nightWork++;
     const { def, tx, ty } = building;
     if (def.staffBeds && this.staffBeds() - def.staffBeds < this.staff.size) return { result: 'occupied' };
     for (let x = 0; x < def.w; x++) {
@@ -735,6 +859,22 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('dirt', { tx: c.tx, ty: c.ty });
   }
 
+  /** A cleaner reserves a dirty cell (and gives up any earlier one). */
+  claimDirt(staffId: number, c: Cell): void {
+    this.releaseDirt(staffId);
+    this.cleanClaims.set(c.ty * GRID_W + c.tx, staffId);
+  }
+
+  releaseDirt(staffId: number): void {
+    for (const [cell, id] of this.cleanClaims) if (id === staffId) this.cleanClaims.delete(cell);
+  }
+
+  /** Is another cleaner already taking care of this cell? */
+  isDirtClaimed(c: Cell, staffId: number): boolean {
+    const id = this.cleanClaims.get(c.ty * GRID_W + c.tx);
+    return id !== undefined && id !== staffId && this.staff.has(id);
+  }
+
   /** A cleaner cleaned a cell. */
   clean(c: Cell): void {
     if (!this.isDirty(c.tx, c.ty)) return;
@@ -907,7 +1047,7 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   // ---------------------------------------------------------------------------
-  // spirits, money, reputation
+  // spirits, money, popularity
   // ---------------------------------------------------------------------------
 
   setSpiritCount(n: number): void {
@@ -928,9 +1068,11 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   /** A spirit reached a hotel bed or left through the gate. */
-  recordSafe(satisfaction: number): void {
+  recordSafe(g: GuestStats): void {
     this.night.safe++;
-    if (satisfaction >= HAPPY_THRESHOLD) this.night.happy++;
+    this.night.waitShare += g.waitShare;
+    this.night.dirt += g.dirt;
+    if (g.satisfaction >= HAPPY_THRESHOLD) this.night.happy++;
     else this.night.unhappy++;
   }
 
@@ -943,48 +1085,38 @@ export class GameState extends Emitter<StateEvents> {
     return { sales: [...this.sales.values()].sort((a, b) => b.coins - a.coins), earned: this.night.earned };
   }
 
-  /** How many guests the market can serve: sum over all buildings. */
-  popularity(): number {
+  /** How many guests the market can serve per night: sum over all buildings. */
+  capacity(): number {
     let sum = 0;
-    for (const b of this.buildings.values()) sum += popularityOf(b.def);
+    for (const b of this.buildings.values()) sum += capacityOf(b.def);
     return sum;
   }
 
+  /** Different offers: kinds of wishes served plus different kitchens. */
+  offers(): number {
+    const needs = new Set<string>();
+    const kitchens = new Set<string>();
+    for (const b of this.buildings.values()) {
+      if (b.def.provides) needs.add(b.def.provides.need);
+      if (b.def.cuisine) kitchens.add(b.def.cuisine);
+    }
+    return needs.size + kitchens.size;
+  }
+
   /**
-   * How many spirits come tonight (sleepers included): a few always come,
-   * every attractive building draws more, reputation scales it, the area caps it.
+   * How many spirits come tonight (sleepers included): exactly the popularity,
+   * as long as the open areas allow that many.
    */
   guestsTonight(): number {
-    const repFactor = 0.6 + this.reputation / 125;
-    const wanted = (GUESTS_BASE + this.popularity() * GUESTS_PER_POPULARITY) * repFactor;
-    const cap = this.areas.has('hotel') ? AREAS.hotel.guestCap : MARKET_GUEST_CAP;
-    return Math.min(cap, GUEST_CAP, Math.round(wanted));
+    return Math.min(this.guestCap(), this.popularity);
   }
 
-  // ---------------------------------------------------------------------------
-  // eras
-  // ---------------------------------------------------------------------------
-
-  /** The next era, if there is one. */
-  get nextEra(): { era: Era; reputation: number; cost: number } | null {
-    const next = this.era + 1;
-    if (next >= ERAS.length) return null;
-    return { era: next as Era, ...ERAS[next] };
+  /** Most guests the open areas allow. */
+  guestCap(): number {
+    return this.areas.has('hotel') ? AREAS.hotel.guestCap : MARKET_GUEST_CAP;
   }
 
-  canAdvanceEra(): boolean {
-    const n = this.nextEra;
-    return !!n && this.reputation >= n.reputation && this.money >= n.cost;
-  }
 
-  advanceEra(): boolean {
-    const n = this.nextEra;
-    if (!n || !this.canAdvanceEra()) return false;
-    this.addMoney(-n.cost);
-    this.era = n.era;
-    this.emit('era', this.era);
-    return true;
-  }
 
   // ---------------------------------------------------------------------------
   // clock
@@ -1045,10 +1177,44 @@ export class GameState extends Emitter<StateEvents> {
     this.phase = 'night';
     this.timeLeft = NIGHT_MS;
     this.dawnStarted = false;
-    this.night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0 };
+    this.night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0, waitShare: 0, dirt: 0 };
     this.sales.clear();
     if (this.tool) this.setTool(null);
     this.emit('phase', 'night');
+  }
+
+  /** How tonight changes the popularity, part by part (rounded to tenths). */
+  private popularityParts(): PopularityParts {
+    const n = this.night;
+    const guests = n.safe + n.lost;
+    const r = (v: number) => Math.round(v * 10) / 10;
+    if (guests === 0) {
+      return {
+        satisfaction: 0,
+        waiting: 0,
+        cleanliness: 0,
+        lost: 0,
+        offer: 0,
+        novelty: 0,
+        construction: r(Math.max(POP.nightWorkMax, this.nightWork * POP.nightWork)),
+      };
+    }
+    const happyShare = n.safe ? n.happy / n.safe : 0;
+    const avgWait = n.safe ? n.waitShare / n.safe : 0;
+    const avgDirt = n.safe ? n.dirt / n.safe : 0;
+    const offerRatio = this.offers() / expectedOffers(this.day);
+    return {
+      satisfaction: r(
+        POP.satisfaction *
+          Math.max(-1, Math.min(1, (happyShare - POP.satisfactionNeutral) / (happyShare >= POP.satisfactionNeutral ? 1 - POP.satisfactionNeutral : POP.satisfactionNeutral))),
+      ),
+      waiting: r(POP.anger * (n.angry / guests) + POP.waiting * Math.max(0, avgWait - POP.waitFree)),
+      cleanliness: r(Math.max(POP.dirtMax, POP.dirtPerCell * avgDirt)),
+      lost: r(POP.lost * (n.lost / guests)),
+      offer: r(offerRatio >= 1 ? 0 : Math.max(POP.offerPenalty, (1 - offerRatio) * POP.offerPenalty)),
+      novelty: r(Math.min(POP.noveltyMax, this.newAttractions * POP.novelty)),
+      construction: r(Math.max(POP.nightWorkMax, this.nightWork * POP.nightWork)),
+    };
   }
 
   private endNight(): void {
@@ -1059,6 +1225,7 @@ export class GameState extends Emitter<StateEvents> {
     this.waitingAt.clear();
     this.lines.clear();
     this.serving.clear();
+    this.cleanClaims.clear();
     this.pendingArrivals = 0;
 
     const rooms = this.hotels().reduce((sum, h) => sum + (this.sleepers.get(h.uid) ?? 0) * h.def.hotel!.price, 0);
@@ -1070,14 +1237,23 @@ export class GameState extends Emitter<StateEvents> {
     const n = this.night;
     const xpGained = Math.round(n.earned * XP_PER_COIN + n.happy * XP_PER_HAPPY);
     this.addXp(xpGained);
-    const guests = Math.max(1, n.safe + n.lost);
-    const repDelta = Math.round((REP_MOOD * (n.happy - n.unhappy) + REP_LOST * n.lost) / guests);
-    this.reputation = Math.max(0, Math.min(REPUTATION_MAX, this.reputation + repDelta));
-    this.emit('reputation', this.reputation);
+    // Popularity changes by a percentage; at least one guest more or less when anything changed.
+    const popParts = this.popularityParts();
+    const percent = Object.values(popParts).reduce((sum, v) => sum + v, 0);
+    const before = this.popularity;
+    let change = Math.round((before * percent) / 100);
+    if (change === 0 && Math.abs(percent) >= 0.5) change = Math.sign(percent);
+    this.popularity = Math.max(POPULARITY_MIN, Math.min(this.guestCap(), before + change));
+    const popDelta = this.popularity - before;
+    this.newAttractions = 0;
+    this.nightWork = 0;
+    this.emit('popularity', this.popularity);
 
     this.day++;
     this.phase = 'day';
     this.timeLeft = DAY_MS;
+    // The day always starts at normal speed, so nobody races into the next night by accident.
+    if (this.speed > 1) this.setSpeed(1);
     this.emit('phase', 'day');
     const report: NightReport = {
       day: this.day,
@@ -1096,11 +1272,94 @@ export class GameState extends Emitter<StateEvents> {
       level: this.level,
       sales: this.salesTonight().sales,
       net: n.earned + rooms - wages,
-      repDelta,
-      reputation: this.reputation,
+      popularity: this.popularity,
+      popDelta,
+      popParts,
     };
     this.lastReport = report;
     this.emit('report', report);
+  }
+
+  // ---------------------------------------------------------------------------
+  // saving and loading
+  // ---------------------------------------------------------------------------
+
+  /** A snapshot of the game. Taken by day, when nobody is out on the map. */
+  toSave(): SaveData {
+    const dirt: Array<[number, number, number]> = [];
+    for (let i = 0; i < this.litter.length; i++) {
+      if (this.litter[i] + this.slime[i] > 0) dirt.push([i, this.litter[i], this.slime[i]]);
+    }
+    return {
+      version: 1,
+      savedAt: Date.now(),
+      day: this.day,
+      money: this.money,
+      popularity: this.popularity,
+      level: this.level,
+      xp: this.xp,
+      areas: [...this.areas],
+      buildings: [...this.buildings.values()].map((b) => ({ uid: b.uid, id: b.def.id, tx: b.tx, ty: b.ty, rot: b.rot, tier: b.tier })),
+      staff: [...this.staff.values()].map((m) => ({ name: m.name, role: m.role, post: m.post, restAt: m.restAt, focus: m.focus })),
+      sleepers: [...this.sleepers.entries()],
+      dirt,
+      lastReport: this.lastReport,
+    };
+  }
+
+  /** Replace the current game with a saved one (before the scenes start). */
+  restore(data: SaveData): void {
+    for (const b of this.buildings.values()) {
+      for (let x = 0; x < b.def.w; x++) for (let y = 0; y < b.def.h; y++) this.setCell(b.tx + x, b.ty + y, FREE);
+    }
+    this.buildings.clear();
+    this.staff.clear();
+    this.sleepers.clear();
+    this.litter.fill(0);
+    this.slime.fill(0);
+    this.areas.clear();
+    for (const a of data.areas) this.areas.add(a);
+
+    // Buildings get new uids; remember how old ones map to new ones.
+    const uids = new Map<number, number>();
+    for (const sb of data.buildings) {
+      if (this.place(sb.id, sb.tx, sb.ty, true, sb.rot) !== 'ok') continue;
+      const b = [...this.buildings.values()].pop()!;
+      if (sb.tier > 1) this.setTier(b, sb.tier);
+      uids.set(sb.uid, b.uid);
+    }
+    const map = (uid: number | null) => (uid === null ? null : (uids.get(uid) ?? null));
+    for (const sm of data.staff) {
+      const id = this.nextStaffId++;
+      this.staff.set(id, {
+        id,
+        name: sm.name,
+        role: sm.role,
+        post: map(sm.post),
+        onDuty: false,
+        focus: sm.focus,
+        restAt: map(sm.restAt) ?? this.staffHouses()[0]?.uid ?? null,
+        status: 'asleep',
+      });
+    }
+    for (const [uid, count] of data.sleepers) {
+      const n = map(uid);
+      if (n !== null) this.sleepers.set(n, count);
+    }
+    for (const [i, l, sl] of data.dirt) {
+      this.litter[i] = l;
+      this.slime[i] = sl;
+    }
+    this.day = data.day;
+    this.money = data.money;
+    this.popularity = Math.max(POPULARITY_MIN, data.popularity ?? data.reputation ?? POPULARITY_START);
+    this.level = data.level;
+    this.xp = data.xp;
+    this.lastReport = data.lastReport;
+    this.phase = 'day';
+    this.timeLeft = DAY_MS;
+    this.tool = null;
+    this.selection = null;
   }
 
   /** For testing in the browser console: jump close to the next phase change. */

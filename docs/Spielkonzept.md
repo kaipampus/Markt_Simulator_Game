@@ -1,12 +1,12 @@
 ---
 status: Entwurf
-aktualisiert: 2026-11-09
+aktualisiert: 2026-11-10
 ---
 
 # Spielkonzept
 
 ## Grundidee
-Du führst ein **Geister-Viertel aus Hotel und Nachtmarkt** in einer Zauberwelt. Nachts kommen die Geister, bummeln über den Markt und wollen versorgt werden. **Vor Sonnenaufgang sollten alle Geister im Hotel oder durch das Tor verschwunden sein**, denn im Sonnenlicht vergehen sie. Das kostet nur Ruf, verlieren kann man nicht: Es ist ein **entspanntes Aufbauspiel**.
+Du führst ein **Geister-Viertel aus Hotel und Nachtmarkt** in einer Zauberwelt. Nachts kommen die Geister, bummeln über den Markt und wollen versorgt werden. **Vor Sonnenaufgang sollten alle Geister im Hotel oder durch das Tor verschwunden sein**, denn im Sonnenlicht vergehen sie. Das kostet nur Beliebtheit, verlieren kann man nicht: Es ist ein **entspanntes Aufbauspiel**.
 
 Der Tag hat zwei Hälften: **Tagsüber baust du**, **nachts verwaltest du** den Markt mit deinem Personal. So gibt es immer etwas zu tun.
 
@@ -24,7 +24,7 @@ Die Karte besteht aus **Bereichen**, die nacheinander freigeschaltet werden: Sob
 | **3 – Neon-Viertel** | rechts daneben, groß, über Straße oder Brücke verbunden | Level 10 + Münzen | Moderne Gebäude: Spielhallen, Automaten, Neonschilder, Café, Sky Hotel, Asphaltstraßen, moderne Transportmittel | 2000–3000 |
 
 - **Level** sichtbar mit Balken (wie Hay Day). Erfahrung kommt aus zufriedenen Gästen und aus neuen Gebäuden.
-- **Beliebtheit**: Jeder Stand und jede Dekoration hat einen Beliebtheitswert. Die Summe bestimmt, wie viele Gäste kommen wollen, begrenzt durch die freigeschalteten Bereiche. Der **Ruf** (Zufriedenheit der Gäste) verstärkt oder schwächt das.
+- **Beliebtheit** (0–100) bestimmt, wie viele Gäste kommen, begrenzt durch die freigeschalteten Bereiche (siehe „Geld und Wachstum“).
 - Die **Zeitalter entfallen**: Der alte Markt bleibt traditionell (mit kleinen Verbesserungen wie Steinbrücke oder Gaslaterne), moderne Gebäude gibt es nur im Neon-Viertel.
 - Bauregeln: Gebäude dürfen nur in freigeschaltete Bereiche, teils nur in passende (Hotels ins Hotel-Viertel, Moderne ins Neon-Viertel).
 
@@ -36,13 +36,15 @@ Die Karte besteht aus **Bereichen**, die nacheinander freigeschaltet werden: Sob
 - Zu Beginn gibt es einen kurzen Weg vom Tor über eine Holzbrücke und eine kleine Personal-Lodge am Weg
 
 ## Zeit
+- Der erste Tag dauert 3 Minuten, jeder weitere 2, die Nacht 4. Zu Tagesbeginn springt das Tempo auf 1×.
+- Nachts ist es dunkel und kühl; nur Laternen, Feuerschalen, Restaurants und (schwach) Stände spenden Licht.
 - Tag und Nacht wechseln von selbst, aber **du hast die Kontrolle**: Pause (Leertaste), Tempo 1×/2×/4× (Taste F) und „Nacht jetzt starten“ (Taste N)
 - In der Pause kann man in Ruhe bauen oder Personal einteilen
 - Spielschleife:
   1. **Tag – bauen:** Geister und Personal schlafen. Du baust, reißt ab, stellst Personal ein.
-  2. **Nacht – verwalten:** Bauen ist gesperrt. Arbeiter gehen zu ihren Ständen, Hotelgäste wachen auf, neue Geister kommen durchs Tor. Jeder Gast hat 2–3 **Bedürfnisse**, besucht passende Gebäude und zahlt. Du setzt Arbeiter um, schickst Putzkräfte los und stellst bei Bedarf nach.
+  2. **Nacht – verwalten:** Bauen geht nur zur Not (dreifacher Preis, kostet Beliebtheit). Arbeiter gehen zu ihren Ständen, Hotelgäste wachen auf, neue Geister kommen durchs Tor. Jeder Gast hat 2–3 **Bedürfnisse**, besucht passende Gebäude und zahlt. Du setzt Arbeiter um, schickst Putzkräfte los und stellst bei Bedarf nach.
   3. **Morgengrauen-Warnung:** Gäste eilen zum Hotel (freies Bett) oder zum Tor, Arbeiter ins Personalhaus.
-  4. **Sonnenaufgang:** Wer noch draußen ist, vergeht (Gäste: Ruf −5, Arbeiter: fehlen danach). Danach Morgenbericht mit Einnahmen, Löhnen und Sauberkeit.
+  4. **Sonnenaufgang:** Wer noch draußen ist, vergeht (Gäste: kostet Beliebtheit, Arbeiter: fehlen danach). Danach Morgenbericht mit Einnahmen, Löhnen und Sauberkeit.
 
 ## Wege und Übergänge
 - **Geister laufen nur auf Wegen**, Brücken und Fähren, nicht über freie Fläche. Wege sind nicht schneller, aber Pflicht.
@@ -66,28 +68,15 @@ Die Nacht soll von Anfang bis Ende zu tun geben:
 - Die Nacht dauert 4 Minuten
 - Umgesetzt (Schritt 1): Wellen, 3–6 Wünsche, Bummeln, Schlangen mit Plätzen pro Stand, Geduld je Geistertyp, Vielfraß als neuer Typ
 
-## Zeitalter (bisheriger Stand, wird durch Bereiche ersetzt)
-Ein neues Zeitalter wird mit **Ruf freigeschaltet** und dann **mit Münzen gekauft** (Knopf oben links).
-
-| Zeitalter | Voraussetzung | Neu |
-|---|---|---|
-| **Laternenzeit** (Start) | – | Erdwege, Holzbrücke (3 Geister), Gasthaus (12 Betten), Stände, Teehaus, Schrein, Feuerschale, Toilette, Papierlaterne |
-| **Dampfzeit** | Ruf 60 + 1200 Münzen | Steinwege, Steinbrücke (6), Dampffähre (12 pro Fahrt), Grand Hotel (24 Betten), Café, Gaslaterne |
-| **Neon-Zeit** | Ruf 75 + 3000 Münzen | Asphaltstraßen, Stahlbrücke (10), Motorfähre (20, schneller), Sky Hotel (40 Betten), Spielhalle, Getränkeautomat, Neonschild |
-
-Wege ändern ihr Aussehen automatisch mit dem Zeitalter.
-
 ## Ressourcen
 - **Geistermünzen**: Hauptwährung
-- **Ruf** (0–100, Start 50): bestimmt, wie viele Geister pro Nacht kommen. **Kein Game Over**: Bei niedrigem Ruf kommen einfach weniger Gäste.
-  - Die Änderung pro Nacht hängt vom **Anteil** ab, damit sie bei 20 wie bei 2000 Gästen passt: bis +10, wenn alle zufrieden sind, bis −10, wenn alle unzufrieden sind; vom Sonnenaufgang erwischte Gäste ziehen zusätzlich ab
-  - Zufrieden ist ein Gast, wenn er mindestens die Hälfte seiner Wünsche erfüllt bekam; Schmutz und Wut in der Schlange ziehen ab
+- **Beliebtheit** (0–100, Start 10): bestimmt die Gästezahl, ändert sich jede Nacht (Details unter „Geld und Wachstum“). **Kein Game Over**: Bei niedriger Beliebtheit kommen einfach weniger Gäste.
 - **Mana**: für Zauber (später)
 
 ## Türen
 - Gebäude mit Gästen oder Personal haben **feste Türen** (Matte davor). Restaurants haben **zwei gegenüberliegende**, alle anderen eine.
 - Gäste und Arbeiter gehen nur durch die Türen; die Tür muss an einem Weg liegen.
-- Mit **R** dreht man das Gebäude beim Bauen (Vorschau: Tür grün = Weg da, orange = Weg fehlt) oder tagsüber nachträglich.
+- Mit **R** dreht man das ganze Gebäude um 90° (Vorder-, Seiten- oder Rückansicht), beim Bauen oder tagsüber nachträglich. Längliche Gebäude belegen gedreht andere Felder. Vorschau: Tür grün = Weg da, orange = Weg fehlt.
 
 ## Restaurants
 Für richtige Mahlzeiten gibt es **Restaurants**: offene Räume (4 × 4 oder 5 × 5 Felder), in die man von schräg oben hineinsieht.
@@ -101,13 +90,13 @@ Für richtige Mahlzeiten gibt es **Restaurants**: offene Räume (4 × 4 oder 5 �
 
 | Restaurant | Küche | Größe | Tische | Preis pro Gast |
 |---|---|---|---|---|
-| Moonbroth Ramen | japanisch | 4 × 3 | 4 | 22 |
-| Mistleaf Pho | vietnamesisch | 4 × 3 | 4 | 24 |
-| Floating Dumpling House | chinesisch | 4 × 3 | 4 | 26 |
-| Firefly Curry House | thailändisch | 4 × 3 | 4 | 28 |
-| Ember Grill | koreanisch | 5 × 4 | 6 | 34 |
-| Starfish Sushi Bar | japanisch | 5 × 4 | 6 | 38 |
-| Bubbling Cauldron Hot Pot | Hexenküche | 5 × 4 | 6 | 42 |
+| Moonbroth Ramen | japanisch | 4 × 4 | 4 | 12 |
+| Mistleaf Pho | vietnamesisch | 4 × 4 | 4 | 13 |
+| Floating Dumpling House | chinesisch | 4 × 4 | 4 | 14 |
+| Firefly Curry House | thailändisch | 4 × 4 | 4 | 15 |
+| Ember Grill | koreanisch | 5 × 5 | 6 | 19 |
+| Starfish Sushi Bar | japanisch | 5 × 5 | 6 | 21 |
+| Bubbling Cauldron Hot Pot | Hexenküche | 5 × 5 | 6 | 23 |
 
 **Gelüste:** Etwa die Hälfte der Hunger-Wünsche ist ein Gelüst nach einer bestimmten Küche (Symbol über dem Kopf). Gäste nehmen dafür Umwege in Kauf; bekommen sie eine andere Küche, zählt das nur teilweise. So lohnt sich Vielfalt.
 
@@ -119,12 +108,37 @@ Neben den Restaurants gibt es viele kleine Stände mit Zauber-Einschlag:
 - **Glück:** Charm Stand, Paper Crane Fortunes, Moon Shrine, Arcade
 - Platzmangel ist gewollt: Der Markt darf eng und chaotisch werden, Wege, Schlangen und Personal wollen geplant sein.
 
+## Ausbaustufen
+- Restaurants, Stände und Hotels lassen sich tagsüber zweimal ausbauen (Infofenster, „⬆ Upgrade“).
+- Restaurant Stufe 2 (ab Level 3): +2 Tische, Platz für einen zweiten Kellner, Preise +20 %.
+- Restaurant Stufe 3 (ab Level 5): der Raum wächst um eine Reihe nach unten (die Reihe muss frei sein), +2 Tische, ein weiterer Koch, Preise +40 %.
+- Stände: pro Stufe ein Gast mehr gleichzeitig; Hotels: mehr Betten.
+
+## Spielstand
+- Wird automatisch im Browser gespeichert (jeden Morgen und nach Änderungen am Tag). Beim Start: „Continue“ oder „New game“.
+- Die laufende Nacht wird nicht gespeichert.
+
 ## Geld und Wachstum
 - Start mit wenig Geld (**650 Münzen**): genug für ein kleines Restaurant, Koch, Kellner und einen Imbiss.
-- **Beliebtheit (★)** folgt der **Kapazität**: Tische × 2,5, Bedienplätze × 2, Deko 0,5. Gäste pro Nacht = (6 + Beliebtheit) × Ruf-Faktor, höchstens 100 (nur Markt) bzw. 400 (mit Hotel-Viertel). So kommen nur so viele Gäste, wie man bedienen kann, plus etwas Druck.
+- Preise pro Besuch: Restaurants 12–23, Stände 2–12. Löhne pro Nacht: Koch 12, Kellner 10, Verkäufer 10, Gastgeber 16, Putzkraft 8. Hotel-Viertel 4000 Münzen.
+- **Beliebtheit (★)** = Gäste pro Nacht (Start 15, mindestens 8, höchstens 100 auf dem Markt bzw. 400 mit Hotel-Viertel). Ein neuer Bereich hebt nur die Obergrenze.
+- Jeden Morgen ändert sie sich um einen Prozentsatz (mindestens ±1 Gast):
+
+| Anteil | Wirkung |
+|---|---|
+| 😊 Laune | Anteil zufriedener Gäste: über 40 % bis +12 %, darunter bis −12 % |
+| ⏳ Warten | Wütend gegangene Gäste (bis −15 %) und lange Wartezeiten |
+| 🧹 Schmutz | −1 % je verschmutzter Stelle pro Gast (bis −8 %) |
+| ☀ Verloren | Vom Sonnenaufgang erwischte Gäste (alle verloren = −40 %) |
+| 🛍 Angebot | Weniger verschiedene Wünsche + Küchen als erwartet (Erwartung steigt jede Nacht um 0,3): bis −8 % |
+| ✨ Neues | +2 % je neuem Stand oder Restaurant (bis +8 %) |
+| 🚧 Nachtbau | −1 % je Bau oder Abriss in der Nacht (bis −5 %) |
+
+- Kreislauf: Wenige Gäste sind zufrieden → Beliebtheit steigt → mehr Gäste → längere Schlangen → sie sinkt wieder. Wer nicht weiterbaut, aufräumt und Personal einstellt, verliert langsam Gäste.
+- Test: Ramen + Nudelbude + Mülleimer: 15 → 16 → 18 Gäste, Gewinn Nacht 1 ≈ 190 Münzen.
 - **Level:** Erfahrung aus Einnahmen (0,2 XP pro Münze) und zufriedenen Gästen (2 XP). Restaurants und Stände werden nach und nach freigeschaltet (Liste in `src/data/levels.ts`), das Hotel-Viertel ab Level 6 für 2000 Münzen.
 - Mehr Gebäude → mehr Gäste → mehr Geld → mehr Gebäude. Test: Nacht 1 mit Ramen und Nudelbude ≈ 500 Gewinn, Nacht 2 mit zweitem Restaurant und Teehaus ≈ 1150.
-- Wünsche, die der Markt gar nicht anbietet, kosten nur Einnahmen, nicht den Ruf. Der Ruf hängt an Schlangen, Wut, Schmutz und falscher Küche.
+- Wünsche, die der Markt gar nicht anbietet, machen Gäste nicht unzufrieden, kosten aber Einnahmen; zu wenig Angebot senkt die Beliebtheit über die steigende Erwartung.
 - Geplant: Gebäude-Stufen (z. B. Restaurant Stufe 2 mit mehr Tischen), weitere Gebäude teurer.
 
 ## Bedürfnisse und Gebäude
@@ -155,10 +169,11 @@ Neben den Restaurants gibt es viele kleine Stände mit Zauber-Einschlag:
 
 | Job | Einstellen | Lohn pro Nacht |
 |---|---|---|
-| Koch | 40 | 6 |
-| Verkäufer | 30 | 5 |
-| Gastgeber | 50 | 8 |
-| Putzkraft | 30 | 4 |
+| Koch | 40 | 12 |
+| Kellner | 35 | 10 |
+| Verkäufer | 30 | 10 |
+| Gastgeber | 50 | 16 |
+| Putzkraft | 30 | 8 |
 
 ## Sauberkeit
 - Nach Essen oder Trinken lassen Gäste manchmal **Müll** fallen, außer ein **Mülleimer** steht in der Nähe (3 Felder)
@@ -188,7 +203,7 @@ Weitere Ideen:
 - **Laternenmotte**: kommt nur zu hell erleuchteten Ständen
 - **Nebelgast**: zahlt viel, will aber Ruhe
 - **Hungriger Topfgeist**: isst alles, hinterlässt Unordnung
-- **Ahnenfuchs**: seltener, reicher Gast, der den Ruf steigert
+- **Ahnenfuchs**: seltener, reicher Gast, der die Beliebtheit steigert
 
 ## Zauber
 | Zauber | Wirkung |

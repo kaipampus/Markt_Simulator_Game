@@ -6,6 +6,8 @@ import {
   DAWN_WARNING_MS,
   DEPTH,
   FONT_TITLE,
+  LIGHTS,
+  NIGHT_DARKNESS,
   FONT_UI,
   GRID_W,
   HUD_HEIGHT,
@@ -29,9 +31,10 @@ import { Restaurant } from '../entities/Restaurant';
 import { Spirit } from '../entities/Spirit';
 import type { WalkerWorld } from '../entities/Walker';
 import { Worker } from '../entities/Worker';
-import { createTextures, TEX } from '../gfx/textures';
+import { createTextures, ensureBuildingTextures, TEX } from '../gfx/textures';
 import { AREAS } from '../data/levels';
-import { doorCellsFor, state, unlockLevel, type PlacedBuilding } from '../state/GameState';
+import { doorCellsFor, orient, state, unlockLevel, type PlacedBuilding } from '../state/GameState';
+import { startAutosave } from '../state/storage';
 import type { UIScene } from './UIScene';
 import type { Cell } from '../state/pathfinding';
 
@@ -68,8 +71,8 @@ interface DragState {
 /** Lighting per phase. */
 const LIGHT = {
   day: { night: 0, sun: 0.07, glow: 0.2 },
-  night: { night: 0.4, sun: 0, glow: 1 },
-  dawn: { night: 0.2, sun: 0.05, glow: 0.7 },
+  night: { night: 1, sun: 0, glow: 1 },
+  dawn: { night: 0.55, sun: 0.05, glow: 0.7 },
 } as const;
 
 /** The world: ground, buildings, spirits, lighting, camera and placing buildings. */
@@ -85,7 +88,10 @@ export class MarketScene extends Phaser.Scene {
   private areaLock?: Phaser.GameObjects.Container;
   private world!: WalkerWorld;
   private glowLayer!: Phaser.GameObjects.Layer;
-  private nightOverlay!: Phaser.GameObjects.Rectangle;
+  /** Dark night layer with holes where lights are (redrawn when buildings change). */
+  private nightOverlay!: Phaser.GameObjects.Image;
+  private darkness!: Phaser.Textures.CanvasTexture;
+  private darknessDirty = true;
   private sunOverlay!: Phaser.GameObjects.Rectangle;
   private ghost!: Phaser.GameObjects.Image;
   private footprint!: Phaser.GameObjects.Graphics;
@@ -114,10 +120,11 @@ export class MarketScene extends Phaser.Scene {
       restaurant: (uid) => this.restaurants.get(uid),
     };
     const pad = WORLD_PADDING;
-    this.nightOverlay = this.add
-      .rectangle(-pad, -pad, WORLD_W + pad * 2, WORLD_H + pad * 2, COLORS.night)
-      .setOrigin(0)
-      .setDepth(DEPTH.nightOverlay);
+    this.darkness =
+      this.textures.get('darkness') instanceof Phaser.Textures.CanvasTexture
+        ? (this.textures.get('darkness') as Phaser.Textures.CanvasTexture)
+        : this.textures.createCanvas('darkness', WORLD_W + pad * 2, WORLD_H + pad * 2)!;
+    this.nightOverlay = this.add.image(-pad, -pad, 'darkness').setOrigin(0).setDepth(DEPTH.nightOverlay);
     this.sunOverlay = this.add
       .rectangle(-pad, -pad, WORLD_W + pad * 2, WORLD_H + pad * 2, 0xffe2a8)
       .setOrigin(0)
@@ -137,18 +144,19 @@ export class MarketScene extends Phaser.Scene {
     this.setupInput();
 
     this.unsubscribe.push(
-      state.on('placed', (b) => this.addBuildingView(b, true)),
-      state.on('removed', (b) => this.removeBuildingView(b)),
+      state.on('placed', (b) => {
+        this.addBuildingView(b, true);
+        this.darknessDirty = true;
+      }),
+      state.on('removed', (b) => {
+        this.removeBuildingView(b);
+        this.darknessDirty = true;
+      }),
       state.on('tool', () => this.refreshGhost()),
       state.on('phase', (p) => (p === 'night' ? this.onNightFalls() : this.setLight('day', 4000))),
       state.on('dawn', () => this.setLight('dawn', DAWN_WARNING_MS)),
       state.on('sunrise', () => this.onSunrise()),
       state.on('speed', (speed) => (this.time.timeScale = speed)),
-      state.on('era', (era) => {
-        for (const [uid, view] of this.views) {
-          if (state.buildings.get(uid)?.def.id === 'path') view.image.setTexture(TEX.path(era));
-        }
-      }),
       state.on('hired', (m) => {
         this.workers.set(m.id, new Worker(this, state, this.world, m));
       }),
@@ -169,7 +177,10 @@ export class MarketScene extends Phaser.Scene {
         this.floatText(cell.tx * TILE + TILE / 2, cell.ty * TILE - 6, STR.earn(amount), COLORS.uiGold, 12),
       ),
     );
+    this.unsubscribe.push(startAutosave(state));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe.forEach((u) => u()));
+    // Litter and slime from a loaded game.
+    for (const c of state.dirtyCells()) this.refreshDirt(c);
 
     this.scene.launch('UIScene');
   }
@@ -190,6 +201,60 @@ export class MarketScene extends Phaser.Scene {
     this.letGuestsIn(worldDelta);
     this.updateBadges();
     this.drawSelection();
+    if (this.darknessDirty) this.drawDarkness();
+  }
+
+  /**
+   * Paint the night: a dark, cold layer over everything, with soft holes
+   * where light falls. Lamps light a wide area, restaurants their room,
+   * houses a little around their windows, stalls just their counter.
+   */
+  private drawDarkness(): void {
+    this.darknessDirty = false;
+    const ctx = this.darkness.getContext();
+    const pad = WORLD_PADDING;
+    const { width, height } = this.darkness;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = NIGHT_DARKNESS;
+    ctx.fillRect(0, 0, width, height);
+    ctx.globalCompositeOperation = 'destination-out';
+    const light = (x: number, y: number, radius: number, strength: number) => {
+      const g = ctx.createRadialGradient(x + pad, y + pad, 0, x + pad, y + pad, radius);
+      g.addColorStop(0, `rgba(0,0,0,${strength})`);
+      g.addColorStop(0.55, `rgba(0,0,0,${strength * 0.6})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x + pad, y + pad, radius, 0, Math.PI * 2);
+      ctx.fill();
+    };
+
+    const g = state.gate;
+    const gateY = (g.ty + GATE.h) * TILE - 30;
+    for (const fx of [0.11, 0.89]) light(g.tx * TILE + GATE.w * TILE * fx, gateY, LIGHTS.gate.radius, LIGHTS.gate.strength);
+
+    for (const b of state.buildings.values()) {
+      const { def } = b;
+      if (def.walkable) continue;
+      const cx = (b.tx + def.w / 2) * TILE;
+      const bottom = (b.ty + def.h) * TILE;
+      const lamp = def.category === 'decor' || def.style === 'brazier';
+      if (lamp && def.glow) {
+        const texH = def.h * TILE + def.rise;
+        const ly = bottom - texH + texH * def.glow.y;
+        // Light falls on the ground below the lamp.
+        light(cx, (ly + bottom) / 2, def.glow.radius * LIGHTS.lamp.radiusFactor, LIGHTS.lamp.strength);
+      } else if (def.restaurant) {
+        light(cx, (b.ty + def.h / 2) * TILE, Math.max(def.w, def.h) * TILE * LIGHTS.restaurant.radiusFactor, LIGHTS.restaurant.strength);
+      } else if (def.glow) {
+        light(cx, bottom - TILE * 0.4, def.glow.radius * LIGHTS.house.radiusFactor, LIGHTS.house.strength);
+      } else if (def.provides || def.staffBeds || def.hotel) {
+        light(cx, bottom - TILE * 0.4, LIGHTS.stall.radius, LIGHTS.stall.strength);
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    this.darkness.refresh();
   }
 
   /** Icons above staffed buildings: nobody assigned, or the worker is still on the way. */
@@ -393,13 +458,16 @@ export class MarketScene extends Phaser.Scene {
 
   private addBuildingView(b: PlacedBuilding, animate: boolean): void {
     const { def } = b;
+    ensureBuildingTextures(this, def, b.rot);
     const bottom = (b.ty + def.h) * TILE;
     // Paths and bridges lie flat on the ground, below everything that stands.
     // Restaurants are open rooms: floor at the top edge, front wall at the bottom.
     // Stalls: back part, worker, then the counter in front.
+    // Stalls facing the camera are split so the worker stands behind the counter.
     const stall = def.style === 'stall';
-    const depth = def.walkable ? DEPTH.flat + b.ty : def.restaurant ? b.ty * TILE + 1 : stall ? bottom - 2 : bottom;
-    const texture = def.id === 'path' ? TEX.path(state.era) : stall ? TEX.back(def.id) : TEX.view(def, b.rot);
+    const split = stall && b.rot === 0;
+    const depth = def.walkable ? DEPTH.flat + b.ty : def.restaurant ? b.ty * TILE + 1 : split ? bottom - 2 : bottom;
+    const texture = def.id === 'path' ? TEX.path(0) : split ? TEX.back(def.id) : TEX.view(def, b.rot);
     const image = this.add.image(b.tx * TILE, bottom, texture).setOrigin(0, 1).setDepth(depth);
     if (def.crossing?.kind === 'boat') this.ferries.set(b.uid, new Ferry(this, b));
     let front: Phaser.GameObjects.Image | undefined;
@@ -408,16 +476,17 @@ export class MarketScene extends Phaser.Scene {
       this.restaurants.set(b.uid, new Restaurant(this, state, b));
       front = this.add.image(b.tx * TILE, bottom, TEX.front(def.id, b.rot % 2 === 1)).setOrigin(0, 1).setDepth(bottom + 1);
     }
-    if (stall) {
-      front = this.add.image(b.tx * TILE, bottom, TEX.front(def.id)).setOrigin(0, 1).setDepth(bottom);
-      const role = def.staff?.[0];
-      if (role) {
-        clerk = this.add
-          .image(b.tx * TILE + (def.w * TILE) / 2, bottom - 9, TEX.worker(role))
-          .setOrigin(0.5, 1)
-          .setDepth(bottom - 1)
-          .setVisible(false);
-      }
+    if (split) front = this.add.image(b.tx * TILE, bottom, TEX.front(def.id)).setOrigin(0, 1).setDepth(bottom);
+    const role = stall ? def.staff?.[0] : undefined;
+    if (role && b.rot !== 2) {
+      // Behind the counter (front view) or beside the counter (side views). From the back the worker is hidden.
+      const x = b.rot === 0 ? b.tx * TILE + (def.w * TILE) / 2 : b.rot === 1 ? b.tx * TILE + 22 : (b.tx + def.w) * TILE - 22;
+      clerk = this.add
+        .image(x, bottom - (b.rot === 0 ? 9 : 6), TEX.worker(role))
+        .setOrigin(0.5, 1)
+        .setFlipX(b.rot === 1)
+        .setDepth(b.rot === 0 ? bottom - 1 : bottom + 0.5)
+        .setVisible(false);
     }
     const mats = state
       .doorCells(b)
@@ -699,12 +768,13 @@ export class MarketScene extends Phaser.Scene {
     }
 
     if (tool.kind === 'build') {
-      const def = getBuilding(tool.id);
+      const def = orient(getBuilding(tool.id), state.buildRot);
       const { tx, ty } = this.placementCell(def, w.x, w.y);
+      const price = state.buildCost(def);
       const result = state.place(tool.id, tx, ty, false, state.buildRot);
       const cx = (tx + def.w / 2) * TILE;
       const top = ty * TILE - def.rise;
-      if (result === 'ok') this.floatText(cx, top, STR.cost(def.cost), COLORS.uiGold);
+      if (result === 'ok') this.floatText(cx, top, STR.cost(price), COLORS.uiGold);
       else if (result === 'money') this.floatText(w.x, w.y, STR.notEnoughCoins, COLORS.uiRed);
       else if (result === 'zone') this.floatText(w.x, w.y, STR.zoneOnly[def.zone], COLORS.uiRed);
       else if (result === 'adjacent') this.floatText(w.x, w.y, STR.tooClose, COLORS.uiRed);
@@ -814,8 +884,9 @@ export class MarketScene extends Phaser.Scene {
   private refreshGhost(): void {
     const tool = state.tool;
     if (tool?.kind === 'build') {
-      const def = getBuilding(tool.id);
-      this.ghost.setTexture(tool.id === 'path' ? TEX.path(state.era) : TEX.view(def, state.buildRot));
+      const def = orient(getBuilding(tool.id), state.buildRot);
+      if (tool.id !== 'path') ensureBuildingTextures(this, def, state.buildRot);
+      this.ghost.setTexture(tool.id === 'path' ? TEX.path(0) : TEX.view(def, state.buildRot));
     }
     this.ghost.setVisible(false);
     this.footprint.clear();
@@ -844,9 +915,9 @@ export class MarketScene extends Phaser.Scene {
     const w = this.screenToWorld(p.x, p.y);
 
     if (tool.kind === 'build') {
-      const def = getBuilding(tool.id);
+      const def = orient(getBuilding(tool.id), state.buildRot);
       const { tx, ty } = this.placementCell(def, w.x, w.y);
-      const ok = state.checkPlace(def, tx, ty) === 'ok' && state.canAfford(def.cost);
+      const ok = state.checkPlace(def, tx, ty) === 'ok' && state.canAfford(state.buildCost(def));
       const color = ok ? COLORS.valid : COLORS.invalid;
       this.footprint.fillStyle(color, 0.22).fillRect(tx * TILE, ty * TILE, def.w * TILE, def.h * TILE);
       this.footprint.lineStyle(2, color, 0.9).strokeRect(tx * TILE, ty * TILE, def.w * TILE, def.h * TILE);
