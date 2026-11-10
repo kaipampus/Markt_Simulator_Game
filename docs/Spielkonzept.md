@@ -74,7 +74,7 @@ Die Nacht soll von Anfang bis Ende zu tun geben:
 - **Mana**: für Zauber (später)
 
 ## Türen
-- Gebäude mit Gästen oder Personal haben **feste Türen** (Matte davor). Restaurants haben **zwei gegenüberliegende**, alle anderen eine.
+- Gebäude mit Gästen oder Personal haben **feste Türen** (Matte davor). Restaurants und Stände haben **zwei gegenüberliegende** offene Seiten, alle anderen eine Tür.
 - Gäste und Arbeiter gehen nur durch die Türen; die Tür muss an einem Weg liegen.
 - Mit **R** dreht man das ganze Gebäude um 90° (Vorder-, Seiten- oder Rückansicht), beim Bauen oder tagsüber nachträglich. Längliche Gebäude belegen gedreht andere Felder. Vorschau: Tür grün = Weg da, orange = Weg fehlt.
 

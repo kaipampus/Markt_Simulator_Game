@@ -18,6 +18,11 @@ Vorlage:
 **Wunsch:** Nicht nur schräg von oben, sondern die Kamera optional neigen und auch von der Seite auf den Markt schauen können.
 **Folge:** Mit der jetzigen 2D-Technik (fertig gezeichnete 3/4-Bilder) geht das nicht frei. Möglichkeiten: (a) Umstieg auf echte 3D-Darstellung, z. B. Three.js mit einfachen Low-Poly-Modellen; Drehen, Neigen und Zoomen wären dann natürlich, der Spielzustand bleibt unverändert. (b) Bei 2D bleiben mit wenigen festen Blickwinkeln, für die jede Grafik mehrfach gezeichnet werden muss. Empfehlung: (a), zu entscheiden vor der Grafikphase.
 
+## 2026-11-10 – Stände auf zwei Seiten offen
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Stände verkaufen nach zwei gegenüberliegenden Seiten und haben dort je einen Zugang. Gedreht gibt es damit nur zwei Ansichten: offen nach vorn/hinten oder nach links/rechts. Eine geschlossene Rückwand gibt es nicht mehr.
+**Warum:** Man soll immer in den Stand hineinschauen können, statt auf eine Wand.
+
 ## 2026-11-10 – Ganze Gebäude drehen
 **Status:** entschieden (Wunsch des Nutzers)
 **Entscheidung:** R dreht das ganze Gebäude um 90°, nicht nur die Tür. Längliche Gebäude belegen gedreht andere Felder; ohne Platz geht das Drehen nicht. Rück- und Seitenansichten sind vorerst einfache Platzhalter.

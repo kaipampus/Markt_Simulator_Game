@@ -2,6 +2,10 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-10 – Stände auf beiden Seiten offen
+- Stände haben jetzt zwei gegenüberliegende offene Seiten mit Theke (wie Restaurants zwei Türen); Gäste kommen von beiden Seiten
+- Man schaut nie mehr auf eine Rückwand: vorn/hinten zeigt die offene Theke, quer gedreht sieht man von der Seite in den Stand hinein (Theken an beiden Enden, Arbeiter dazwischen)
+
 ## 2026-11-10 – Gebäude drehen sich ganz, dunkle Nächte, längere Tage (Branch `feature/turn-buildings`)
 - **Drehen (R)** dreht jetzt das ganze Gebäude: Tür nach vorn = Vorderansicht, nach hinten = Rückansicht, zur Seite = Seitenansicht. Längliche Gebäude drehen ihre Grundfläche mit (2 × 1 wird 1 × 2); Drehen prüft, ob dafür Platz ist. Restaurants behalten ihre Größe und wechseln zwischen Türen vorn/hinten und links/rechts
 - Seiten- und Rückansichten als einfache Platzhalter-Grafik; der Arbeiter steht bei Seitenansicht neben der Theke
