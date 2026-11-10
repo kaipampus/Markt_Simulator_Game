@@ -15,7 +15,7 @@ import { BUILDINGS, CATEGORIES, getBuilding, type BuildingDef, type Category } f
 import { STR } from '../data/strings';
 import { TEX } from '../gfx/textures';
 import { AREAS, LEVEL_XP } from '../data/levels';
-import { state, unlockLevel, type NightReport, type Tool } from '../state/GameState';
+import { state, unlockLevel, type NightReport, type PopularityParts, type Tool } from '../state/GameState';
 import type { MarketScene } from './MarketScene';
 import { FinanceUI } from './FinanceUI';
 import { StaffUI } from './StaffUI';
@@ -107,6 +107,13 @@ export class UIScene extends Phaser.Scene {
     this.repText = this.add
       .text(0, HUD_HEIGHT / 2, '', { fontFamily: FONT_UI, fontSize: '14px', color: COLORS.uiText })
       .setOrigin(1, 0.5);
+    // Hovering the popularity explains it and shows last night's parts.
+    this.repText.setInteractive({ useHandCursor: false });
+    this.repText.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      const last = state.lastReport;
+      this.hoverInfo = last?.popParts ? `${STR.popularityInfo}  ${STR.popularityLast(this.popPartsText(last.popParts))}` : STR.popularityInfo;
+    });
+    this.repText.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => (this.hoverInfo = null));
     this.spiritText = this.add
       .text(0, HUD_HEIGHT / 2, '', { fontFamily: FONT_UI, fontSize: '14px', color: COLORS.uiTextDim })
       .setOrigin(1, 0.5);
@@ -182,8 +189,8 @@ export class UIScene extends Phaser.Scene {
     const label = day ? STR.startNight : STR.skipNight;
     if (this.nightButton.label.text !== label) this.nightButton.label.setText(label);
 
-    const rep = STR.reputation(state.reputation);
-    const spirits = `${STR.spirits(state.spiritCount)}  ·  ${STR.popularity(state.popularity(), state.guestsTonight())}`;
+    const rep = STR.popularityHud(state.popularity, state.guestsTonight());
+    const spirits = STR.spirits(state.spiritCount);
     if (this.repText.text !== rep || this.spiritText.text !== spirits) {
       this.repText.setText(rep);
       this.spiritText.setText(spirits);
@@ -504,6 +511,14 @@ export class UIScene extends Phaser.Scene {
     else (this.scene.get('MarketScene') as MarketScene).skipToMorning();
   }
 
+  /** "😊 mood +4 · ⏳ waiting −2 · …" (only parts that changed something). */
+  private popPartsText(parts: PopularityParts): string {
+    return (Object.keys(parts) as Array<keyof PopularityParts>)
+      .filter((k) => Math.abs(parts[k]) >= 0.5)
+      .map((k) => `${STR.popParts[k]} ${parts[k] > 0 ? '+' : '−'}${Math.abs(Math.round(parts[k]))}`)
+      .join('  ·  ');
+  }
+
   private toggleFinance(): void {
     this.financeUI.toggle();
     this.setActive(this.financeButton, this.financeUI.isOpen);
@@ -543,15 +558,17 @@ export class UIScene extends Phaser.Scene {
       .text(0, 46, lines.join('\n'), { fontFamily: FONT_UI, fontSize: '14px', color: COLORS.uiText, align: 'center', lineSpacing: 4 })
       .setOrigin(0.5, 0);
     const rep = this.add
-      .text(0, 46 + body.height + 8, STR.report.reputation(r.reputation, r.repDelta), {
+      .text(0, 46 + body.height + 8, `${STR.report.popularity(r.popularity, r.popDelta)}\n${this.popPartsText(r.popParts)}`, {
         fontFamily: FONT_UI,
         fontSize: '15px',
         fontStyle: 'bold',
-        color: r.repDelta >= 0 ? COLORS.uiGreen : COLORS.uiRed,
+        color: r.popDelta >= 0 ? COLORS.uiGreen : COLORS.uiRed,
+        align: 'center',
+        wordWrap: { width: 300 },
       })
       .setOrigin(0.5, 0);
     const h = rep.y + rep.height + 16;
-    const bg = this.add.rectangle(0, 0, 280, h, COLORS.uiPanel, 0.94).setOrigin(0.5, 0).setStrokeStyle(2, COLORS.uiAccent);
+    const bg = this.add.rectangle(0, 0, 330, h, COLORS.uiPanel, 0.94).setOrigin(0.5, 0).setStrokeStyle(2, COLORS.uiAccent);
     const report = this.add
       .container(this.scale.width / 2, HUD_HEIGHT + TIME_PANEL_HEIGHT + 14, [bg, title, body, rep])
       .setAlpha(0);

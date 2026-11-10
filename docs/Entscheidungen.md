@@ -13,6 +13,12 @@ Vorlage:
 
 ---
 
+## 2026-11-10 – Beliebtheit statt Ruf, dynamisch pro Nacht
+**Status:** entschieden (Idee des Nutzers)
+**Entscheidung:** Eine Beliebtheits-Skala (0–100) bestimmt die Gästezahl. Sie wird jeden Morgen aus der Nacht berechnet: Zufriedenheit, Wartezeit/Wut, Sauberkeit, verlorene Gäste, Angebot im Vergleich zu einer jede Nacht steigenden Erwartung, Bonus für Neues und eine kleine Gewöhnung. Dadurch entsteht ein Kreislauf: wenige Gäste → kurze Schlangen → zufrieden → beliebter → mehr Gäste → längere Schlangen → weniger beliebt. Wer nicht weiterbaut, verliert langsam Gäste.
+**Warum:** Wachstum soll sich verdienen lassen und immer wieder neuen Druck erzeugen.
+**Ersetzt:** Ruf (0–100) als Verstärker und Gästezahl nach Kapazität ([[#2026-11-09 – Level statt Zeitalter umgesetzt, Gästezahl nach Kapazität]]).
+
 ## 2026-11-10 – Speichern im Browser, nur bei Tag
 **Status:** entschieden
 **Entscheidung:** Der Spielstand liegt im `localStorage` des Browsers und wird jeden Morgen sowie nach Änderungen am Tag automatisch geschrieben. Gespeichert wird nur der Tageszustand (Gebäude, Personal, Geld, Level, Schmutz, schlafende Hotelgäste), nicht die laufende Nacht. Beim Start bietet ein Titelmenü „Weiterspielen“ oder „Neues Spiel“.

@@ -50,22 +50,11 @@ export const FERRY_CELL_COST = 2;
 /** Hard upper limit of spirits on the map. */
 export const SPIRIT_HARD_CAP = 250;
 
-/** Guests per night = (GUESTS_BASE + popularity × GUESTS_PER_POPULARITY) × reputation factor, at most GUEST_CAP. */
-export const GUESTS_BASE = 6;
-export const GUESTS_PER_POPULARITY = 1;
-/** Most guests per night for now (area 1). Later each unlocked area raises it. */
-export const GUEST_CAP = 120;
+/** Hard upper limit of guests per night (see data/popularity.ts for the real numbers). */
+export const GUEST_CAP = 3000;
 
-// --- Reputation ----------------------------------------------------------------
+// --- Guest mood ------------------------------------------------------------------
 
-export const REPUTATION_START = 50;
-export const REPUTATION_MAX = 100;
-/**
- * Reputation change per night, based on shares so it works for 20 and 2000 guests:
- * REP_MOOD × (happy − unhappy) / guests  +  REP_LOST × lost / guests.
- */
-export const REP_MOOD = 10;
-export const REP_LOST = -25;
 /** A spirit counts as happy when at least this share of its needs was met. */
 export const HAPPY_THRESHOLD = 0.5;
 

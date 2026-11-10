@@ -10,7 +10,7 @@ function clock(ms: number): string {
 export const STR = {
   title: 'Spirit Night Market',
   spirits: (n: number) => `Spirits ${n}`,
-  reputation: (n: number) => `Reputation ${n}`,
+  popularityHud: (p: number, guests: number) => `★ Popularity ${p} · ${guests} guests`,
 
   clockDay: (day: number, ms: number) => `☀ Day ${day} · night in ${clock(ms)}`,
   clockNight: (day: number, ms: number) => `☾ Night ${day} · dawn in ${clock(ms)}`,
@@ -151,8 +151,19 @@ export const STR = {
   tables: (busy: number, total: number) => `Tables ${busy} / ${total} taken`,
   restaurantInfo: (cuisine: string, tables: number) => `${cuisine} kitchen · ${tables} tables`,
   needsJobs: (jobs: string) => `needs ${jobs}`,
-  popularity: (p: number, guests: number) => `★ ${p} → ${guests} guests`,
-  popularityInfo: 'Popularity: every stall, restaurant and decoration draws more guests',
+  popularityInfo:
+    'Popularity decides how many guests come. It rises with happy guests and new, varied offers; long queues, dirt, guests lost to the sun and a market that stops growing make it fall.',
+  popularityLast: (parts: string) => `Last night: ${parts}`,
+  /** Short labels for the parts of the popularity change. */
+  popParts: {
+    satisfaction: '😊 mood',
+    waiting: '⏳ waiting',
+    cleanliness: '🧹 dirt',
+    lost: '☀ lost',
+    offer: '🛍 offer',
+    novelty: '✨ new',
+    habit: '💤 habit',
+  },
   homeIcon: '💤',
   waitIcon: '⏳',
   impatientIcon: '😤',
@@ -286,6 +297,6 @@ export const STR = {
     staffLost: (n: number) => `${n} workers lost to the sun`,
     xp: (xp: number, level: number) => `+${xp} XP · Level ${level}`,
     cleaned: (n: number, dirty: number) => `${n} spots cleaned · ${dirty} still dirty`,
-    reputation: (value: number, delta: number) => `Reputation ${value} (${delta >= 0 ? '+' : ''}${delta})`,
+    popularity: (value: number, delta: number) => `★ Popularity ${value} (${delta >= 0 ? '+' : ''}${delta})`,
   },
 } as const;

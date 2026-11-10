@@ -1,12 +1,12 @@
 ---
 status: Entwurf
-aktualisiert: 2026-11-09
+aktualisiert: 2026-11-10
 ---
 
 # Spielkonzept
 
 ## Grundidee
-Du führst ein **Geister-Viertel aus Hotel und Nachtmarkt** in einer Zauberwelt. Nachts kommen die Geister, bummeln über den Markt und wollen versorgt werden. **Vor Sonnenaufgang sollten alle Geister im Hotel oder durch das Tor verschwunden sein**, denn im Sonnenlicht vergehen sie. Das kostet nur Ruf, verlieren kann man nicht: Es ist ein **entspanntes Aufbauspiel**.
+Du führst ein **Geister-Viertel aus Hotel und Nachtmarkt** in einer Zauberwelt. Nachts kommen die Geister, bummeln über den Markt und wollen versorgt werden. **Vor Sonnenaufgang sollten alle Geister im Hotel oder durch das Tor verschwunden sein**, denn im Sonnenlicht vergehen sie. Das kostet nur Beliebtheit, verlieren kann man nicht: Es ist ein **entspanntes Aufbauspiel**.
 
 Der Tag hat zwei Hälften: **Tagsüber baust du**, **nachts verwaltest du** den Markt mit deinem Personal. So gibt es immer etwas zu tun.
 
@@ -24,7 +24,7 @@ Die Karte besteht aus **Bereichen**, die nacheinander freigeschaltet werden: Sob
 | **3 – Neon-Viertel** | rechts daneben, groß, über Straße oder Brücke verbunden | Level 10 + Münzen | Moderne Gebäude: Spielhallen, Automaten, Neonschilder, Café, Sky Hotel, Asphaltstraßen, moderne Transportmittel | 2000–3000 |
 
 - **Level** sichtbar mit Balken (wie Hay Day). Erfahrung kommt aus zufriedenen Gästen und aus neuen Gebäuden.
-- **Beliebtheit**: Jeder Stand und jede Dekoration hat einen Beliebtheitswert. Die Summe bestimmt, wie viele Gäste kommen wollen, begrenzt durch die freigeschalteten Bereiche. Der **Ruf** (Zufriedenheit der Gäste) verstärkt oder schwächt das.
+- **Beliebtheit** (0–100) bestimmt, wie viele Gäste kommen, begrenzt durch die freigeschalteten Bereiche (siehe „Geld und Wachstum“).
 - Die **Zeitalter entfallen**: Der alte Markt bleibt traditionell (mit kleinen Verbesserungen wie Steinbrücke oder Gaslaterne), moderne Gebäude gibt es nur im Neon-Viertel.
 - Bauregeln: Gebäude dürfen nur in freigeschaltete Bereiche, teils nur in passende (Hotels ins Hotel-Viertel, Moderne ins Neon-Viertel).
 
@@ -42,7 +42,7 @@ Die Karte besteht aus **Bereichen**, die nacheinander freigeschaltet werden: Sob
   1. **Tag – bauen:** Geister und Personal schlafen. Du baust, reißt ab, stellst Personal ein.
   2. **Nacht – verwalten:** Bauen ist gesperrt. Arbeiter gehen zu ihren Ständen, Hotelgäste wachen auf, neue Geister kommen durchs Tor. Jeder Gast hat 2–3 **Bedürfnisse**, besucht passende Gebäude und zahlt. Du setzt Arbeiter um, schickst Putzkräfte los und stellst bei Bedarf nach.
   3. **Morgengrauen-Warnung:** Gäste eilen zum Hotel (freies Bett) oder zum Tor, Arbeiter ins Personalhaus.
-  4. **Sonnenaufgang:** Wer noch draußen ist, vergeht (Gäste: Ruf −5, Arbeiter: fehlen danach). Danach Morgenbericht mit Einnahmen, Löhnen und Sauberkeit.
+  4. **Sonnenaufgang:** Wer noch draußen ist, vergeht (Gäste: kostet Beliebtheit, Arbeiter: fehlen danach). Danach Morgenbericht mit Einnahmen, Löhnen und Sauberkeit.
 
 ## Wege und Übergänge
 - **Geister laufen nur auf Wegen**, Brücken und Fähren, nicht über freie Fläche. Wege sind nicht schneller, aber Pflicht.
@@ -66,22 +66,9 @@ Die Nacht soll von Anfang bis Ende zu tun geben:
 - Die Nacht dauert 4 Minuten
 - Umgesetzt (Schritt 1): Wellen, 3–6 Wünsche, Bummeln, Schlangen mit Plätzen pro Stand, Geduld je Geistertyp, Vielfraß als neuer Typ
 
-## Zeitalter (bisheriger Stand, wird durch Bereiche ersetzt)
-Ein neues Zeitalter wird mit **Ruf freigeschaltet** und dann **mit Münzen gekauft** (Knopf oben links).
-
-| Zeitalter | Voraussetzung | Neu |
-|---|---|---|
-| **Laternenzeit** (Start) | – | Erdwege, Holzbrücke (3 Geister), Gasthaus (12 Betten), Stände, Teehaus, Schrein, Feuerschale, Toilette, Papierlaterne |
-| **Dampfzeit** | Ruf 60 + 1200 Münzen | Steinwege, Steinbrücke (6), Dampffähre (12 pro Fahrt), Grand Hotel (24 Betten), Café, Gaslaterne |
-| **Neon-Zeit** | Ruf 75 + 3000 Münzen | Asphaltstraßen, Stahlbrücke (10), Motorfähre (20, schneller), Sky Hotel (40 Betten), Spielhalle, Getränkeautomat, Neonschild |
-
-Wege ändern ihr Aussehen automatisch mit dem Zeitalter.
-
 ## Ressourcen
 - **Geistermünzen**: Hauptwährung
-- **Ruf** (0–100, Start 50): bestimmt, wie viele Geister pro Nacht kommen. **Kein Game Over**: Bei niedrigem Ruf kommen einfach weniger Gäste.
-  - Die Änderung pro Nacht hängt vom **Anteil** ab, damit sie bei 20 wie bei 2000 Gästen passt: bis +10, wenn alle zufrieden sind, bis −10, wenn alle unzufrieden sind; vom Sonnenaufgang erwischte Gäste ziehen zusätzlich ab
-  - Zufrieden ist ein Gast, wenn er mindestens die Hälfte seiner Wünsche erfüllt bekam; Schmutz und Wut in der Schlange ziehen ab
+- **Beliebtheit** (0–100, Start 10): bestimmt die Gästezahl, ändert sich jede Nacht (Details unter „Geld und Wachstum“). **Kein Game Over**: Bei niedriger Beliebtheit kommen einfach weniger Gäste.
 - **Mana**: für Zauber (später)
 
 ## Türen
@@ -131,10 +118,24 @@ Neben den Restaurants gibt es viele kleine Stände mit Zauber-Einschlag:
 
 ## Geld und Wachstum
 - Start mit wenig Geld (**650 Münzen**): genug für ein kleines Restaurant, Koch, Kellner und einen Imbiss.
-- **Beliebtheit (★)** folgt der **Kapazität**: Tische × 2,5, Bedienplätze × 2, Deko 0,5. Gäste pro Nacht = (6 + Beliebtheit) × Ruf-Faktor, höchstens 100 (nur Markt) bzw. 400 (mit Hotel-Viertel). So kommen nur so viele Gäste, wie man bedienen kann, plus etwas Druck.
+- **Beliebtheit (★, 0–100)** bestimmt die Gästezahl: 6 + Beliebtheit × 0,94 (nur Markt, bis 100) bzw. × 3,94 (mit Hotel-Viertel, bis 400). Start: 10 (15 Gäste).
+- Jeden Morgen ändert sie sich nach der Nacht:
+
+| Anteil | Wirkung |
+|---|---|
+| 😊 Laune | Anteil zufriedener Gäste: über 40 % plus (bis +10), darunter minus (bis −10) |
+| ⏳ Warten | Wütend gegangene Gäste und lange Wartezeiten ziehen ab |
+| 🧹 Schmutz | Jede verschmutzte Stelle, über die ein Gast läuft (bis −5) |
+| ☀ Verloren | Vom Sonnenaufgang erwischte Gäste (alle verloren = −30) |
+| 🛍 Angebot | Verschiedene Wünsche + Küchen gegenüber der Erwartung (steigt jede Nacht um 0,5) |
+| ✨ Neues | +1,5 je neuem Stand oder Restaurant seit der letzten Nacht (bis +6) |
+| 💤 Gewöhnung | −1 jede Nacht |
+
+- Kreislauf: Wenige Gäste sind zufrieden → Beliebtheit steigt → mehr Gäste → längere Schlangen → sie sinkt wieder. Wer nicht weiterbaut, aufräumt und Personal einstellt, verliert langsam Gäste.
+- Test: Ramen + Nudelbude + Mülleimer: Nacht 1 +4 (15 Gäste); Nacht 2 ohne Neues und ohne Putzkraft −6; mit Putzkraft fällt der Schmutz-Anteil auf unter −1.
 - **Level:** Erfahrung aus Einnahmen (0,2 XP pro Münze) und zufriedenen Gästen (2 XP). Restaurants und Stände werden nach und nach freigeschaltet (Liste in `src/data/levels.ts`), das Hotel-Viertel ab Level 6 für 2000 Münzen.
 - Mehr Gebäude → mehr Gäste → mehr Geld → mehr Gebäude. Test: Nacht 1 mit Ramen und Nudelbude ≈ 500 Gewinn, Nacht 2 mit zweitem Restaurant und Teehaus ≈ 1150.
-- Wünsche, die der Markt gar nicht anbietet, kosten nur Einnahmen, nicht den Ruf. Der Ruf hängt an Schlangen, Wut, Schmutz und falscher Küche.
+- Wünsche, die der Markt gar nicht anbietet, machen Gäste nicht unzufrieden, kosten aber Einnahmen; zu wenig Angebot senkt die Beliebtheit über die steigende Erwartung.
 - Geplant: Gebäude-Stufen (z. B. Restaurant Stufe 2 mit mehr Tischen), weitere Gebäude teurer.
 
 ## Bedürfnisse und Gebäude
@@ -198,7 +199,7 @@ Weitere Ideen:
 - **Laternenmotte**: kommt nur zu hell erleuchteten Ständen
 - **Nebelgast**: zahlt viel, will aber Ruhe
 - **Hungriger Topfgeist**: isst alles, hinterlässt Unordnung
-- **Ahnenfuchs**: seltener, reicher Gast, der den Ruf steigert
+- **Ahnenfuchs**: seltener, reicher Gast, der die Beliebtheit steigert
 
 ## Zauber
 | Zauber | Wirkung |

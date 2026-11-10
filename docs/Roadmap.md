@@ -84,6 +84,8 @@ Schritt 2 – Level und Bereiche:
 - [x] Sichtbare Küche, Personal hinter Theken, Anzeige Tische/Warteschlange
 - [x] Zeitalter-Code aufräumen
 - [x] Beliebtheitswert für Stände und Deko bestimmt die Gästezahl (vorgezogen)
+- [x] Beliebtheits-Skala dynamisch pro Nacht (Laune, Warten, Schmutz, Verluste, Angebot, Neues, Gewöhnung)
+- [ ] Balancing der Beliebtheit über viele Nächte im echten Spiel
 - [x] Bereich 1 Nachtmarkt (ohne Hotel), Bereich 2 Hotel-Viertel gesperrt bis Level + Münzen
 - [x] Zeitalter-Kauf entfernt, Gebäude nach Level verteilt (moderne Gebäude vorerst Level 10)
 

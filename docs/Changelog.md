@@ -2,6 +2,14 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-10 – Beliebtheits-Skala (Branch `feature/popularity`)
+- Neue **Beliebtheit** (0–100, Start 10) ersetzt den Ruf und bestimmt die Gästezahl: 6 + Beliebtheit × 0,94 (nur Markt, bis 100 Gäste) bzw. × 3,94 (mit Hotel-Viertel, bis 400)
+- Jeden Morgen neu berechnet aus: Zufriedenheit, Wartezeit und Wut, Sauberkeit, vom Sonnenaufgang erwischten Gästen, Angebot im Vergleich zur (jede Nacht steigenden) Erwartung, Bonus für neue Stände, kleine Gewöhnung
+- Anzeige oben „★ Popularity 14 · 19 guests“; Mauszeiger darauf erklärt die Skala und zeigt die Anteile der letzten Nacht
+- Morgenbericht zeigt die Änderung und ihre Anteile (😊 Laune, ⏳ Warten, 🧹 Schmutz, ☀ verloren, 🛍 Angebot, ✨ Neues, 💤 Gewöhnung)
+- Schmutz zählt pro Gast jede verschmutzte Stelle nur einmal
+- Werte in `src/data/popularity.ts`; alte Spielstände übernehmen den Ruf als Beliebtheit
+
 ## 2026-11-10 – Speichern und Laden, Ausbaustufen (Branch `feature/save-and-upgrades`)
 - **Speichern**: automatisch jeden Morgen und nach Änderungen am Tag im Browser (localStorage). Die Nacht selbst wird nicht gespeichert; wer nachts neu lädt, macht am Morgen davor weiter
 - **Titelmenü** mit „Continue“ (Tag, Level, Münzen des Spielstands) und „New game“ (zweiter Klick bestätigt das Löschen)

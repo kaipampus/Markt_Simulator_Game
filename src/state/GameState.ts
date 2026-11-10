@@ -8,20 +8,23 @@ import {
   GRID_H,
   GRID_W,
   GUEST_CAP,
-  GUESTS_BASE,
-  GUESTS_PER_POPULARITY,
   HAPPY_THRESHOLD,
   NIGHT_MS,
-  REP_LOST,
-  REP_MOOD,
-  REPUTATION_MAX,
-  REPUTATION_START,
   RIVER_TOP,
   RIVER_ROWS,
   SPEEDS,
   START_MONEY,
 } from '../config';
 import { GATE, getBuilding, type BuildingDef, type BuildingId, type Need, type Zone } from '../data/buildings';
+import {
+  expectedOffers,
+  GUESTS_MIN,
+  GUESTS_PER_POINT_HOTEL,
+  GUESTS_PER_POINT_MARKET,
+  POP,
+  POPULARITY_MAX,
+  POPULARITY_START,
+} from '../data/popularity';
 import { applyTier, maxTier, TIER_LEVEL, upgradeCost } from '../data/upgrades';
 import { AREAS, LEVEL_XP, MARKET_GUEST_CAP, UNLOCK_LEVEL, XP_PER_COIN, XP_PER_HAPPY, type AreaId } from '../data/levels';
 import { DIRT, ROLES, STAFF, type Role } from '../data/staff';
@@ -88,6 +91,26 @@ export interface Sale {
   coins: number;
 }
 
+/** The parts of one night's popularity change (points). */
+export interface PopularityParts {
+  satisfaction: number;
+  waiting: number;
+  cleanliness: number;
+  lost: number;
+  offer: number;
+  novelty: number;
+  habit: number;
+}
+
+/** What a guest reports when it leaves safely. */
+export interface GuestStats {
+  satisfaction: number;
+  /** Time waited in queues and for food, as a share of its patience. */
+  waitShare: number;
+  /** Dirty cells walked over. */
+  dirt: number;
+}
+
 export interface NightReport {
   day: number;
   safe: number;
@@ -107,8 +130,10 @@ export interface NightReport {
   sales: Sale[];
   /** earned + rooms - wages */
   net: number;
-  repDelta: number;
-  reputation: number;
+  /** Popularity after the night, its change and where the change came from. */
+  popularity: number;
+  popDelta: number;
+  popParts: PopularityParts;
 }
 
 type StateEvents = {
@@ -116,7 +141,7 @@ type StateEvents = {
   tool: [Tool];
   placed: [PlacedBuilding];
   removed: [PlacedBuilding];
-  reputation: [number];
+  popularity: [number];
   speed: [number];
   /** Night starts / day starts. */
   phase: [Phase];
@@ -145,7 +170,9 @@ export interface SaveData {
   savedAt: number;
   day: number;
   money: number;
-  reputation: number;
+  popularity: number;
+  /** Older saves stored this instead of popularity. */
+  reputation?: number;
   level: number;
   xp: number;
   areas: AreaId[];
@@ -163,7 +190,7 @@ export interface SaveData {
  * crowd grows with what the market can actually serve: restaurants per
  * table, stalls per service place, decoration a little.
  */
-export function popularityOf(def: BuildingDef): number {
+export function capacityOf(def: BuildingDef): number {
   if (def.popularity !== undefined) return def.popularity;
   if (def.restaurant) return def.restaurant.tables * 2.5;
   if (def.provides) return (def.service?.slots ?? 1) * 2;
@@ -215,7 +242,10 @@ export class GameState extends Emitter<StateEvents> {
   /** Rotation for the next building to place (R). */
   buildRot: Rot = 0;
   spiritCount = 0;
-  reputation = REPUTATION_START;
+  /** 0–100: how much the spirit world likes the market (decides the number of guests). */
+  popularity = POPULARITY_START;
+  /** New stalls and restaurants built since the last night (bonus for novelty). */
+  private newAttractions = 0;
   level = 1;
   xp = 0;
   readonly areas = new Set<AreaId>();
@@ -251,7 +281,7 @@ export class GameState extends Emitter<StateEvents> {
   private litter = new Uint8Array(GRID_W * GRID_H);
   private slime = new Uint8Array(GRID_W * GRID_H);
 
-  private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0 };
+  private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0, waitShare: 0, dirt: 0 };
   /** Guests the scene still plans to let in tonight. */
   pendingArrivals = 0;
 
@@ -440,6 +470,7 @@ export class GameState extends Emitter<StateEvents> {
       for (let y = 0; y < def.h; y++) this.setCell(tx + x, ty + y, building.uid);
     }
     if (!free) this.addMoney(-def.cost);
+    if (!free && def.provides) this.newAttractions++;
     this.emit('placed', building);
     if (def.staff) this.autoAssign(building);
     return 'ok';
@@ -973,7 +1004,7 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   // ---------------------------------------------------------------------------
-  // spirits, money, reputation
+  // spirits, money, popularity
   // ---------------------------------------------------------------------------
 
   setSpiritCount(n: number): void {
@@ -994,9 +1025,11 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   /** A spirit reached a hotel bed or left through the gate. */
-  recordSafe(satisfaction: number): void {
+  recordSafe(g: GuestStats): void {
     this.night.safe++;
-    if (satisfaction >= HAPPY_THRESHOLD) this.night.happy++;
+    this.night.waitShare += g.waitShare;
+    this.night.dirt += g.dirt;
+    if (g.satisfaction >= HAPPY_THRESHOLD) this.night.happy++;
     else this.night.unhappy++;
   }
 
@@ -1009,23 +1042,35 @@ export class GameState extends Emitter<StateEvents> {
     return { sales: [...this.sales.values()].sort((a, b) => b.coins - a.coins), earned: this.night.earned };
   }
 
-  /** How many guests the market can serve: sum over all buildings. */
-  popularity(): number {
+  /** How many guests the market can serve per night: sum over all buildings. */
+  capacity(): number {
     let sum = 0;
-    for (const b of this.buildings.values()) sum += popularityOf(b.def);
+    for (const b of this.buildings.values()) sum += capacityOf(b.def);
     return sum;
+  }
+
+  /** Different offers: kinds of wishes served plus different kitchens. */
+  offers(): number {
+    const needs = new Set<string>();
+    const kitchens = new Set<string>();
+    for (const b of this.buildings.values()) {
+      if (b.def.provides) needs.add(b.def.provides.need);
+      if (b.def.cuisine) kitchens.add(b.def.cuisine);
+    }
+    return needs.size + kitchens.size;
   }
 
   /**
    * How many spirits come tonight (sleepers included): a few always come,
-   * every attractive building draws more, reputation scales it, the area caps it.
+   * popularity brings more, the open areas cap it.
    */
   guestsTonight(): number {
-    const repFactor = 0.6 + this.reputation / 125;
-    const wanted = (GUESTS_BASE + this.popularity() * GUESTS_PER_POPULARITY) * repFactor;
-    const cap = this.areas.has('hotel') ? AREAS.hotel.guestCap : MARKET_GUEST_CAP;
-    return Math.min(cap, GUEST_CAP, Math.round(wanted));
+    const open = this.areas.has('hotel');
+    const perPoint = open ? GUESTS_PER_POINT_HOTEL : GUESTS_PER_POINT_MARKET;
+    const cap = open ? AREAS.hotel.guestCap : MARKET_GUEST_CAP;
+    return Math.min(cap, GUEST_CAP, Math.round(GUESTS_MIN + this.popularity * perPoint));
   }
+
 
   // ---------------------------------------------------------------------------
   // clock
@@ -1086,10 +1131,36 @@ export class GameState extends Emitter<StateEvents> {
     this.phase = 'night';
     this.timeLeft = NIGHT_MS;
     this.dawnStarted = false;
-    this.night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0 };
+    this.night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0, waitShare: 0, dirt: 0 };
     this.sales.clear();
     if (this.tool) this.setTool(null);
     this.emit('phase', 'night');
+  }
+
+  /** How tonight changes the popularity, part by part (rounded to tenths). */
+  private popularityParts(): PopularityParts {
+    const n = this.night;
+    const guests = n.safe + n.lost;
+    const r = (v: number) => Math.round(v * 10) / 10;
+    if (guests === 0) {
+      return { satisfaction: 0, waiting: 0, cleanliness: 0, lost: 0, offer: 0, novelty: 0, habit: r(POP.habit) };
+    }
+    const happyShare = n.safe ? n.happy / n.safe : 0;
+    const avgWait = n.safe ? n.waitShare / n.safe : 0;
+    const avgDirt = n.safe ? n.dirt / n.safe : 0;
+    const offerRatio = this.offers() / expectedOffers(this.day);
+    return {
+      satisfaction: r(
+        POP.satisfaction *
+          Math.max(-1, Math.min(1, (happyShare - POP.satisfactionNeutral) / (happyShare >= POP.satisfactionNeutral ? 1 - POP.satisfactionNeutral : POP.satisfactionNeutral))),
+      ),
+      waiting: r(POP.anger * (n.angry / guests) + POP.waiting * Math.max(0, avgWait - POP.waitFree)),
+      cleanliness: r(Math.max(POP.dirtMax, POP.dirtPerCell * avgDirt)),
+      lost: r(POP.lost * (n.lost / guests)),
+      offer: r(offerRatio >= 1 ? Math.min(POP.offerBonus, (offerRatio - 1) * POP.offerBonus * 2) : Math.max(POP.offerPenalty, (1 - offerRatio) * POP.offerPenalty)),
+      novelty: r(Math.min(POP.noveltyMax, this.newAttractions * POP.novelty)),
+      habit: r(POP.habit),
+    };
   }
 
   private endNight(): void {
@@ -1111,10 +1182,13 @@ export class GameState extends Emitter<StateEvents> {
     const n = this.night;
     const xpGained = Math.round(n.earned * XP_PER_COIN + n.happy * XP_PER_HAPPY);
     this.addXp(xpGained);
-    const guests = Math.max(1, n.safe + n.lost);
-    const repDelta = Math.round((REP_MOOD * (n.happy - n.unhappy) + REP_LOST * n.lost) / guests);
-    this.reputation = Math.max(0, Math.min(REPUTATION_MAX, this.reputation + repDelta));
-    this.emit('reputation', this.reputation);
+    const popParts = this.popularityParts();
+    const raw = Object.values(popParts).reduce((sum, v) => sum + v, 0);
+    const before = this.popularity;
+    this.popularity = Math.max(0, Math.min(POPULARITY_MAX, Math.round(this.popularity + raw)));
+    const popDelta = this.popularity - before;
+    this.newAttractions = 0;
+    this.emit('popularity', this.popularity);
 
     this.day++;
     this.phase = 'day';
@@ -1137,8 +1211,9 @@ export class GameState extends Emitter<StateEvents> {
       level: this.level,
       sales: this.salesTonight().sales,
       net: n.earned + rooms - wages,
-      repDelta,
-      reputation: this.reputation,
+      popularity: this.popularity,
+      popDelta,
+      popParts,
     };
     this.lastReport = report;
     this.emit('report', report);
@@ -1159,7 +1234,7 @@ export class GameState extends Emitter<StateEvents> {
       savedAt: Date.now(),
       day: this.day,
       money: this.money,
-      reputation: this.reputation,
+      popularity: this.popularity,
       level: this.level,
       xp: this.xp,
       areas: [...this.areas],
@@ -1216,7 +1291,7 @@ export class GameState extends Emitter<StateEvents> {
     }
     this.day = data.day;
     this.money = data.money;
-    this.reputation = data.reputation;
+    this.popularity = data.popularity ?? data.reputation ?? POPULARITY_START;
     this.level = data.level;
     this.xp = data.xp;
     this.lastReport = data.lastReport;
