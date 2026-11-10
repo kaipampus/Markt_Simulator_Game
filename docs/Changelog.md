@@ -2,6 +2,9 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-10 – Fix: Putzkräfte teilen sich auf
+- Putzkräfte reservieren die verschmutzte Stelle, zu der sie gehen; andere Putzkräfte suchen sich eine andere. Vorher liefen mehrere zum selben Fleck
+
 ## 2026-11-10 – Beliebtheits-Skala (Branch `feature/popularity`)
 - Neue **Beliebtheit** (0–100, Start 10) ersetzt den Ruf und bestimmt die Gästezahl: 6 + Beliebtheit × 0,94 (nur Markt, bis 100 Gäste) bzw. × 3,94 (mit Hotel-Viertel, bis 400)
 - Jeden Morgen neu berechnet aus: Zufriedenheit, Wartezeit und Wut, Sauberkeit, vom Sonnenaufgang erwischten Gästen, Angebot im Vergleich zur (jede Nacht steigenden) Erwartung, Bonus für neue Stände, kleine Gewöhnung

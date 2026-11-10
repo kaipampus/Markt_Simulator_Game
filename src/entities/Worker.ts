@@ -188,6 +188,7 @@ export class Worker extends Walker {
   }
 
   private goHome(): void {
+    this.state.releaseDirt(this.id);
     this.state.setOnDuty(this.id, false);
     this.target = null;
     const field = this.search();
@@ -222,7 +223,9 @@ export class Worker extends Walker {
     const m = this.member;
     if (!m) return;
     const field = this.search();
-    let pool = this.state.dirtyCells();
+    this.state.releaseDirt(this.id);
+    // Leave spots that another cleaner is already heading for.
+    let pool = this.state.dirtyCells().filter((c) => !this.state.isDirtClaimed(c, this.id));
     const f = m.focus;
     if (f) {
       const r = DIRT.focusRadius;
@@ -246,6 +249,7 @@ export class Worker extends Walker {
       this.idle('idle');
       return;
     }
+    this.state.claimDirt(this.id, cell);
     if (costTo(field, cell) === 0) {
       this.startCleaning(cell);
       return;
@@ -277,6 +281,7 @@ export class Worker extends Walker {
   }
 
   private sleep(uid: number): void {
+    this.state.releaseDirt(this.id);
     this.releaseCrossings();
     this.state.setRestAt(this.id, uid);
     this.state.setOnDuty(this.id, false);
@@ -327,6 +332,7 @@ export class Worker extends Walker {
         this.waitMs -= delta;
         if (this.waitMs <= 0) {
           if (this.target) this.state.clean(this.target);
+          this.state.releaseDirt(this.id);
           this.target = null;
           if (this.state.isDawn) this.goHome();
           else this.findDirt();
@@ -426,6 +432,7 @@ export class Worker extends Walker {
   }
 
   private burn(): void {
+    this.state.releaseDirt(this.id);
     this.releaseCrossings();
     this.state.setOnDuty(this.id, false);
     this.mode = 'lost';
@@ -437,6 +444,7 @@ export class Worker extends Walker {
 
   /** Dismissed by the player. */
   dismiss(): void {
+    this.state.releaseDirt(this.id);
     const wasAwake = this.isAwake;
     this.releaseCrossings();
     this.mode = 'gone';

@@ -279,6 +279,8 @@ export class GameState extends Emitter<StateEvents> {
 
   // --- cleanliness: per cell ---
   private litter = new Uint8Array(GRID_W * GRID_H);
+  /** Dirty cells a cleaner is already on the way to (cell index -> staff id), so cleaners split up. */
+  private cleanClaims = new Map<number, number>();
   private slime = new Uint8Array(GRID_W * GRID_H);
 
   private night = { safe: 0, lost: 0, happy: 0, unhappy: 0, angry: 0, earned: 0, staffLost: 0, cleaned: 0, waitShare: 0, dirt: 0 };
@@ -832,6 +834,22 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('dirt', { tx: c.tx, ty: c.ty });
   }
 
+  /** A cleaner reserves a dirty cell (and gives up any earlier one). */
+  claimDirt(staffId: number, c: Cell): void {
+    this.releaseDirt(staffId);
+    this.cleanClaims.set(c.ty * GRID_W + c.tx, staffId);
+  }
+
+  releaseDirt(staffId: number): void {
+    for (const [cell, id] of this.cleanClaims) if (id === staffId) this.cleanClaims.delete(cell);
+  }
+
+  /** Is another cleaner already taking care of this cell? */
+  isDirtClaimed(c: Cell, staffId: number): boolean {
+    const id = this.cleanClaims.get(c.ty * GRID_W + c.tx);
+    return id !== undefined && id !== staffId && this.staff.has(id);
+  }
+
   /** A cleaner cleaned a cell. */
   clean(c: Cell): void {
     if (!this.isDirty(c.tx, c.ty)) return;
@@ -1171,6 +1189,7 @@ export class GameState extends Emitter<StateEvents> {
     this.waitingAt.clear();
     this.lines.clear();
     this.serving.clear();
+    this.cleanClaims.clear();
     this.pendingArrivals = 0;
 
     const rooms = this.hotels().reduce((sum, h) => sum + (this.sleepers.get(h.uid) ?? 0) * h.def.hotel!.price, 0);
