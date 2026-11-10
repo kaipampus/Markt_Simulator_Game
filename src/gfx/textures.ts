@@ -17,8 +17,8 @@ export const TEX = {
   coin: 'coin',
   dust: 'dust',
   building: (id: string) => `b_${id}`,
-  /** Path look for an era. */
-  path: (era: number) => `path_${era}`,
+  /** Path look (0 = dirt; 1 stone and 2 asphalt are kept for later districts). */
+  path: (look = 0) => `path_${look}`,
   boat: (id: string) => `boat_${id}`,
   worker: (role: string) => `worker_${role}`,
   /** Front part drawn in front of guests and workers (restaurant wall, stall counter). */
@@ -26,7 +26,8 @@ export const TEX = {
   /** Stall without its counter (the worker stands between back and front). */
   back: (id: string) => `back_${id}`,
   /** Picture of a placed building; restaurants turned sideways have their own. */
-  view: (def: BuildingDef, rot: number) => `b_${def.id}${def.restaurant && rot % 2 === 1 ? '_ew' : ''}`,
+  view: (def: BuildingDef, rot: number) =>
+    `b_${def.id}${def.tier && def.tier > 1 && def.restaurant ? `_t${def.tier}` : ''}${def.restaurant && rot % 2 === 1 ? '_ew' : ''}`,
   doormat: 'doormat',
   plate: 'plate',
   litter: 'litter',
@@ -1004,11 +1005,13 @@ export function restaurantLayout(def: BuildingDef): {
   // Kitchen in the back part: stoves along the back wall, the pass counter in front of it.
   const stoves = Array.from({ length: cooks }, (_, i) => ({ x: W * (cooks === 1 ? 0.3 : 0.2 + (0.3 * i) / (cooks - 1)), y: H * 0.2 }));
   const n = def.restaurant?.tables ?? 0;
-  const cols = Math.max(1, Math.ceil(n / 2));
+  // Deeper rooms (5 rows) get a third row of tables.
+  const rows = def.h >= 5 && n > 6 ? 3 : 2;
+  const cols = Math.max(1, Math.ceil(n / rows));
   const tables = Array.from({ length: n }, (_, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const table = { x: (W * (col + 0.5)) / cols + 6, y: H * (0.6 + row * 0.24) };
+    const table = { x: (W * (col + 0.5)) / cols + 6, y: H * (0.58 + (row * 0.3) / (rows - 1)) };
     return { table, seat: { x: table.x - 17, y: table.y + 5 }, serve: { x: table.x + 17, y: table.y + 4 } };
   });
   return { stoves, drop: { x: W * 0.68, y: H * 0.3 }, pass: { x: W * 0.68, y: H * 0.47 }, tables };
@@ -1066,6 +1069,13 @@ function drawRestaurant(ctx: Ctx, w: number, h: number, def: BuildingDef, ew: bo
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(def.sign, sx + 50, 32);
+  }
+  // Stars for upgraded restaurants.
+  if (def.tier && def.tier > 1) {
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = '#d9a42b';
+    ctx.textAlign = 'center';
+    ctx.fillText('★'.repeat(def.tier - 1), sx + 50, 50);
   }
   hangingLantern(ctx, 16, 32, 6);
   hangingLantern(ctx, w - 16, 32, 6);
@@ -1204,7 +1214,7 @@ function drawBin(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
 function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   switch (def.style) {
     case 'path':
-      return drawPath(ctx, w, h, def.era);
+      return drawPath(ctx, w, h, 0);
     case 'bridge':
       return drawBridge(ctx, w, h, def);
     case 'ferry':
@@ -1437,10 +1447,19 @@ function drawSlime(ctx: Ctx, w: number, h: number): void {
 export function createTextures(scene: Phaser.Scene): void {
   makeCanvas(scene, TEX.ground, WORLD_W, WORLD_H, drawGround);
 
-  for (const def of BUILDINGS) {
+  for (const def of BUILDINGS) ensureBuildingTextures(scene, def);
+  for (let era = 0; era < 3; era++) {
+    makeCanvas(scene, TEX.path(era), TILE, TILE, (ctx) => drawPath(ctx, TILE, TILE, era));
+  }
+  createSharedTextures(scene);
+}
+
+/** Textures of one building definition (also upgraded ones); safe to call again. */
+export function ensureBuildingTextures(scene: Phaser.Scene, def: BuildingDef): void {
+  {
     const w = def.w * TILE;
     const h = def.h * TILE + def.rise;
-    makeCanvas(scene, TEX.building(def.id), w, h, (ctx) => drawBuilding(ctx, w, h, def));
+    makeCanvas(scene, TEX.view(def, 0), w, h, (ctx) => drawBuilding(ctx, w, h, def));
     if (def.restaurant) {
       makeCanvas(scene, TEX.view(def, 1), w, h, (ctx) => drawRestaurant(ctx, w, h, def, true));
       makeCanvas(scene, TEX.front(def.id), w, 22, (ctx) => drawRestaurantFront(ctx, w, 22, def, false));
@@ -1454,10 +1473,10 @@ export function createTextures(scene: Phaser.Scene): void {
       makeCanvas(scene, TEX.boat(def.id), 36, 58, (ctx) => drawBoat(ctx, 36, 58, def));
     }
   }
-  for (let era = 0; era < 3; era++) {
-    makeCanvas(scene, TEX.path(era), TILE, TILE, (ctx) => drawPath(ctx, TILE, TILE, era));
-  }
+}
 
+/** Gate, glow, figures, coins and other shared textures. */
+function createSharedTextures(scene: Phaser.Scene): void {
   const gw = GATE.w * TILE;
   const gh = GATE.h * TILE + GATE.rise;
   makeCanvas(scene, TEX.gate, gw, gh, (ctx) => drawTorii(ctx, gw, gh, '#c8372d', '#1e1a1a', true));

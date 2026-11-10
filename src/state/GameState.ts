@@ -22,7 +22,7 @@ import {
   START_MONEY,
 } from '../config';
 import { GATE, getBuilding, type BuildingDef, type BuildingId, type Need, type Zone } from '../data/buildings';
-import { ERAS, type Era } from '../data/eras';
+import { applyTier, maxTier, TIER_LEVEL, upgradeCost } from '../data/upgrades';
 import { AREAS, LEVEL_XP, MARKET_GUEST_CAP, UNLOCK_LEVEL, XP_PER_COIN, XP_PER_HAPPY, type AreaId } from '../data/levels';
 import { DIRT, ROLES, STAFF, type Role } from '../data/staff';
 import { STR } from '../data/strings';
@@ -41,7 +41,11 @@ export interface PlacedBuilding {
   tx: number;
   ty: number;
   rot: Rot;
+  /** 1 = as built; upgrades raise it (def is then the upgraded definition). */
+  tier: number;
 }
+
+export type UpgradeResult = 'ok' | 'max' | 'level' | 'money' | 'night' | 'space';
 
 /** Buildings guests or workers go into have doors; restaurants have two opposite ones. */
 export function hasDoors(def: BuildingDef): boolean {
@@ -114,7 +118,6 @@ type StateEvents = {
   removed: [PlacedBuilding];
   reputation: [number];
   speed: [number];
-  era: [Era];
   /** Night starts / day starts. */
   phase: [Phase];
   /** The dawn warning begins: everyone hurries home. */
@@ -135,6 +138,25 @@ type StateEvents = {
   /** An area was opened. */
   area: [AreaId];
 };
+
+/** Everything needed to continue a game, written each morning (see state/storage.ts). */
+export interface SaveData {
+  version: 1;
+  savedAt: number;
+  day: number;
+  money: number;
+  reputation: number;
+  level: number;
+  xp: number;
+  areas: AreaId[];
+  buildings: Array<{ uid: number; id: BuildingId; tx: number; ty: number; rot: Rot; tier: number }>;
+  staff: Array<{ name: string; role: Role; post: number | null; restAt: number | null; focus: Cell | null }>;
+  /** Hotel uid -> guests sleeping there. */
+  sleepers: Array<[number, number]>;
+  /** Dirty cells: [cell index, litter, slime]. */
+  dirt: Array<[number, number, number]>;
+  lastReport: NightReport | null;
+}
 
 /**
  * How many guests a building draws per night. Follows its capacity, so the
@@ -194,7 +216,6 @@ export class GameState extends Emitter<StateEvents> {
   buildRot: Rot = 0;
   spiritCount = 0;
   reputation = REPUTATION_START;
-  era: Era = 0;
   level = 1;
   xp = 0;
   readonly areas = new Set<AreaId>();
@@ -413,7 +434,7 @@ export class GameState extends Emitter<StateEvents> {
     if (check !== 'ok') return check;
     if (!free && !this.canAfford(def.cost)) return 'money';
 
-    const building: PlacedBuilding = { uid: this.nextUid++, def, tx, ty, rot };
+    const building: PlacedBuilding = { uid: this.nextUid++, def, tx, ty, rot, tier: 1 };
     this.buildings.set(building.uid, building);
     for (let x = 0; x < def.w; x++) {
       for (let y = 0; y < def.h; y++) this.setCell(tx + x, ty + y, building.uid);
@@ -422,6 +443,51 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('placed', building);
     if (def.staff) this.autoAssign(building);
     return 'ok';
+  }
+
+  /** What upgrading a building to the next tier would cost, or why it cannot be done. */
+  checkUpgrade(uid: number): UpgradeResult {
+    const b = this.buildings.get(uid);
+    if (!b) return 'max';
+    const base = getBuilding(b.def.id);
+    if (b.tier >= maxTier(base)) return 'max';
+    if (!this.canBuild) return 'night';
+    if (this.level < TIER_LEVEL[b.tier + 1]) return 'level';
+    if (!this.canAfford(upgradeCost(base, b.tier + 1))) return 'money';
+    const next = applyTier(base, b.tier + 1);
+    // A bigger building needs the extra row below it to be free.
+    for (let y = b.ty + b.def.h; y < b.ty + next.h; y++) {
+      for (let x = b.tx; x < b.tx + next.w; x++) {
+        if (!this.inBounds(x, y) || this.cell(x, y) !== FREE || !this.isAreaOpen(x, y)) return 'space';
+        if (!zoneAllows(next.zone, this.terrainAt(x, y))) return 'space';
+      }
+    }
+    return 'ok';
+  }
+
+  /** Upgrade a building to the next tier (by day only). */
+  upgrade(uid: number): UpgradeResult {
+    const check = this.checkUpgrade(uid);
+    const b = this.buildings.get(uid);
+    if (check !== 'ok' || !b) return check;
+    const base = getBuilding(b.def.id);
+    this.addMoney(-upgradeCost(base, b.tier + 1));
+    this.emit('removed', b);
+    this.setTier(b, b.tier + 1);
+    this.emit('placed', b);
+    this.autoAssign(b);
+    if (this.selection?.kind === 'building' && this.selection.uid === uid) this.emit('selection', this.selection);
+    return 'ok';
+  }
+
+  /** Switch a building to a tier, taking the extra cells if it grows. */
+  private setTier(b: PlacedBuilding, tier: number): void {
+    const next = applyTier(getBuilding(b.def.id), tier);
+    for (let y = b.ty; y < b.ty + next.h; y++) {
+      for (let x = b.tx; x < b.tx + next.w; x++) this.setCell(x, y, b.uid);
+    }
+    b.def = next;
+    b.tier = tier;
   }
 
   /** Turn a building so its door(s) face the next side (by day only). */
@@ -962,31 +1028,6 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   // ---------------------------------------------------------------------------
-  // eras
-  // ---------------------------------------------------------------------------
-
-  /** The next era, if there is one. */
-  get nextEra(): { era: Era; reputation: number; cost: number } | null {
-    const next = this.era + 1;
-    if (next >= ERAS.length) return null;
-    return { era: next as Era, ...ERAS[next] };
-  }
-
-  canAdvanceEra(): boolean {
-    const n = this.nextEra;
-    return !!n && this.reputation >= n.reputation && this.money >= n.cost;
-  }
-
-  advanceEra(): boolean {
-    const n = this.nextEra;
-    if (!n || !this.canAdvanceEra()) return false;
-    this.addMoney(-n.cost);
-    this.era = n.era;
-    this.emit('era', this.era);
-    return true;
-  }
-
-  // ---------------------------------------------------------------------------
   // clock
   // ---------------------------------------------------------------------------
 
@@ -1101,6 +1142,88 @@ export class GameState extends Emitter<StateEvents> {
     };
     this.lastReport = report;
     this.emit('report', report);
+  }
+
+  // ---------------------------------------------------------------------------
+  // saving and loading
+  // ---------------------------------------------------------------------------
+
+  /** A snapshot of the game. Taken by day, when nobody is out on the map. */
+  toSave(): SaveData {
+    const dirt: Array<[number, number, number]> = [];
+    for (let i = 0; i < this.litter.length; i++) {
+      if (this.litter[i] + this.slime[i] > 0) dirt.push([i, this.litter[i], this.slime[i]]);
+    }
+    return {
+      version: 1,
+      savedAt: Date.now(),
+      day: this.day,
+      money: this.money,
+      reputation: this.reputation,
+      level: this.level,
+      xp: this.xp,
+      areas: [...this.areas],
+      buildings: [...this.buildings.values()].map((b) => ({ uid: b.uid, id: b.def.id, tx: b.tx, ty: b.ty, rot: b.rot, tier: b.tier })),
+      staff: [...this.staff.values()].map((m) => ({ name: m.name, role: m.role, post: m.post, restAt: m.restAt, focus: m.focus })),
+      sleepers: [...this.sleepers.entries()],
+      dirt,
+      lastReport: this.lastReport,
+    };
+  }
+
+  /** Replace the current game with a saved one (before the scenes start). */
+  restore(data: SaveData): void {
+    for (const b of this.buildings.values()) {
+      for (let x = 0; x < b.def.w; x++) for (let y = 0; y < b.def.h; y++) this.setCell(b.tx + x, b.ty + y, FREE);
+    }
+    this.buildings.clear();
+    this.staff.clear();
+    this.sleepers.clear();
+    this.litter.fill(0);
+    this.slime.fill(0);
+    this.areas.clear();
+    for (const a of data.areas) this.areas.add(a);
+
+    // Buildings get new uids; remember how old ones map to new ones.
+    const uids = new Map<number, number>();
+    for (const sb of data.buildings) {
+      if (this.place(sb.id, sb.tx, sb.ty, true, sb.rot) !== 'ok') continue;
+      const b = [...this.buildings.values()].pop()!;
+      if (sb.tier > 1) this.setTier(b, sb.tier);
+      uids.set(sb.uid, b.uid);
+    }
+    const map = (uid: number | null) => (uid === null ? null : (uids.get(uid) ?? null));
+    for (const sm of data.staff) {
+      const id = this.nextStaffId++;
+      this.staff.set(id, {
+        id,
+        name: sm.name,
+        role: sm.role,
+        post: map(sm.post),
+        onDuty: false,
+        focus: sm.focus,
+        restAt: map(sm.restAt) ?? this.staffHouses()[0]?.uid ?? null,
+        status: 'asleep',
+      });
+    }
+    for (const [uid, count] of data.sleepers) {
+      const n = map(uid);
+      if (n !== null) this.sleepers.set(n, count);
+    }
+    for (const [i, l, sl] of data.dirt) {
+      this.litter[i] = l;
+      this.slime[i] = sl;
+    }
+    this.day = data.day;
+    this.money = data.money;
+    this.reputation = data.reputation;
+    this.level = data.level;
+    this.xp = data.xp;
+    this.lastReport = data.lastReport;
+    this.phase = 'day';
+    this.timeLeft = DAY_MS;
+    this.tool = null;
+    this.selection = null;
   }
 
   /** For testing in the browser console: jump close to the next phase change. */

@@ -13,6 +13,18 @@ Vorlage:
 
 ---
 
+## 2026-11-10 – Speichern im Browser, nur bei Tag
+**Status:** entschieden
+**Entscheidung:** Der Spielstand liegt im `localStorage` des Browsers und wird jeden Morgen sowie nach Änderungen am Tag automatisch geschrieben. Gespeichert wird nur der Tageszustand (Gebäude, Personal, Geld, Level, Schmutz, schlafende Hotelgäste), nicht die laufende Nacht. Beim Start bietet ein Titelmenü „Weiterspielen“ oder „Neues Spiel“.
+**Warum:** Tagsüber ist niemand unterwegs, der Zustand ist klein und eindeutig. Eine Nacht mitten im Ablauf zu speichern (Positionen, Schlangen, Fähren) wäre aufwendig und fehleranfällig.
+**Verworfen:** Speichern jederzeit inklusive Nacht; Speicherdatei zum Herunterladen (später möglich).
+
+## 2026-11-10 – Ausbaustufen für Gebäude
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Restaurants, Stände und Hotels haben drei Stufen. Restaurants bekommen Tische und Personalplätze dazu und wachsen auf Stufe 3 um eine Reihe (wenn Platz ist). Ausbau nur tagsüber, ab einem Level und gegen Münzen. Ein ausgebautes Gebäude behält seine Bauart, nutzt aber eine verbesserte Definition (`data/upgrades.ts`).
+**Warum:** Wachstum ohne immer neue Fläche; Platzmangel bleibt spürbar, weil Vergrößern freien Raum braucht.
+**Verworfen:** Frei wählbare Vergrößerung in alle Richtungen (vorerst; die Grafik müsste dafür flexibler sein).
+
 ## 2026-11-09 – Feste Türen und Drehen
 **Status:** entschieden (Wunsch des Nutzers)
 **Entscheidung:** Gebäude mit Gästen oder Personal haben feste Türen: Restaurants zwei gegenüberliegende, alle anderen eine in der Mitte einer Seite. Nur über die Türen kommt man hinein; ein Weg, der irgendwo an der Seite vorbeiführt, reicht nicht. Mit R dreht man beim Bauen (oder tagsüber nachträglich) die Türen um 90°. Bei Restaurants ändert sich die Grafik (Türen vorn/hinten oder links/rechts), bei anderen Gebäuden zeigt eine Türmatte die Tür (echte Grafiken folgen in Phase 5).

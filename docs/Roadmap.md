@@ -73,7 +73,7 @@ Schritt 1b – Restaurants, Vielfalt, Geld:
 - [x] Acht neue Stände, neues Bedürfnis Spaß, Reiter Food und Fun
 - [x] Gebäude mit mehreren Jobs (z. B. 2 Köche + 2 Kellner)
 - [x] Beliebtheit bestimmt die Gästezahl, Startgeld 650
-- [ ] Gebäude-Stufen (mehr Tische, höhere Preise)
+- [x] Gebäude-Stufen (mehr Tische, höhere Preise, Restaurants wachsen auf Stufe 3)
 - [ ] Noch mehr Stände und Küchen (z. B. indisch, Street-Food-Wagen, Zauberbuden)
 - [ ] Eigene Grafiken statt Platzhaltern für Restaurants
 
@@ -82,7 +82,7 @@ Schritt 2 – Level und Bereiche:
 - [x] Gebäude nach Level freischalten, Hotel-Viertel gesperrt bis Level 6 + 2000 Münzen
 - [x] Türen und Drehen (R), Gästezahl nach Kapazität
 - [x] Sichtbare Küche, Personal hinter Theken, Anzeige Tische/Warteschlange
-- [ ] Zeitalter-Code und alte Weg-Grafiken aufräumen
+- [x] Zeitalter-Code aufräumen
 - [x] Beliebtheitswert für Stände und Deko bestimmt die Gästezahl (vorgezogen)
 - [x] Bereich 1 Nachtmarkt (ohne Hotel), Bereich 2 Hotel-Viertel gesperrt bis Level + Münzen
 - [x] Zeitalter-Kauf entfernt, Gebäude nach Level verteilt (moderne Gebäude vorerst Level 10)
@@ -104,7 +104,7 @@ Schritt 3 – Neon-Viertel und Größe:
 
 ## Phase 6 – Feinschliff
 - [ ] Hauptmenü, Einstellungen
-- [ ] Speichern und Laden
+- [x] Speichern und Laden (automatisch, Titelmenü)
 - [ ] Tutorial
 - [ ] PWA: offline installierbar
 - [ ] Version 1.0 auf dem Server

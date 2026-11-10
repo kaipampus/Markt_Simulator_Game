@@ -2,6 +2,16 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-10 – Speichern und Laden, Ausbaustufen (Branch `feature/save-and-upgrades`)
+- **Speichern**: automatisch jeden Morgen und nach Änderungen am Tag im Browser (localStorage). Die Nacht selbst wird nicht gespeichert; wer nachts neu lädt, macht am Morgen davor weiter
+- **Titelmenü** mit „Continue“ (Tag, Level, Münzen des Spielstands) und „New game“ (zweiter Klick bestätigt das Löschen)
+- **Ausbaustufen** (Stufe 1–3) über das Infofenster, nur tagsüber:
+  - Restaurants: Stufe 2 (ab Level 3, 80 % des Baupreises) +2 Tische, Platz für einen zweiten Kellner, Preise +20 %; Stufe 3 (ab Level 5, 150 %) der Raum wächst um eine Reihe nach unten (muss frei sein), +2 Tische, ein weiterer Koch, Preise +40 %; Sterne auf dem Schild
+  - Stände: pro Stufe ein Bedienplatz mehr, höhere Preise
+  - Hotels: 1,5- bzw. 2-fache Betten
+- Infofenster zeigt Stufe, Ausbau-Kosten und was der Ausbau bringt; Knöpfe in zwei Reihen
+- Zeitalter-Code entfernt (Level-Panel, Daten, Texte)
+
 ## 2026-11-09 – Türen, Drehen, Level statt Zeitalter, sichtbare Küche
 - **Türen**: Gebäude mit Gästen oder Personal haben feste Türen (Matte vor der Tür). Restaurants haben zwei gegenüberliegende, alle anderen eine. Gäste und Arbeiter nutzen nur die Türen; die Tür muss an einem Weg liegen
 - **Drehen** mit R beim Bauen (Vorschau zeigt die Türen grün/orange) oder tagsüber für ein ausgewähltes Gebäude (auch Knopf im Infofenster)

@@ -2,7 +2,6 @@
  * Building definitions. Gameplay values live here so balancing never needs
  * a code change elsewhere. Display names live in strings.ts.
  */
-import type { Era } from './eras';
 import type { Role } from './staff';
 
 export type BuildingId =
@@ -86,7 +85,6 @@ export type Crossing =
 
 export interface BuildingDef {
   id: BuildingId;
-  era: Era;
   category: Category;
   cost: number;
   /** Footprint in grid cells. */
@@ -120,6 +118,8 @@ export interface BuildingDef {
   popularity?: number;
   /** Emoji painted on the sign of the placeholder graphic. */
   sign?: string;
+  /** Set on upgraded copies of a definition (see data/upgrades.ts). */
+  tier?: number;
   /** Beds for workers (staff houses). */
   staffBeds?: number;
   /** Catches litter around it. */
@@ -138,7 +138,6 @@ function restaurant(
 ): BuildingDef {
   return {
     id,
-    era: 0,
     category: 'food',
     cost: o.cost,
     w: o.w,
@@ -164,7 +163,6 @@ function stall(
 ): BuildingDef {
   return {
     id,
-    era: 0,
     category,
     cost: o.cost,
     w: o.w ?? 1,
@@ -207,7 +205,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // --- transport ---------------------------------------------------------
   {
     id: 'path',
-    era: 0,
     category: 'transport',
     cost: 5,
     w: 1,
@@ -221,7 +218,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'bridge',
-    era: 0,
     category: 'transport',
     cost: 60,
     w: 1,
@@ -235,7 +231,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'bridge_stone',
-    era: 1,
     category: 'transport',
     cost: 180,
     w: 1,
@@ -249,7 +244,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'ferry_steam',
-    era: 1,
     category: 'transport',
     cost: 250,
     w: 1,
@@ -263,7 +257,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'bridge_steel',
-    era: 2,
     category: 'transport',
     cost: 400,
     w: 1,
@@ -277,7 +270,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'ferry_motor',
-    era: 2,
     category: 'transport',
     cost: 500,
     w: 1,
@@ -293,7 +285,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // --- market --------------------------------------------------------------
   {
     id: 'noodle',
-    era: 0,
     category: 'food',
     cost: 80,
     w: 2,
@@ -308,7 +299,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'tea',
-    era: 0,
     category: 'food',
     cost: 150,
     w: 2,
@@ -324,7 +314,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'charm',
-    era: 0,
     category: 'market',
     cost: 60,
     w: 1,
@@ -339,7 +328,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'shrine',
-    era: 0,
     category: 'market',
     cost: 120,
     w: 1,
@@ -353,7 +341,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'cafe',
-    era: 1,
     category: 'food',
     cost: 220,
     w: 2,
@@ -369,7 +356,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'vending',
-    era: 2,
     category: 'food',
     cost: 90,
     w: 1,
@@ -384,7 +370,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'arcade',
-    era: 2,
     category: 'market',
     cost: 450,
     w: 2,
@@ -402,7 +387,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // --- services ------------------------------------------------------------
   {
     id: 'brazier',
-    era: 0,
     category: 'services',
     cost: 40,
     w: 1,
@@ -417,7 +401,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'restroom',
-    era: 0,
     category: 'services',
     cost: 50,
     w: 1,
@@ -431,7 +414,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'bin',
-    era: 0,
     category: 'services',
     cost: 20,
     w: 1,
@@ -446,7 +428,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // --- hotels --------------------------------------------------------------
   {
     id: 'hotel',
-    era: 0,
     category: 'hotels',
     cost: 300,
     w: 4,
@@ -461,7 +442,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'hotel_grand',
-    era: 1,
     category: 'hotels',
     cost: 900,
     w: 5,
@@ -476,7 +456,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'hotel_sky',
-    era: 2,
     category: 'hotels',
     cost: 2400,
     w: 5,
@@ -491,7 +470,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'staff_lodge',
-    era: 0,
     category: 'hotels',
     cost: 120,
     w: 2,
@@ -505,7 +483,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'staff_dorm',
-    era: 1,
     category: 'hotels',
     cost: 320,
     w: 3,
@@ -521,7 +498,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // --- decor ---------------------------------------------------------------
   {
     id: 'lantern',
-    era: 0,
     category: 'decor',
     cost: 15,
     w: 1,
@@ -534,7 +510,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'gaslamp',
-    era: 1,
     category: 'decor',
     cost: 30,
     w: 1,
@@ -547,7 +522,6 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
   {
     id: 'neon',
-    era: 2,
     category: 'decor',
     cost: 60,
     w: 1,

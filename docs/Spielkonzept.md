@@ -119,6 +119,16 @@ Neben den Restaurants gibt es viele kleine Stände mit Zauber-Einschlag:
 - **Glück:** Charm Stand, Paper Crane Fortunes, Moon Shrine, Arcade
 - Platzmangel ist gewollt: Der Markt darf eng und chaotisch werden, Wege, Schlangen und Personal wollen geplant sein.
 
+## Ausbaustufen
+- Restaurants, Stände und Hotels lassen sich tagsüber zweimal ausbauen (Infofenster, „⬆ Upgrade“).
+- Restaurant Stufe 2 (ab Level 3): +2 Tische, Platz für einen zweiten Kellner, Preise +20 %.
+- Restaurant Stufe 3 (ab Level 5): der Raum wächst um eine Reihe nach unten (die Reihe muss frei sein), +2 Tische, ein weiterer Koch, Preise +40 %.
+- Stände: pro Stufe ein Gast mehr gleichzeitig; Hotels: mehr Betten.
+
+## Spielstand
+- Wird automatisch im Browser gespeichert (jeden Morgen und nach Änderungen am Tag). Beim Start: „Continue“ oder „New game“.
+- Die laufende Nacht wird nicht gespeichert.
+
 ## Geld und Wachstum
 - Start mit wenig Geld (**650 Münzen**): genug für ein kleines Restaurant, Koch, Kellner und einen Imbiss.
 - **Beliebtheit (★)** folgt der **Kapazität**: Tische × 2,5, Bedienplätze × 2, Deko 0,5. Gäste pro Nacht = (6 + Beliebtheit) × Ruf-Faktor, höchstens 100 (nur Markt) bzw. 400 (mit Hotel-Viertel). So kommen nur so viele Gäste, wie man bedienen kann, plus etwas Druck.

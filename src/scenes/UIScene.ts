@@ -2,8 +2,8 @@ import * as Phaser from 'phaser';
 import {
   BAR_HEIGHT,
   COLORS,
-  ERA_PANEL_HEIGHT,
-  ERA_PANEL_WIDTH,
+  LEVEL_PANEL_HEIGHT,
+  LEVEL_PANEL_WIDTH,
   FONT_TITLE,
   FONT_UI,
   HUD_HEIGHT,
@@ -48,7 +48,7 @@ const TABS: readonly Tab[] = [...CATEGORIES, 'workers'];
 
 const HOTKEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'] as const;
 
-/** Screen-space interface: top bar, time controls, era panel, build bar with tabs, reports. */
+/** Screen-space interface: top bar, time controls, level panel, build bar with tabs, reports. */
 export class UIScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Graphics;
   private bar!: Phaser.GameObjects.Graphics;
@@ -65,11 +65,11 @@ export class UIScene extends Phaser.Scene {
   private speedButtons: SmallButton[] = [];
   private nightButton!: SmallButton;
 
-  // era panel
-  private eraPanel!: Phaser.GameObjects.Container;
-  private eraName!: Phaser.GameObjects.Text;
-  private eraInfo!: Phaser.GameObjects.Text;
-  private eraButton!: SmallButton;
+  // level panel
+  private levelPanel!: Phaser.GameObjects.Container;
+  private levelName!: Phaser.GameObjects.Text;
+  private levelInfo!: Phaser.GameObjects.Text;
+  private areaButton!: SmallButton;
   private xpBar!: Phaser.GameObjects.Graphics;
   private xpText!: Phaser.GameObjects.Text;
 
@@ -122,7 +122,7 @@ export class UIScene extends Phaser.Scene {
       .setOrigin(0.5, 1);
 
     this.createTimePanel();
-    this.createEraPanel();
+    this.createLevelPanel();
     this.staffUI = new StaffUI(this, {
       hover: (text) => (this.hoverInfo = text),
       flash: (text) => this.flashHint(text),
@@ -144,7 +144,7 @@ export class UIScene extends Phaser.Scene {
       state.on('speed', () => this.refreshTime()),
       state.on('level', (level) => this.onLevel(level)),
       state.on('area', () => {
-        this.refreshEra();
+        this.refreshLevel();
         this.toast(STR.areaOpened);
       }),
       state.on('report', (r) => this.showReport(r)),
@@ -188,7 +188,7 @@ export class UIScene extends Phaser.Scene {
       this.repText.setText(rep);
       this.spiritText.setText(spirits);
       this.layoutHud();
-      this.refreshEra();
+      this.refreshLevel();
     }
 
     const t = state.tool;
@@ -267,33 +267,33 @@ export class UIScene extends Phaser.Scene {
   // level panel (top left): level, experience bar, next unlocks, opening areas
   // ---------------------------------------------------------------------------
 
-  private createEraPanel(): void {
-    const w = ERA_PANEL_WIDTH;
-    const h = ERA_PANEL_HEIGHT;
+  private createLevelPanel(): void {
+    const w = LEVEL_PANEL_WIDTH;
+    const h = LEVEL_PANEL_HEIGHT;
     const bg = this.add.rectangle(0, 0, w, h, COLORS.uiPanel, 0.92).setOrigin(0).setStrokeStyle(1, COLORS.uiPanelEdge);
-    this.eraName = this.add.text(10, 5, '', { fontFamily: FONT_TITLE, fontSize: '15px', color: COLORS.uiGold });
+    this.levelName = this.add.text(10, 5, '', { fontFamily: FONT_TITLE, fontSize: '15px', color: COLORS.uiGold });
     this.xpBar = this.add.graphics();
     this.xpText = this.add.text(w - 10, 8, '', { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiTextDim }).setOrigin(1, 0);
-    this.eraInfo = this.add.text(10, 32, '', { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiTextDim }).setWordWrapWidth(w - 20);
-    this.eraButton = this.smallButton(w - 178, 30, 170, 22, '', () => {
-      if (state.openArea('hotel')) this.refreshEra();
+    this.levelInfo = this.add.text(10, 32, '', { fontFamily: FONT_UI, fontSize: '11px', color: COLORS.uiTextDim }).setWordWrapWidth(w - 20);
+    this.areaButton = this.smallButton(w - 178, 30, 170, 22, '', () => {
+      if (state.openArea('hotel')) this.refreshLevel();
     });
-    this.eraButton.label.setFontSize(11);
-    this.eraPanel = this.add.container(8, HUD_HEIGHT + 6, [
+    this.areaButton.label.setFontSize(11);
+    this.levelPanel = this.add.container(8, HUD_HEIGHT + 6, [
       bg,
-      this.eraName,
+      this.levelName,
       this.xpBar,
       this.xpText,
-      this.eraInfo,
-      this.eraButton.bg,
-      this.eraButton.label,
+      this.levelInfo,
+      this.areaButton.bg,
+      this.areaButton.label,
     ]);
-    this.refreshEra();
+    this.refreshLevel();
   }
 
-  private refreshEra(): void {
-    const w = ERA_PANEL_WIDTH;
-    this.eraName.setText(STR.level(state.level));
+  private refreshLevel(): void {
+    const w = LEVEL_PANEL_WIDTH;
+    this.levelName.setText(STR.level(state.level));
     const next = state.nextLevelXp;
     const prev = LEVEL_XP[state.level - 1] ?? 0;
     const share = next === null ? 1 : Phaser.Math.Clamp((state.xp - prev) / (next - prev), 0, 1);
@@ -307,22 +307,22 @@ export class UIScene extends Phaser.Scene {
     // The hotel district can be opened once the level is reached.
     const area = AREAS.hotel;
     const canOpen = !state.areas.has('hotel') && state.level >= area.level;
-    this.eraButton.bg.setVisible(canOpen);
-    this.eraButton.label.setVisible(canOpen);
+    this.areaButton.bg.setVisible(canOpen);
+    this.areaButton.label.setVisible(canOpen);
     if (canOpen) {
       const ready = state.canOpenArea('hotel');
-      this.eraButton.label.setText(STR.areaOpen(area.cost)).setColor(ready ? COLORS.uiText : COLORS.uiTextDim);
-      this.eraButton.bg.setFillStyle(ready ? COLORS.uiButtonActive : COLORS.uiButton).setAlpha(ready ? 1 : 0.6);
-      this.eraInfo.setText('');
+      this.areaButton.label.setText(STR.areaOpen(area.cost)).setColor(ready ? COLORS.uiText : COLORS.uiTextDim);
+      this.areaButton.bg.setFillStyle(ready ? COLORS.uiButtonActive : COLORS.uiButton).setAlpha(ready ? 1 : 0.6);
+      this.levelInfo.setText('');
       return;
     }
     const unlocks = BUILDINGS.filter((d) => unlockLevel(d) === state.level + 1).map((d) => STR.buildings[d.id]);
     if (state.level + 1 === area.level) unlocks.unshift(STR.areaName);
-    this.eraInfo.setText(unlocks.length ? STR.levelNext(unlocks.slice(0, 4).join(', ') + (unlocks.length > 4 ? ' …' : '')) : '');
+    this.levelInfo.setText(unlocks.length ? STR.levelNext(unlocks.slice(0, 4).join(', ') + (unlocks.length > 4 ? ' …' : '')) : '');
   }
 
   private onLevel(level: number): void {
-    this.refreshEra();
+    this.refreshLevel();
     this.refreshItems();
     this.toast(STR.levelUp(level));
   }
@@ -362,7 +362,7 @@ export class UIScene extends Phaser.Scene {
   private makeItem(def: BuildingDef): ItemButton {
     const container = this.add.container(0, 0);
     const bg = this.add.rectangle(0, 0, BTN_W, BTN_H, COLORS.uiButton).setOrigin(0).setStrokeStyle(1, COLORS.uiPanelEdge);
-    const texture = def.id === 'path' ? TEX.path(state.era) : TEX.building(def.id);
+    const texture = def.id === 'path' ? TEX.path(0) : TEX.building(def.id);
     const icon = this.add.image(BTN_W / 2, 46, texture).setOrigin(0.5, 1);
     icon.setScale(Math.min(56 / icon.width, 40 / icon.height, 1));
     const name = this.add
@@ -516,7 +516,7 @@ export class UIScene extends Phaser.Scene {
   private refreshMoney(pop: boolean): void {
     this.moneyText.setText(String(state.money));
     this.refreshItems();
-    this.refreshEra();
+    this.refreshLevel();
     if (pop) {
       this.tweens.killTweensOf(this.moneyText);
       this.moneyText.setScale(1.2);
@@ -572,7 +572,7 @@ export class UIScene extends Phaser.Scene {
     const h = this.scale.height;
     if (y < HUD_HEIGHT || y > h - BAR_HEIGHT) return true;
     const inside = (cx: number, cy: number, w: number, hh: number) => x >= cx && x <= cx + w && y >= cy && y <= cy + hh;
-    if (inside(this.eraPanel.x, this.eraPanel.y, ERA_PANEL_WIDTH, ERA_PANEL_HEIGHT)) return true;
+    if (inside(this.levelPanel.x, this.levelPanel.y, LEVEL_PANEL_WIDTH, LEVEL_PANEL_HEIGHT)) return true;
     if (inside(this.timePanel.x, this.timePanel.y, TIME_PANEL_HALF_WIDTH * 2, TIME_PANEL_HEIGHT)) return true;
     return [...this.staffUI.rects(), ...this.financeUI.rects()].some((r) => inside(r.x, r.y, r.w, r.h));
   }
@@ -632,10 +632,10 @@ export class UIScene extends Phaser.Scene {
     this.bar.fillStyle(COLORS.uiPanel, 0.94).fillRect(0, h - BAR_HEIGHT, w, BAR_HEIGHT);
     this.bar.fillStyle(COLORS.uiAccent, 0.5).fillRect(0, h - BAR_HEIGHT, w, 2);
 
-    // Time panel centred under the top bar; on narrow screens it sits below the era panel.
-    const narrow = w < ERA_PANEL_WIDTH + TIME_PANEL_HALF_WIDTH * 2 + 40;
+    // Time panel centred under the top bar; on narrow screens it sits below the level panel.
+    const narrow = w < LEVEL_PANEL_WIDTH + TIME_PANEL_HALF_WIDTH * 2 + 40;
     const tpX = narrow ? 8 : w / 2 - TIME_PANEL_HALF_WIDTH;
-    const tpY = narrow ? HUD_HEIGHT + ERA_PANEL_HEIGHT + 12 : HUD_HEIGHT;
+    const tpY = narrow ? HUD_HEIGHT + LEVEL_PANEL_HEIGHT + 12 : HUD_HEIGHT;
     this.timePanel.setPosition(tpX, tpY);
 
     this.layoutBar();

@@ -20,12 +20,6 @@ export const STR = {
   startNight: '☾ Start night',
   skipNight: '☀ Skip to morning',
 
-  eras: ['Lantern Age', 'Steam Age', 'Neon Age'],
-  eraNext: (name: string, rep: number, cost: number) => `Next: ${name}  ·  Reputation ${rep}  ·  ${cost} coins`,
-  eraBuy: (name: string, cost: number) => `Enter the ${name} (${cost})`,
-  eraFinal: 'The world is fully modern',
-  eraStarted: (name: string) => `The ${name} begins!`,
-  lockedUntil: (name: string) => name,
 
   hintIdle: 'Space pause · F speed · N start night / skip to morning · P workers · I finances · Drag or WASD to move · Wheel to zoom',
   hintPlacing: 'Left-click to build  ·  R turns the doors  ·  Right-click or Esc to cancel',
@@ -239,6 +233,27 @@ export const STR = {
   noStaffIcon: '👤❗',
   staffComingIcon: '🚶',
   stuckIcon: '❓',
+
+  // --- title menu ------------------------------------------------------------
+  menu: {
+    continue: 'Continue',
+    newGame: 'New game',
+    confirmNew: 'Click again: delete the saved game',
+    saved: (day: number, level: number, money: number) => `Saved game: day ${day} · level ${level} · ${money} coins`,
+  },
+
+  // --- upgrades ------------------------------------------------------------------
+  tier: (tier: number, max: number) => `Tier ${tier} / ${max}`,
+  upgrade: (cost: number) => `⬆ Upgrade (${cost})`,
+  upgradeLocked: (level: number) => `⬆ Upgrade: level ${level}`,
+  upgradeInfo: {
+    restaurant2: 'Tier 2: +2 tables, room for a second waiter, prices +20%',
+    restaurant3: 'Tier 3: the room grows by one row (needs free space below), +2 tables, another cook, prices +40%',
+    stall: 'Next tier: one more guest served at once, higher prices',
+    hotel: 'Next tier: more beds',
+  },
+  upgradeNoSpace: 'Needs a free row below the building',
+  upgraded: (tier: number) => `Tier ${tier}!`,
 
   // --- tabs and finances -----------------------------------------------------
   workersTab: '👥 Workers',

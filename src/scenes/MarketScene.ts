@@ -29,9 +29,10 @@ import { Restaurant } from '../entities/Restaurant';
 import { Spirit } from '../entities/Spirit';
 import type { WalkerWorld } from '../entities/Walker';
 import { Worker } from '../entities/Worker';
-import { createTextures, TEX } from '../gfx/textures';
+import { createTextures, ensureBuildingTextures, TEX } from '../gfx/textures';
 import { AREAS } from '../data/levels';
 import { doorCellsFor, state, unlockLevel, type PlacedBuilding } from '../state/GameState';
+import { startAutosave } from '../state/storage';
 import type { UIScene } from './UIScene';
 import type { Cell } from '../state/pathfinding';
 
@@ -144,11 +145,6 @@ export class MarketScene extends Phaser.Scene {
       state.on('dawn', () => this.setLight('dawn', DAWN_WARNING_MS)),
       state.on('sunrise', () => this.onSunrise()),
       state.on('speed', (speed) => (this.time.timeScale = speed)),
-      state.on('era', (era) => {
-        for (const [uid, view] of this.views) {
-          if (state.buildings.get(uid)?.def.id === 'path') view.image.setTexture(TEX.path(era));
-        }
-      }),
       state.on('hired', (m) => {
         this.workers.set(m.id, new Worker(this, state, this.world, m));
       }),
@@ -169,7 +165,10 @@ export class MarketScene extends Phaser.Scene {
         this.floatText(cell.tx * TILE + TILE / 2, cell.ty * TILE - 6, STR.earn(amount), COLORS.uiGold, 12),
       ),
     );
+    this.unsubscribe.push(startAutosave(state));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe.forEach((u) => u()));
+    // Litter and slime from a loaded game.
+    for (const c of state.dirtyCells()) this.refreshDirt(c);
 
     this.scene.launch('UIScene');
   }
@@ -393,13 +392,14 @@ export class MarketScene extends Phaser.Scene {
 
   private addBuildingView(b: PlacedBuilding, animate: boolean): void {
     const { def } = b;
+    ensureBuildingTextures(this, def);
     const bottom = (b.ty + def.h) * TILE;
     // Paths and bridges lie flat on the ground, below everything that stands.
     // Restaurants are open rooms: floor at the top edge, front wall at the bottom.
     // Stalls: back part, worker, then the counter in front.
     const stall = def.style === 'stall';
     const depth = def.walkable ? DEPTH.flat + b.ty : def.restaurant ? b.ty * TILE + 1 : stall ? bottom - 2 : bottom;
-    const texture = def.id === 'path' ? TEX.path(state.era) : stall ? TEX.back(def.id) : TEX.view(def, b.rot);
+    const texture = def.id === 'path' ? TEX.path(0) : stall ? TEX.back(def.id) : TEX.view(def, b.rot);
     const image = this.add.image(b.tx * TILE, bottom, texture).setOrigin(0, 1).setDepth(depth);
     if (def.crossing?.kind === 'boat') this.ferries.set(b.uid, new Ferry(this, b));
     let front: Phaser.GameObjects.Image | undefined;
@@ -815,7 +815,7 @@ export class MarketScene extends Phaser.Scene {
     const tool = state.tool;
     if (tool?.kind === 'build') {
       const def = getBuilding(tool.id);
-      this.ghost.setTexture(tool.id === 'path' ? TEX.path(state.era) : TEX.view(def, state.buildRot));
+      this.ghost.setTexture(tool.id === 'path' ? TEX.path(0) : TEX.view(def, state.buildRot));
     }
     this.ghost.setVisible(false);
     this.footprint.clear();

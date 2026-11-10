@@ -82,9 +82,9 @@ export const BAR_HEIGHT = 122;
 /** Time controls panel right below the top bar (centred). */
 export const TIME_PANEL_HEIGHT = 34;
 export const TIME_PANEL_HALF_WIDTH = 248;
-/** Era panel below the top bar (left). */
-export const ERA_PANEL_WIDTH = 330;
-export const ERA_PANEL_HEIGHT = 58;
+/** Level panel below the top bar (left). */
+export const LEVEL_PANEL_WIDTH = 330;
+export const LEVEL_PANEL_HEIGHT = 58;
 
 // --- Depth layers ----------------------------------------------------------------
 
