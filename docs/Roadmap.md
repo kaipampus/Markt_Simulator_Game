@@ -95,6 +95,13 @@ Schritt 3 – Neon-Viertel und Größe:
 - [ ] Größere Hotels und Übergänge für hunderte Gäste
 - [ ] Technik für tausende Gäste: Belastungstest, gemeinsame Wegkarten, vereinfachte Darstellung
 
+## Phase 3d – Umstieg auf 3D (Three.js)
+- [x] 3D-Test (`prototype-3d.html`): Markt-Ausschnitt, neigbare Kamera, Tag/Nacht
+- [x] Schritt A: Spielfiguren von Phaser trennen (Logik für Geister, Arbeiter, Fähren, Restaurants ohne Grafik-Bibliothek)
+- [ ] Schritt B: 3D-Welt statt Phaser-Szene: Boden, Gebäude, Wege, Schmutz, Türmatten, Licht, Figuren, Auswahl und Bau-Vorschau per Mausklick in 3D, Kamera mit Grenzen
+- [ ] Schritt C: Oberfläche als HTML/CSS (Leisten, Bauleiste, Fenster, Berichte, Titelmenü)
+- [ ] Schritt D: Phaser entfernen, Leistung für viele Gäste (Instancing), Modelle verfeinern
+
 ## Phase 4 – Magie
 - [ ] Mana und Schreine
 - [ ] Zauber-Leiste mit ersten Zaubern
@@ -104,7 +111,7 @@ Schritt 3 – Neon-Viertel und Größe:
 - [ ] Grafik-Stil festlegen, Assets beschaffen (siehe [[Assets]])
 - [x] Dunkle, kalte Nacht mit Lichtinseln (Platzhalter)
 - [ ] Licht, Dampf, Glühwürmchen-Partikel
-- [ ] Entscheidung 2D oder 3D (Wunsch: Kamera neigbar, auch von der Seite schauen)
+- [x] Entscheidung 2D oder 3D: 3D (siehe Phase 3d)
 - [ ] Echte Grafiken für alle vier Drehrichtungen
 - [ ] Musik und Geräusche
 

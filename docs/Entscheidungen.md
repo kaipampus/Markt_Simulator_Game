@@ -13,9 +13,22 @@ Vorlage:
 
 ---
 
+## 2026-11-10 – Umstieg auf echte 3D-Darstellung
+**Status:** entschieden (Nutzer nach dem 3D-Test: „eher so haben“), Umsetzung in Schritten
+**Entscheidung:** Die Spielwelt wird künftig mit **Three.js in 3D** dargestellt, mit frei dreh- und neigbarer Kamera (fast senkrecht bis fast seitlich). Die Spiellogik (`GameState`, Wegfindung, Daten) bleibt. Spielfiguren werden von der Darstellung getrennt (Logik ohne Phaser, Darstellung als 3D-Modelle). Die Oberfläche (Leisten, Fenster, Menü) wird als **HTML/CSS** über das 3D-Bild gelegt. Phaser fällt am Ende weg.
+**Warum:** Der Test zeigte deutlich mehr Atmosphäre (Licht, Schatten, Einblick in Restaurants und Stände), Drehen und Neigen sind natürlich, Gebäude drehen sich ohne extra Zeichnungen.
+**Verworfen:** Bei 2D bleiben mit festen Blickwinkeln; 3D-Welt mit weiter Phaser-Oberfläche darüber (zwei Grafik-Bibliotheken gleichzeitig, unscharfer Text, doppelte Eingabeverwaltung).
+**Folgen:** Grafiken werden 3D-Modelle (zuerst einfache Low-Poly-Formen aus Code, später CC0-Modelle oder eigene); die Platzhalter-Zeichnungen in `gfx/textures.ts` entfallen.
+**Festgelegt (Antworten des Nutzers):**
+- Grafikstil: **weicher Toon-Look** (wie gemalt, weiche Schatten, warme kräftige Farben, leichte Umrisse, Nebel und Glühen); Modelle zuerst aus Code.
+- Kamera: **frei drehbar, Neigung begrenzt** (fast senkrecht bis fast seitlich), Zoom mit Grenzen, Q/E dreht in 45°-Schritten.
+- Vorgehen: **in Schritten**, nach jedem Schritt bleibt das Spiel spielbar (A Logik trennen, B 3D-Welt, C HTML-Oberfläche, D Phaser entfernen).
+- Oberfläche: **asiatisch-warm** (Papier- und Holztöne, Laternen-Akzente, geschwungene Überschriften).
+
 ## 2026-11-10 – Kamera auch von der Seite (Wunsch, später)
-**Status:** offen (Wunsch des Nutzers, Umsetzung frühestens in Phase 5)
+**Status:** erledigt durch „Umstieg auf echte 3D-Darstellung“
 **Wunsch:** Nicht nur schräg von oben, sondern die Kamera optional neigen und auch von der Seite auf den Markt schauen können.
+**Stand 2026-11-10:** Ein 3D-Test liegt auf dem Branch `feature/3d-prototype` (`prototype-3d.html`, Three.js, einfache Klötzchen-Modelle aus den Spieldaten). Entscheidung nach dem Anschauen.
 **Folge:** Mit der jetzigen 2D-Technik (fertig gezeichnete 3/4-Bilder) geht das nicht frei. Möglichkeiten: (a) Umstieg auf echte 3D-Darstellung, z. B. Three.js mit einfachen Low-Poly-Modellen; Drehen, Neigen und Zoomen wären dann natürlich, der Spielzustand bleibt unverändert. (b) Bei 2D bleiben mit wenigen festen Blickwinkeln, für die jede Grafik mehrfach gezeichnet werden muss. Empfehlung: (a), zu entscheiden vor der Grafikphase.
 
 ## 2026-11-10 – Stände auf zwei Seiten offen

@@ -31,9 +31,10 @@ import { Restaurant } from '../entities/Restaurant';
 import { Spirit } from '../entities/Spirit';
 import type { WalkerWorld } from '../entities/Walker';
 import { Worker } from '../entities/Worker';
+import { FerryView, RestaurantView, SpiritView, WorkerView } from '../view2d/views';
 import { createTextures, ensureBuildingTextures, TEX } from '../gfx/textures';
 import { AREAS } from '../data/levels';
-import { doorCellsFor, orient, state, unlockLevel, type PlacedBuilding } from '../state/GameState';
+import { doorCellsFor, orient, state, unlockLevel, type PlacedBuilding, type StaffMember } from '../state/GameState';
 import { startAutosave } from '../state/storage';
 import type { UIScene } from './UIScene';
 import type { Cell } from '../state/pathfinding';
@@ -79,6 +80,11 @@ const LIGHT = {
 export class MarketScene extends Phaser.Scene {
   private views = new Map<number, BuildingView>();
   private spirits: Spirit[] = [];
+  // 2D views of the figures (they outlive their logic objects while fading out).
+  private spiritViews: SpiritView[] = [];
+  private workerViews: WorkerView[] = [];
+  private ferryViews = new Map<number, FerryView>();
+  private restaurantViews = new Map<number, RestaurantView>();
   private ferries = new Map<number, Ferry>();
   private restaurants = new Map<number, Restaurant>();
   private workers = new Map<number, Worker>();
@@ -115,7 +121,6 @@ export class MarketScene extends Phaser.Scene {
 
     this.glowLayer = this.add.layer().setDepth(DEPTH.glow);
     this.world = {
-      glowLayer: this.glowLayer,
       ferry: (uid) => this.ferries.get(uid),
       restaurant: (uid) => this.restaurants.get(uid),
     };
@@ -139,7 +144,7 @@ export class MarketScene extends Phaser.Scene {
     this.setupCamera();
     this.footprint = this.add.graphics().setDepth(DEPTH.preview);
     this.selectionGfx = this.add.graphics().setDepth(DEPTH.preview - 1);
-    for (const m of state.staff.values()) this.workers.set(m.id, new Worker(this, state, this.world, m));
+    for (const m of state.staff.values()) this.addWorker(m);
     this.ghost = this.add.image(0, 0, TEX.building('lantern')).setOrigin(0, 1).setAlpha(0.7).setVisible(false).setDepth(DEPTH.preview + 1);
     this.setupInput();
 
@@ -158,7 +163,7 @@ export class MarketScene extends Phaser.Scene {
       state.on('sunrise', () => this.onSunrise()),
       state.on('speed', (speed) => (this.time.timeScale = speed)),
       state.on('hired', (m) => {
-        this.workers.set(m.id, new Worker(this, state, this.world, m));
+        this.addWorker(m);
       }),
       state.on('fired', (m) => {
         this.workers.get(m.id)?.dismiss();
@@ -192,12 +197,20 @@ export class MarketScene extends Phaser.Scene {
     state.tick(delta);
     const worldDelta = delta * state.speed;
 
+    // Logic first (at game speed), then the views (in real time).
     for (const f of this.ferries.values()) f.update(worldDelta);
-    for (const r of this.restaurants.values()) r.update(worldDelta, time);
-    for (const s of this.spirits) s.update(time, worldDelta);
+    for (const r of this.restaurants.values()) r.update(worldDelta);
+    for (const s of this.spirits) s.update(worldDelta);
     this.spirits = this.spirits.filter((s) => !s.isDone);
     state.setSpiritCount(this.spirits.length);
-    for (const w of this.workers.values()) w.update(time, worldDelta);
+    for (const w of this.workers.values()) w.update(worldDelta);
+
+    for (const v of this.ferryViews.values()) v.update();
+    for (const v of this.restaurantViews.values()) v.update(time);
+    for (const v of this.spiritViews) v.update(time);
+    this.spiritViews = this.spiritViews.filter((v) => !v.done);
+    for (const v of this.workerViews) v.update(time);
+    this.workerViews = this.workerViews.filter((v) => !v.done);
     this.letGuestsIn(worldDelta);
     this.updateBadges();
     this.drawSelection();
@@ -397,7 +410,15 @@ export class MarketScene extends Phaser.Scene {
 
   private spawnSpirit(start: Cell, delayMs: number): void {
     if (this.spirits.length >= SPIRIT_HARD_CAP) return;
-    this.spirits.push(new Spirit(this, state, this.world, start, undefined, delayMs));
+    const spirit = new Spirit(state, this.world, start, undefined, delayMs);
+    this.spirits.push(spirit);
+    this.spiritViews.push(new SpiritView(this, spirit, this.glowLayer));
+  }
+
+  private addWorker(m: StaffMember): void {
+    const worker = new Worker(state, this.world, m);
+    this.workers.set(m.id, worker);
+    this.workerViews.push(new WorkerView(this, worker));
   }
 
   // ---------------------------------------------------------------------------
@@ -469,11 +490,17 @@ export class MarketScene extends Phaser.Scene {
     const depth = def.walkable ? DEPTH.flat + b.ty : def.restaurant ? b.ty * TILE + 1 : split ? bottom - 2 : bottom;
     const texture = def.id === 'path' ? TEX.path(0) : split ? TEX.back(def.id) : TEX.view(def, b.rot);
     const image = this.add.image(b.tx * TILE, bottom, texture).setOrigin(0, 1).setDepth(depth);
-    if (def.crossing?.kind === 'boat') this.ferries.set(b.uid, new Ferry(this, b));
+    if (def.crossing?.kind === 'boat') {
+      const ferry = new Ferry(b);
+      this.ferries.set(b.uid, ferry);
+      this.ferryViews.set(b.uid, new FerryView(this, ferry));
+    }
     let front: Phaser.GameObjects.Image | undefined;
     let clerk: Phaser.GameObjects.Image | undefined;
     if (def.restaurant) {
-      this.restaurants.set(b.uid, new Restaurant(this, state, b));
+      const restaurant = new Restaurant(state, b);
+      this.restaurants.set(b.uid, restaurant);
+      this.restaurantViews.set(b.uid, new RestaurantView(this, restaurant));
       front = this.add.image(b.tx * TILE, bottom, TEX.front(def.id, b.rot % 2 === 1)).setOrigin(0, 1).setDepth(bottom + 1);
     }
     if (split) front = this.add.image(b.tx * TILE, bottom, TEX.front(def.id)).setOrigin(0, 1).setDepth(bottom);
@@ -529,8 +556,11 @@ export class MarketScene extends Phaser.Scene {
     this.views.delete(b.uid);
     this.ferries.get(b.uid)?.destroy();
     this.ferries.delete(b.uid);
-    this.restaurants.get(b.uid)?.destroy();
+    this.ferryViews.get(b.uid)?.destroy();
+    this.ferryViews.delete(b.uid);
     this.restaurants.delete(b.uid);
+    this.restaurantViews.get(b.uid)?.destroy();
+    this.restaurantViews.delete(b.uid);
     view.front?.destroy();
     view.clerk?.destroy();
     view.mats.forEach((m) => m.destroy());

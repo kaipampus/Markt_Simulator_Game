@@ -2,6 +2,19 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-10 – Umstieg auf 3D, Schritt A: Logik von der Grafik getrennt (Branch `feature/3d-migration`)
+- Geister, Arbeiter, Fähren und Restaurants sind jetzt reine Spiellogik ohne Phaser (`src/entities/`); sie liefern Position, Blickrichtung, Symbol und Zustand
+- Die 2D-Darstellung liegt in `src/view2d/views.ts` (Ein- und Ausblenden, Verglühen in der Sonne nur dort)
+- Zufallshilfen ohne Phaser (`src/state/random.ts`), Restaurant-Grundriss in `src/entities/layout.ts`
+- Spielerisch keine Änderung; Grundlage für die 3D-Darstellung in Schritt B
+
+## 2026-11-10 – 3D-Test (Branch `feature/3d-prototype`)
+- Eigene Testseite `prototype-3d.html` (im Entwicklungsserver: http://127.0.0.1:5173/prototype-3d.html), das Spiel selbst bleibt unverändert
+- Ein Stück Markt in echtem 3D mit Three.js: Restaurant mit offener Küche und Tischen, Stände (offen auf zwei Seiten, einer quer gedreht), Teehaus, Personal-Lodge, Toilette, Laternen, Feuerschale, Tor, schwebende Geister
+- Die Gebäude stammen aus dem echten Spielzustand (`GameState`), nur die Darstellung ist neu
+- Kamera frei: linke Maustaste drehen und neigen (fast senkrecht bis fast seitlich), rechte verschieben, Mausrad zoomen; Taste T wechselt zwischen Tag (Sonne mit Schatten) und Nacht (Laternen, Fenster und Feuer leuchten)
+- Neue Abhängigkeit: `three` (Three.js 0.170)
+
 ## 2026-11-10 – Stände auf beiden Seiten offen
 - Stände haben jetzt zwei gegenüberliegende offene Seiten mit Theke (wie Restaurants zwei Türen); Gäste kommen von beiden Seiten
 - Man schaut nie mehr auf eine Rückwand: vorn/hinten zeigt die offene Theke, quer gedreht sieht man von der Seite in den Stand hinein (Theken an beiden Enden, Arbeiter dazwischen)

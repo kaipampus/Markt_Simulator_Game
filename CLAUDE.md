@@ -10,8 +10,8 @@ Details: [[docs/Spielkonzept]] · Fahrplan: [[docs/Roadmap]] · Entscheidungen: 
 - Code, Bezeichner, Commit-Messages: **Englisch** (Commit-Text kurz, im Imperativ, z. B. `Add building placement grid`).
 
 ## Technik
-- **Phaser 4 + TypeScript + Vite**, reines Frontend, kein Backend.
-- **Ansicht 3/4 (schräg von oben):** quadratisches Raster, Gebäude ragen nach oben über ihr Feld, Zeichen-Reihenfolge über `depth = y` (weiter unten = davor).
+- **TypeScript + Vite**, reines Frontend, kein Backend. Darstellung bisher **Phaser 4** (2D); **Umstieg auf Three.js (3D) läuft** (siehe [[docs/Entscheidungen]] „Umstieg auf echte 3D-Darstellung“). Neue Darstellungs-Arbeit nur noch für 3D.
+- **Ansicht:** quadratisches Raster (1 Feld = 1 Einheit in 3D), frei dreh- und neigbare Kamera. Spiellogik bleibt unabhängig von der Darstellung; Oberfläche künftig als HTML/CSS über dem 3D-Bild.
 - **Nur PC/Mac:** Maus und Tastatur, keine Touch-Bedienung nötig.
 - Spielstände im Browser (`localStorage`/IndexedDB), später als **PWA** offline installierbar.
 - Hosting: statische Dateien (`dist/`) per nginx auf dem eigenen Linux-Server, Deploy später über GitHub Actions.
@@ -28,7 +28,9 @@ Details: [[docs/Spielkonzept]] · Fahrplan: [[docs/Roadmap]] · Entscheidungen: 
 - `data/`: Spielwerte und Texte (Gebäude, Personal und Sauberkeit, Zeitalter, Strings)
 - `state/`: Spielzustand (Geld, belegte Felder), unabhängig von der Darstellung
 - `scenes/`: `MarketScene` (Spielwelt, Kamera, Bauen) und `UIScene` (Anzeige, Baumenü, Personal- und Infofenster, liegt darüber)
-- `entities/`: Spielfiguren (Geister, Arbeiter, Fähren); `Walker` ist die gemeinsame Laufklasse
+- `entities/`: Spielfiguren als reine Logik ohne Grafik (Geister, Arbeiter, Fähren, Restaurants); `Walker` ist die gemeinsame Laufklasse
+- `view2d/`: bisherige 2D-Darstellung der Figuren (Phaser), fällt mit dem 3D-Umstieg weg
+- `proto3d/`: 3D-Darstellung (Three.js), zurzeit als Testseite `prototype-3d.html`
 - `gfx/`: Platzhalter-Grafiken, die per Code erzeugt werden
 
 ## Arbeitsablauf

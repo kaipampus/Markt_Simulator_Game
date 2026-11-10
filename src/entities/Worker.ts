@@ -1,10 +1,9 @@
-import * as Phaser from 'phaser';
-import { DEPTH, FONT_UI, SPIRIT_SPEED } from '../config';
+import { SPIRIT_SPEED } from '../config';
 import { DIRT, STAFF, type Role } from '../data/staff';
 import { STR } from '../data/strings';
-import { TEX } from '../gfx/textures';
 import type { GameState, PlacedBuilding, StaffMember, StaffStatus } from '../state/GameState';
 import { cheapest, costTo, pathTo, type Cell } from '../state/pathfinding';
+import { floatBetween, pick } from '../state/random';
 import { cellToWorld, Walker, type WalkerWorld } from './Walker';
 
 /**
@@ -33,9 +32,12 @@ function sameCell(a: Cell | null, b: Cell | null): boolean {
 export class Worker extends Walker {
   readonly id: number;
   readonly role: Role;
-  private body: Phaser.GameObjects.Image;
-  private shadow: Phaser.GameObjects.Image;
-  private badge: Phaser.GameObjects.Text;
+  /** Looking left (for drawing). */
+  facingLeft = false;
+  /** Counts how often the worker came out of a building (views fade in on change). */
+  appearances = 0;
+  /** Dismissed while out on the map (views fade out instead of vanishing). */
+  private leftWhileAwake = false;
 
   private mode: Mode = 'asleep';
   private waitMs = 0;
@@ -48,27 +50,15 @@ export class Worker extends Walker {
   /** Cleaners: the focus we last reacted to. */
   private knownFocus: Cell | null;
 
-  private readonly seed = Math.random() * 1000;
+  /** Random offset for the bobbing animation. */
+  readonly seed = Math.random() * 1000;
 
-  constructor(scene: Phaser.Scene, state: GameState, world: WalkerWorld, member: StaffMember) {
-    super(scene, state, world, { tx: 0, ty: 0 });
+  constructor(state: GameState, world: WalkerWorld, member: StaffMember) {
+    super(state, world, { tx: 0, ty: 0 });
     this.id = member.id;
     this.role = member.role;
     this.knownFocus = member.focus;
-    this.speed = SPIRIT_SPEED * STAFF[member.role].speed * Phaser.Math.FloatBetween(0.95, 1.05);
-
-    this.shadow = scene.add.image(0, 0, TEX.shadow).setVisible(false);
-    this.body = scene.add.image(0, 0, TEX.worker(member.role)).setOrigin(0.5, 1).setVisible(false);
-    this.badge = scene.add
-      .text(0, 0, '', {
-        fontFamily: FONT_UI,
-        fontSize: '11px',
-        backgroundColor: 'rgba(16,18,32,0.7)',
-        padding: { x: 2, y: 1 },
-      })
-      .setOrigin(0.5, 1)
-      .setDepth(DEPTH.glow + 9)
-      .setVisible(false);
+    this.speed = SPIRIT_SPEED * STAFF[member.role].speed * floatBetween(0.95, 1.05);
   }
 
   private get member(): StaffMember | undefined {
@@ -86,11 +76,48 @@ export class Worker extends Walker {
 
   /** Is the world point (x, y) on this worker? */
   hitTest(x: number, y: number): boolean {
-    return this.isAwake && this.body.visible && Math.abs(x - this.x) <= 14 && y >= this.y - 42 && y <= this.y + 6;
+    return this.visible && Math.abs(x - this.x) <= 14 && y >= this.y - 42 && y <= this.y + 6;
   }
 
   protected face(left: boolean): void {
-    this.body.setFlipX(left);
+    this.facingLeft = left;
+  }
+
+  /**
+   * Drawn on the map: awake and not working inside a restaurant or stall
+   * (those draw their own cook, waiter or clerk figures).
+   */
+  get visible(): boolean {
+    if (!this.isAwake) return false;
+    const m = this.member;
+    const postDef = m?.post != null ? this.state.buildings.get(m.post)?.def : undefined;
+    const inside = this.mode === 'onDuty' && !!postDef && (!!postDef.restaurant || postDef.style === 'stall');
+    return !inside;
+  }
+
+  /** Walking (bobs faster). */
+  get moving(): boolean {
+    return this.mode === 'toPost' || this.mode === 'toHome' || this.mode === 'roam';
+  }
+
+  get onBoat(): boolean {
+    return this.boarded;
+  }
+
+  /** Badge above the head: the job, or a sign of trouble. */
+  get icon(): string {
+    const m = this.member;
+    return m?.status === 'stuck' ? STR.stuckIcon : this.queueing ? STR.waitIcon : STR.roleIcons[this.role];
+  }
+
+  /** Lost to the sun, dismissed while out ('gone'), or still around. */
+  get ended(): 'lost' | 'gone' | null {
+    return this.mode === 'lost' || this.mode === 'gone' ? this.mode : null;
+  }
+
+  /** Dismissed while out on the map (fade out) rather than while asleep (just vanish). */
+  get fadesOut(): boolean {
+    return this.leftWhileAwake;
   }
 
   private setStatus(status: StaffStatus): void {
@@ -113,12 +140,7 @@ export class Worker extends Walker {
     this.x = p.x;
     this.y = p.y;
     this.path = [];
-    for (const o of [this.body, this.shadow]) o.setVisible(true).setAlpha(0);
-    this.scene.tweens.add({ targets: [this.body, this.shadow], alpha: 1, duration: 500 });
-  }
-
-  private hide(): void {
-    for (const o of [this.body, this.shadow, this.badge]) o.setVisible(false);
+    this.appearances++;
   }
 
   // ---------------------------------------------------------------------------
@@ -144,7 +166,7 @@ export class Worker extends Walker {
       this.setStatus('stuck');
       return;
     }
-    this.show(Phaser.Utils.Array.GetRandom(doors));
+    this.show(pick(doors));
     this.mode = 'idle';
     this.goToWork();
   }
@@ -288,7 +310,6 @@ export class Worker extends Walker {
     this.mode = 'asleep';
     this.path = [];
     this.setStatus('asleep');
-    this.hide();
   }
 
   protected arrive(): void {
@@ -315,7 +336,7 @@ export class Worker extends Walker {
   }
 
   /** `delta` is already scaled by the game speed. */
-  update(time: number, delta: number): void {
+  update(delta: number): void {
     if (!this.isAwake) return;
     if (!this.member) return;
 
@@ -343,24 +364,6 @@ export class Worker extends Walker {
         if (this.waitMs <= 0) this.replan();
         break;
     }
-    this.render(time);
-  }
-
-  private render(time: number): void {
-    if (!this.isAwake) return;
-    // Inside a restaurant the restaurant draws its own cook and waiter figures.
-    const m0 = this.member;
-    const postDef = m0?.post != null ? this.state.buildings.get(m0.post)?.def : undefined;
-    const inside = this.mode === 'onDuty' && !!postDef && (!!postDef.restaurant || postDef.style === 'stall');
-    for (const o of [this.body, this.shadow, this.badge]) o.setVisible(!inside);
-    if (inside) return;
-    const moving = this.mode === 'toPost' || this.mode === 'toHome' || this.mode === 'roam';
-    const bob = Math.sin(time / (moving ? 160 : 400) + this.seed) * (moving ? 2 : 1);
-    this.body.setPosition(this.x, this.y - 3 + bob).setDepth(this.y);
-    this.shadow.setPosition(this.x, this.y).setDepth(this.y - 0.5).setVisible(!this.boarded);
-    const m = this.member;
-    const icon = m?.status === 'stuck' ? STR.stuckIcon : this.queueing ? STR.waitIcon : STR.roleIcons[this.role];
-    this.badge.setText(icon).setVisible(true).setPosition(this.x, this.y - 44 + bob);
   }
 
   // ---------------------------------------------------------------------------
@@ -436,29 +439,13 @@ export class Worker extends Walker {
     this.releaseCrossings();
     this.state.setOnDuty(this.id, false);
     this.mode = 'lost';
-    this.badge.setVisible(false);
-    this.body.setTint(0xffb070);
-    this.scene.tweens.add({ targets: this.body, y: '-=40', alpha: 0, duration: 1400, ease: 'Cubic.In' });
-    this.scene.tweens.add({ targets: this.shadow, alpha: 0, duration: 1400, onComplete: () => this.destroy() });
   }
 
   /** Dismissed by the player. */
   dismiss(): void {
     this.state.releaseDirt(this.id);
-    const wasAwake = this.isAwake;
+    this.leftWhileAwake = this.visible;
     this.releaseCrossings();
     this.mode = 'gone';
-    this.badge.setVisible(false);
-    if (!wasAwake) {
-      this.destroy();
-      return;
-    }
-    this.scene.tweens.add({ targets: [this.body, this.shadow], alpha: 0, duration: 500, onComplete: () => this.destroy() });
-  }
-
-  destroy(): void {
-    this.body.destroy();
-    this.shadow.destroy();
-    this.badge.destroy();
   }
 }

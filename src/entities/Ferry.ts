@@ -1,33 +1,33 @@
-import * as Phaser from 'phaser';
-import { DEPTH, TILE } from '../config';
-import { TEX } from '../gfx/textures';
+import { TILE } from '../config';
 import type { PlacedBuilding } from '../state/GameState';
 import type { Cell } from '../state/pathfinding';
 import type { Walker } from './Walker';
 
 export type Bank = 'north' | 'south';
 
+/** Smooth start and stop (sine in-out). */
+function ease(t: number): number {
+  return -(Math.cos(Math.PI * t) - 1) / 2;
+}
+
 /**
- * A ferry boat shuttling across the river along its lane.
- * Spirits queue at either bank; the boat waits at its dock until it is full
- * or its waiting time is over, then crosses and unloads everyone.
+ * A ferry boat shuttling across the river along its lane (logic only; views
+ * draw the boat at `boatX`/`boatY`). Spirits queue at either bank; the boat
+ * waits at its dock until it is full or its waiting time is over, then
+ * crosses and unloads everyone.
  */
 export class Ferry {
-  private boat: Phaser.GameObjects.Image;
   private dock: Bank = 'south';
   private sailing = false;
   private progress = 0;
   private dockMs = 0;
   private queues: Record<Bank, Walker[]> = { north: [], south: [] };
   private riders: Walker[] = [];
+  /** Position of the boat in world pixels. */
+  boatY: number;
 
-  constructor(
-    scene: Phaser.Scene,
-    readonly building: PlacedBuilding,
-  ) {
-    this.boat = scene.add
-      .image(this.x, this.dockY('south'), TEX.boat(building.def.id))
-      .setDepth(DEPTH.boat);
+  constructor(readonly building: PlacedBuilding) {
+    this.boatY = this.dockY('south');
   }
 
   private get crossing() {
@@ -36,7 +36,7 @@ export class Ferry {
     return c;
   }
 
-  private get x(): number {
+  get boatX(): number {
     return this.building.tx * TILE + TILE / 2;
   }
 
@@ -56,6 +56,7 @@ export class Ferry {
     this.queues[side].push(spirit);
   }
 
+  /** `delta` is already scaled by the game speed. */
   update(delta: number): void {
     // Forget spirits that were lost to the sun in the meantime.
     this.riders = this.riders.filter((s) => !s.isDone);
@@ -68,8 +69,7 @@ export class Ferry {
       this.progress = Math.min(1, this.progress + delta / tripMs);
       const from = this.dockY(this.dock);
       const to = this.dockY(this.dock === 'north' ? 'south' : 'north');
-      const t = Phaser.Math.Easing.Sine.InOut(this.progress);
-      this.boat.setY(Phaser.Math.Linear(from, to, t));
+      this.boatY = from + (to - from) * ease(this.progress);
       this.placeRiders();
       if (this.progress >= 1) {
         this.sailing = false;
@@ -107,7 +107,7 @@ export class Ferry {
     this.riders.forEach((r, i) => {
       const col = (i % 3) - 1;
       const row = Math.floor(i / 3);
-      r.setRidePosition(this.x + col * 9, this.boat.y + 4 - row * 5);
+      r.setRidePosition(this.boatX + col * 9, this.boatY + 4 - row * 5);
     });
   }
 
@@ -118,6 +118,5 @@ export class Ferry {
     for (const s of [...this.queues.north, ...this.queues.south]) s.cancelRide();
     this.riders = [];
     this.queues = { north: [], south: [] };
-    this.boat.destroy();
   }
 }

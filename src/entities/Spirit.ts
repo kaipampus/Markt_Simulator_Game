@@ -1,5 +1,4 @@
-import * as Phaser from 'phaser';
-import { DEPTH, FONT_UI, SPIRIT_SPEED, VISIT_MS } from '../config';
+import { SPIRIT_SPEED, VISIT_MS } from '../config';
 import { BUILDINGS, NEEDS, type Cuisine, type Need } from '../data/buildings';
 import {
   ANGER_MOOD,
@@ -17,8 +16,8 @@ import {
 } from '../data/spirits';
 import { DIRT, HOLD_MS } from '../data/staff';
 import { STR } from '../data/strings';
-import { TEX } from '../gfx/textures';
 import type { GameState } from '../state/GameState';
+import { between, floatBetween, lerp, pick } from '../state/random';
 import { cellsInRange, cheapest, costTo, pathTo, type Cell, type Field } from '../state/pathfinding';
 import { Walker, type WalkerWorld } from './Walker';
 
@@ -42,7 +41,7 @@ const CUISINES: readonly Cuisine[] = [...new Set(BUILDINGS.flatMap((b) => (b.cui
 /** A list of wishes for tonight. Wishes may repeat, but never twice in a row. */
 function rollWishes(kind: SpiritKind): Need[] {
   const weights = SPIRIT_KINDS[kind].needs ?? {};
-  const count = Phaser.Math.Between(WISHES.min, WISHES.max);
+  const count = between(WISHES.min, WISHES.max);
   const out: Need[] = [];
   while (out.length < count) {
     const options = NEEDS.filter((n) => n !== out[out.length - 1]);
@@ -92,10 +91,10 @@ const ANGRY_SHOW_MS = 3500;
 export class Spirit extends Walker {
   readonly id = nextSpiritId++;
   readonly kind: SpiritKind;
-  private body: Phaser.GameObjects.Image;
-  private shadow: Phaser.GameObjects.Image;
-  private aura: Phaser.GameObjects.Image;
-  private bubble: Phaser.GameObjects.Text;
+  /** Colour of this guest (picked from its kind). */
+  readonly tint: number;
+  /** Looking left (for drawing). */
+  facingLeft = false;
 
   private phase: Phase = 'waiting';
   private goal: Goal | null = null;
@@ -130,55 +129,27 @@ export class Spirit extends Walker {
   private totalWait = 0;
   private angerCount = 0;
 
-  private readonly seed = Math.random() * 1000;
+  /** Random offset for the bobbing animation. */
+  readonly seed = Math.random() * 1000;
 
   constructor(
-    scene: Phaser.Scene,
     state: GameState,
     world: WalkerWorld,
     start: Cell,
     kind: SpiritKind = randomKind(),
     delayMs = 600,
   ) {
-    super(scene, state, world, start);
+    super(state, world, start);
     this.kind = kind;
     const k = SPIRIT_KINDS[kind];
-    this.speed = SPIRIT_SPEED * k.speed * Phaser.Math.FloatBetween(0.9, 1.1);
+    this.speed = SPIRIT_SPEED * k.speed * floatBetween(0.9, 1.1);
     this.waitMs = delayMs;
     this.needs = rollWishes(kind);
     this.cravings = this.needs.map((n) =>
-      n === 'hunger' && Math.random() < CRAVING_CHANCE ? Phaser.Utils.Array.GetRandom([...CUISINES]) : null,
+      n === 'hunger' && Math.random() < CRAVING_CHANCE ? pick([...CUISINES]) : null,
     );
 
-    this.shadow = scene.add.image(this.x, this.y, TEX.shadow).setAlpha(0).setScale(k.scale);
-    this.body = scene.add
-      .image(this.x, this.y, TEX.spirit)
-      .setOrigin(0.5, 1)
-      .setScale(k.scale)
-      .setTint(Phaser.Utils.Array.GetRandom(k.tints))
-      .setAlpha(0);
-    this.aura = scene.add
-      .image(this.x, this.y, TEX.glow)
-      .setBlendMode(Phaser.BlendModes.ADD)
-      .setTint(k.slimy ? 0x9fffb0 : 0x9fc4ff)
-      .setScale(0.32 * k.scale)
-      .setAlpha(0);
-    world.glowLayer.add(this.aura);
-    this.bubble = scene.add
-      .text(this.x, this.y, '', {
-        fontFamily: FONT_UI,
-        fontSize: '13px',
-        backgroundColor: 'rgba(16,18,32,0.7)',
-        padding: { x: 3, y: 1 },
-      })
-      .setOrigin(0.5, 1)
-      .setDepth(DEPTH.glow + 10)
-      .setVisible(false);
-
-    scene.tweens.add({ targets: [this.body], alpha: k.alpha, duration: 700 });
-    scene.tweens.add({ targets: this.shadow, alpha: 1, duration: 700 });
-    // Faint aura: with many guests the glows add up.
-    scene.tweens.add({ targets: this.aura, alpha: 0.35, duration: 700 });
+    this.tint = pick(k.tints);
   }
 
   /** True once the spirit is home or lost; the scene can drop it. */
@@ -207,13 +178,61 @@ export class Spirit extends Walker {
   }
 
   protected face(left: boolean): void {
-    this.body.setFlipX(left);
+    this.facingLeft = left;
+  }
+
+  /** How the guest left: safely, lost to the sun, or not yet. */
+  get ended(): 'safe' | 'lost' | null {
+    return this.phase === 'safe' || this.phase === 'lost' ? this.phase : null;
+  }
+
+  /** Size factor of this kind of guest. */
+  get scale(): number {
+    return this.def.scale;
+  }
+
+  get alpha(): number {
+    return this.def.alpha;
+  }
+
+  get slimy(): boolean {
+    return !!this.def.slimy;
+  }
+
+  /** On a ferry deck (no shadow). */
+  get onBoat(): boolean {
+    return this.boarded;
+  }
+
+  /** Where to draw the guest: guests in line stand a little apart. */
+  get drawPos(): { x: number; y: number } {
+    if (this.phase === 'queueing' && this.queuedAt !== null) {
+      const pos = Math.max(0, this.state.queuePosition(this.queuedAt, this.id));
+      return { x: this.x + ((pos % 4) - 1.5) * 9, y: this.y + Math.floor(pos / 4) * 6 };
+    }
+    return { x: this.x, y: this.y };
+  }
+
+  /** The bubble above the head: mood, waiting, or the current wish. */
+  get icon(): string {
+    if (this.isDone) return '';
+    if (this.angryMs > 0) return STR.angryIcon;
+    if (this.phase === 'dining' && this.dine === 'eat') return STR.eatingIcon;
+    if (this.phase === 'dining' && this.dine === 'wait') {
+      return this.waited > this.def.patience * FOOD_PATIENCE * 0.65 ? STR.impatientIcon : STR.waitIcon;
+    }
+    if (this.phase === 'queueing') return this.waited > this.def.patience * 0.65 ? STR.impatientIcon : STR.waitIcon;
+    if (this.queueing || this.phase === 'holding') return STR.waitIcon;
+    if (this.headingHome) return STR.homeIcon;
+    if (this.cravings[0]) return STR.cravingIcons[this.cravings[0]];
+    if (this.needs.length > 0) return STR.needIcons[this.needs[0]];
+    return '';
   }
 
   // ---------------------------------------------------------------------------
 
   /** `delta` is already scaled by the game speed. */
-  update(time: number, delta: number): void {
+  update(delta: number): void {
     if (this.isDone) return;
     if (this.angryMs > 0) this.angryMs -= delta;
 
@@ -243,42 +262,6 @@ export class Spirit extends Walker {
         break;
     }
 
-    this.render(time);
-  }
-
-  private render(time: number): void {
-    const bob = Math.sin(time / 320 + this.seed) * 3;
-    const k = this.def.scale;
-    // Guests in line stand a little apart instead of on top of each other.
-    let ox = 0;
-    let oy = 0;
-    if (this.phase === 'queueing' && this.queuedAt !== null) {
-      const pos = Math.max(0, this.state.queuePosition(this.queuedAt, this.id));
-      ox = ((pos % 4) - 1.5) * 9;
-      oy = Math.floor(pos / 4) * 6;
-    }
-    const x = this.x + ox;
-    const y = this.y + oy;
-    this.body.setPosition(x, y - 4 + bob).setDepth(y);
-    this.shadow
-      .setPosition(x, y)
-      .setScale(k * (1 - bob * 0.04))
-      .setDepth(y - 0.5)
-      .setVisible(!this.boarded);
-    this.aura.setPosition(x, y - 20 * k + bob);
-
-    let icon = '';
-    if (this.angryMs > 0) icon = STR.angryIcon;
-    else if (this.phase === 'dining' && this.dine === 'eat') icon = STR.eatingIcon;
-    else if (this.phase === 'dining' && this.dine === 'wait')
-      icon = this.waited > this.def.patience * FOOD_PATIENCE * 0.65 ? STR.impatientIcon : STR.waitIcon;
-    else if (this.phase === 'queueing') icon = this.waited > this.def.patience * 0.65 ? STR.impatientIcon : STR.waitIcon;
-    else if (this.queueing || this.phase === 'holding') icon = STR.waitIcon;
-    else if (this.headingHome) icon = STR.homeIcon;
-    else if (this.cravings[0]) icon = STR.cravingIcons[this.cravings[0]];
-    else if (this.needs.length > 0) icon = STR.needIcons[this.needs[0]];
-    if (this.bubble.text !== icon) this.bubble.setText(icon);
-    this.bubble.setVisible(icon !== '').setPosition(x, y - 44 * k + bob);
   }
 
   /** Called whenever buildings change, so spirits never walk through removed paths. */
@@ -385,7 +368,7 @@ export class Spirit extends Walker {
   /** Wander to a nearby spot, then think about the next wish. */
   private stroll(field = this.search()): void {
     const spots = cellsInRange(field, 2, 7);
-    if (spots.length && this.walkTo({ kind: 'wander' }, field, Phaser.Utils.Array.GetRandom(spots))) return;
+    if (spots.length && this.walkTo({ kind: 'wander' }, field, pick(spots))) return;
     this.wait(800);
   }
 
@@ -427,7 +410,7 @@ export class Spirit extends Walker {
   protected arrive(): void {
     const goal = this.goal;
     if (!goal || goal.kind === 'wander') {
-      this.wait(Phaser.Math.Between(STROLL_PAUSE.min, STROLL_PAUSE.max));
+      this.wait(between(STROLL_PAUSE.min, STROLL_PAUSE.max));
       return;
     }
     if (goal.kind === 'gate') {
@@ -510,8 +493,8 @@ export class Spirit extends Walker {
     if (this.dine === 'enter') {
       this.dineMs += delta;
       const t = Math.min(1, this.dineMs / 700);
-      this.x = Phaser.Math.Linear(this.door.x, this.seat.x, t);
-      this.y = Phaser.Math.Linear(this.door.y, this.seat.y, t);
+      this.x = lerp(this.door.x, this.seat.x, t);
+      this.y = lerp(this.door.y, this.seat.y, t);
       if (Math.abs(this.seat.x - this.door.x) > 1) this.face(this.seat.x < this.door.x);
       if (t >= 1) {
         this.face(false);
@@ -543,7 +526,7 @@ export class Spirit extends Walker {
     if (this.phase !== 'dining') return;
     const eat = this.servedAt !== null ? this.state.buildings.get(this.servedAt)?.def.restaurant?.eatMs : undefined;
     this.dine = 'eat';
-    this.dineMs = (eat ?? 15_000) * Phaser.Math.FloatBetween(0.7, 1.3) * (this.kind === 'glutton' ? 1.3 : 1);
+    this.dineMs = (eat ?? 15_000) * floatBetween(0.7, 1.3) * (this.kind === 'glutton' ? 1.3 : 1);
   }
 
   private hold(delta: number): void {
@@ -598,13 +581,6 @@ export class Spirit extends Walker {
     this.leaveLine();
     this.releaseCrossings();
     this.phase = 'safe';
-    this.bubble.setVisible(false);
-    this.scene.tweens.add({
-      targets: [this.body, this.shadow, this.aura],
-      alpha: 0,
-      duration: 500,
-      onComplete: () => this.destroy(),
-    });
   }
 
   /** Caught by the sun. */
@@ -614,28 +590,5 @@ export class Spirit extends Walker {
     this.releaseCrossings();
     if (this.goal?.kind === 'hotel') this.state.releaseBed(this.goal.uid);
     this.phase = 'lost';
-    this.bubble.setVisible(false);
-    this.body.setTint(0xffb070);
-    this.aura.setTint(0xffa050);
-    this.scene.tweens.add({
-      targets: [this.body, this.aura],
-      y: '-=40',
-      alpha: 0,
-      duration: 1400,
-      ease: 'Cubic.In',
-    });
-    this.scene.tweens.add({
-      targets: this.shadow,
-      alpha: 0,
-      duration: 1400,
-      onComplete: () => this.destroy(),
-    });
-  }
-
-  destroy(): void {
-    this.body.destroy();
-    this.shadow.destroy();
-    this.aura.destroy();
-    this.bubble.destroy();
   }
 }
