@@ -28,8 +28,8 @@ export const DEMOLISH_REFUND = 0.5;
 
 // --- Time (milliseconds) -----------------------------------------------------
 
-export const FIRST_DAY_MS = 90_000;
-export const DAY_MS = 45_000;
+export const FIRST_DAY_MS = 180_000;
+export const DAY_MS = 120_000;
 export const NIGHT_MS = 240_000;
 /** Last part of the night in which every spirit hurries home. */
 export const DAWN_WARNING_MS = 40_000;
@@ -75,6 +75,26 @@ export const TIME_PANEL_HALF_WIDTH = 248;
 /** Level panel below the top bar (left). */
 export const LEVEL_PANEL_WIDTH = 330;
 export const LEVEL_PANEL_HEIGHT = 58;
+
+// --- Night lighting ----------------------------------------------------------
+/**
+ * The night is a dark, cold layer; lights cut holes into it. `strength` 1 =
+ * fully lit at the centre, `radius` in pixels (or a factor of the building's
+ * own glow radius / size).
+ */
+export const NIGHT_DARKNESS = 'rgba(4, 9, 28, 0.9)';
+export const LIGHTS = {
+  /** Lanterns, gas lamps, neon signs, braziers: bright and wide. */
+  lamp: { strength: 0.97, radiusFactor: 2.1 },
+  /** Restaurants: the whole room is lit. */
+  restaurant: { strength: 0.75, radiusFactor: 0.75 },
+  /** Houses, hotels, staff lodges with lit windows. */
+  house: { strength: 0.6, radiusFactor: 1.5 },
+  /** Stalls and other small buildings: a little light. */
+  stall: { strength: 0.45, radius: 62 },
+  /** The two lanterns at the gate. */
+  gate: { strength: 0.9, radius: 120 },
+} as const;
 
 // --- Depth layers ----------------------------------------------------------------
 

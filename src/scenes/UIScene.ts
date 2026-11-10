@@ -496,7 +496,9 @@ export class UIScene extends Phaser.Scene {
     kb.on('keydown-R', () => {
       // Turn the building being placed, or the selected one (by day).
       if (state.tool?.kind === 'build') state.rotateBuild();
-      else if (state.selection?.kind === 'building') state.rotate(state.selection.uid);
+      else if (state.selection?.kind === 'building' && state.canBuild && !state.rotate(state.selection.uid)) {
+        this.flashHint(STR.cantTurn);
+      }
     });
     kb.on('keydown-I', () => this.toggleFinance());
     kb.on('keydown-SPACE', () => state.togglePause());

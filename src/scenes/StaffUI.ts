@@ -376,7 +376,9 @@ export class StaffUI {
     buttons: Array<[string, () => void, boolean?, string?]>,
   ): void {
     const { def } = b;
-    if (hasDoors(def) && state.canBuild) buttons.push([STR.rotate, () => state.rotate(b.uid)]);
+    if (hasDoors(def) && state.canBuild) {
+      buttons.push([STR.rotate, () => !state.rotate(b.uid) && this.hooks.flash(STR.cantTurn)]);
+    }
     // Upgrades (by day).
     const base = getBuilding(def.id);
     const max = maxTier(base);

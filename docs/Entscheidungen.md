@@ -13,6 +13,21 @@ Vorlage:
 
 ---
 
+## 2026-11-10 – Kamera auch von der Seite (Wunsch, später)
+**Status:** offen (Wunsch des Nutzers, Umsetzung frühestens in Phase 5)
+**Wunsch:** Nicht nur schräg von oben, sondern die Kamera optional neigen und auch von der Seite auf den Markt schauen können.
+**Folge:** Mit der jetzigen 2D-Technik (fertig gezeichnete 3/4-Bilder) geht das nicht frei. Möglichkeiten: (a) Umstieg auf echte 3D-Darstellung, z. B. Three.js mit einfachen Low-Poly-Modellen; Drehen, Neigen und Zoomen wären dann natürlich, der Spielzustand bleibt unverändert. (b) Bei 2D bleiben mit wenigen festen Blickwinkeln, für die jede Grafik mehrfach gezeichnet werden muss. Empfehlung: (a), zu entscheiden vor der Grafikphase.
+
+## 2026-11-10 – Ganze Gebäude drehen
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** R dreht das ganze Gebäude um 90°, nicht nur die Tür. Längliche Gebäude belegen gedreht andere Felder; ohne Platz geht das Drehen nicht. Rück- und Seitenansichten sind vorerst einfache Platzhalter.
+**Warum:** Ein Stand, der zur Wand schaut, während die Tür hinten ist, wirkte unlogisch.
+
+## 2026-11-10 – Dunkle Nächte mit echten Lichtinseln, längere Tage
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Die Nacht ist eine dunkle, kühl-blaue Schicht; Lampen und Feuerschalen schneiden große Lichtinseln hinein, Restaurants mittlere, Stände kleine. Tage dauern 3 bzw. 2 Minuten, und zu Tagesbeginn springt das Tempo auf 1×.
+**Warum:** Mehr Atmosphäre und ein Grund, Laternen zu bauen; man soll nicht versehentlich durch den Tag rasen.
+
 ## 2026-11-10 – Beliebtheit ist die Gästezahl, Wachstum in Prozent
 **Status:** entschieden (Wunsch des Nutzers)
 **Entscheidung:** Die Beliebtheit gibt direkt an, wie viele Gäste pro Nacht kommen. Sie ändert sich jeden Morgen um einen Prozentsatz (Laune, Warten, Schmutz, Verluste, Angebot, Neues, Nachtbau), mindestens um einen Gast. Bereiche heben nur die Obergrenze. Ohne Probleme wächst sie stetig; es gibt keinen Gewöhnungs-Abzug mehr. Dazu ist die Wirtschaft gebremst: niedrigere Preise, höhere Löhne, teurere Hotels und Hotel-Viertel.

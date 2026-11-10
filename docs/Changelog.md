@@ -2,6 +2,13 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-10 – Gebäude drehen sich ganz, dunkle Nächte, längere Tage (Branch `feature/turn-buildings`)
+- **Drehen (R)** dreht jetzt das ganze Gebäude: Tür nach vorn = Vorderansicht, nach hinten = Rückansicht, zur Seite = Seitenansicht. Längliche Gebäude drehen ihre Grundfläche mit (2 × 1 wird 1 × 2); Drehen prüft, ob dafür Platz ist. Restaurants behalten ihre Größe und wechseln zwischen Türen vorn/hinten und links/rechts
+- Seiten- und Rückansichten als einfache Platzhalter-Grafik; der Arbeiter steht bei Seitenansicht neben der Theke
+- **Nacht deutlich dunkler und kühl-blau**: Laternen, Gaslampen, Neonschilder und Feuerschalen erhellen einen großen Bereich, Restaurants ihren Raum, Häuser etwas, Stände nur ihre Theke
+- **Tage länger**: erster Tag 3 Minuten, danach 2 Minuten (vorher 90 und 45 Sekunden)
+- Bei Tagesbeginn springt das Tempo automatisch auf 1× zurück
+
 ## 2026-11-10 – Beliebtheit = Gäste, langsameres Geld
 - **Beliebtheit ist jetzt genau die Zahl der Gäste pro Nacht** (Start 15, mindestens 8). Ein neuer Bereich hebt nur die Obergrenze (Markt 100, mit Hotel-Viertel 400), die Gästezahl springt dadurch nicht mehr
 - Änderung pro Nacht in **Prozent** (mindestens ±1 Gast): Laune bis ±12 %, Wut und Warten, Schmutz bis −8 %, verlorene Gäste bis −40 %, zu wenig Angebot bis −8 %, Neues +2 % je Stand (bis +8 %), Nachtbau −1 % je Aktion; die Gewöhnung entfällt, damit es bei gutem Betrieb stetig wächst

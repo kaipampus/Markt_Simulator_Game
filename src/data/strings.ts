@@ -35,6 +35,7 @@ export const STR = {
   notEnoughCoins: 'Not enough coins',
   areaLocked: 'This area is still closed',
   rotate: '↻ Turn (R)',
+  cantTurn: 'No room to turn it here',
   level: (n: number) => `Level ${n}`,
   levelXp: (xp: number, next: number | null) => (next === null ? `${xp} XP · top level` : `${xp} / ${next} XP`),
   levelNext: (names: string) => `Next level: ${names}`,

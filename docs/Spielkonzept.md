@@ -36,6 +36,8 @@ Die Karte besteht aus **Bereichen**, die nacheinander freigeschaltet werden: Sob
 - Zu Beginn gibt es einen kurzen Weg vom Tor über eine Holzbrücke und eine kleine Personal-Lodge am Weg
 
 ## Zeit
+- Der erste Tag dauert 3 Minuten, jeder weitere 2, die Nacht 4. Zu Tagesbeginn springt das Tempo auf 1×.
+- Nachts ist es dunkel und kühl; nur Laternen, Feuerschalen, Restaurants und (schwach) Stände spenden Licht.
 - Tag und Nacht wechseln von selbst, aber **du hast die Kontrolle**: Pause (Leertaste), Tempo 1×/2×/4× (Taste F) und „Nacht jetzt starten“ (Taste N)
 - In der Pause kann man in Ruhe bauen oder Personal einteilen
 - Spielschleife:
@@ -74,7 +76,7 @@ Die Nacht soll von Anfang bis Ende zu tun geben:
 ## Türen
 - Gebäude mit Gästen oder Personal haben **feste Türen** (Matte davor). Restaurants haben **zwei gegenüberliegende**, alle anderen eine.
 - Gäste und Arbeiter gehen nur durch die Türen; die Tür muss an einem Weg liegen.
-- Mit **R** dreht man das Gebäude beim Bauen (Vorschau: Tür grün = Weg da, orange = Weg fehlt) oder tagsüber nachträglich.
+- Mit **R** dreht man das ganze Gebäude um 90° (Vorder-, Seiten- oder Rückansicht), beim Bauen oder tagsüber nachträglich. Längliche Gebäude belegen gedreht andere Felder. Vorschau: Tür grün = Weg da, orange = Weg fehlt.
 
 ## Restaurants
 Für richtige Mahlzeiten gibt es **Restaurants**: offene Räume (4 × 4 oder 5 × 5 Felder), in die man von schräg oben hineinsieht.

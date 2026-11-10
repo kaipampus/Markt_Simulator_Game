@@ -47,6 +47,16 @@ export function hasDoors(def: BuildingDef): boolean {
   return !!(def.provides || def.hotel || def.staffBeds || def.staff);
 }
 
+/**
+ * A building turned so its door faces side `rot`. Turned sideways (west or
+ * east), an oblong building also turns its footprint (a 2 × 1 stall becomes
+ * 1 × 2). Restaurants keep their footprint and just move their doors.
+ */
+export function orient(def: BuildingDef, rot: Rot): BuildingDef {
+  if (!hasDoors(def) || def.restaurant || rot % 2 === 0 || def.w === def.h) return def;
+  return { ...def, w: def.h, h: def.w };
+}
+
 export type PlaceResult = 'ok' | 'blocked' | 'zone' | 'adjacent' | 'locked' | 'money' | 'night' | 'area';
 export type DemolishResult = { result: 'ok'; refund: number } | { result: 'night' | 'occupied' };
 export type HireResult = 'ok' | 'beds' | 'money';
@@ -459,7 +469,7 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   place(id: BuildingId, tx: number, ty: number, free = false, rot: Rot = 0): PlaceResult {
-    const def = getBuilding(id);
+    const def = orient(getBuilding(id), rot);
     if (!free && !this.isUnlocked(def)) return 'locked';
     const check = this.checkPlace(def, tx, ty);
     if (check !== 'ok') return check;
@@ -488,7 +498,7 @@ export class GameState extends Emitter<StateEvents> {
     if (!this.canBuild) return 'night';
     if (this.level < TIER_LEVEL[b.tier + 1]) return 'level';
     if (!this.canAfford(upgradeCost(base, b.tier + 1))) return 'money';
-    const next = applyTier(base, b.tier + 1);
+    const next = orient(applyTier(base, b.tier + 1), b.rot);
     // A bigger building needs the extra row below it to be free.
     for (let y = b.ty + b.def.h; y < b.ty + next.h; y++) {
       for (let x = b.tx; x < b.tx + next.w; x++) {
@@ -516,7 +526,7 @@ export class GameState extends Emitter<StateEvents> {
 
   /** Switch a building to a tier, taking the extra cells if it grows. */
   private setTier(b: PlacedBuilding, tier: number): void {
-    const next = applyTier(getBuilding(b.def.id), tier);
+    const next = orient(applyTier(getBuilding(b.def.id), tier), b.rot);
     for (let y = b.ty; y < b.ty + next.h; y++) {
       for (let x = b.tx; x < b.tx + next.w; x++) this.setCell(x, y, b.uid);
     }
@@ -528,8 +538,22 @@ export class GameState extends Emitter<StateEvents> {
   rotate(uid: number): boolean {
     const b = this.buildings.get(uid);
     if (!b || !this.canBuild || !hasDoors(b.def)) return false;
+    const rot = ((b.rot + 1) % 4) as Rot;
+    const next = orient(applyTier(getBuilding(b.def.id), b.tier), rot);
+    // A turned oblong building needs its new cells to be free.
+    for (let y = b.ty; y < b.ty + next.h; y++) {
+      for (let x = b.tx; x < b.tx + next.w; x++) {
+        if (!this.inBounds(x, y)) return false;
+        const c = this.cell(x, y);
+        if (c !== FREE && c !== uid) return false;
+        if (!this.isAreaOpen(x, y) || !zoneAllows(next.zone, this.terrainAt(x, y))) return false;
+      }
+    }
     this.emit('removed', b);
-    b.rot = ((b.rot + 1) % 4) as Rot;
+    for (let y = b.ty; y < b.ty + b.def.h; y++) for (let x = b.tx; x < b.tx + b.def.w; x++) this.setCell(x, y, FREE);
+    for (let y = b.ty; y < b.ty + next.h; y++) for (let x = b.tx; x < b.tx + next.w; x++) this.setCell(x, y, uid);
+    b.def = next;
+    b.rot = rot;
     this.emit('placed', b);
     if (this.selection?.kind === 'building' && this.selection.uid === uid) this.emit('selection', this.selection);
     return true;
@@ -1228,6 +1252,8 @@ export class GameState extends Emitter<StateEvents> {
     this.day++;
     this.phase = 'day';
     this.timeLeft = DAY_MS;
+    // The day always starts at normal speed, so nobody races into the next night by accident.
+    if (this.speed > 1) this.setSpeed(1);
     this.emit('phase', 'day');
     const report: NightReport = {
       day: this.day,
