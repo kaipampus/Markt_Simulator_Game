@@ -1,52 +1,49 @@
 /**
- * Popularity (0–100): how much the spirit world likes the market. It is
- * recalculated every morning from the night and decides how many guests
- * come. Few guests → short queues → happy guests → more popularity → more
- * guests → longer queues → popularity drops again, unless the market grows.
+ * Popularity = how many guests come per night. It is recalculated every
+ * morning from the night: a good night makes it grow by a few percent, long
+ * queues, dirt or guests lost to the sun make it shrink. Opening a new area
+ * only raises the upper limit, it never changes the number by itself.
  */
 
-export const POPULARITY_START = 10;
-export const POPULARITY_MAX = 100;
+/** Guests on the very first night. */
+export const POPULARITY_START = 15;
+/** Never fewer guests than this. */
+export const POPULARITY_MIN = 8;
 
-/** Guests per night = GUESTS_MIN + popularity × guests per point (by open area). */
-export const GUESTS_MIN = 6;
-export const GUESTS_PER_POINT_MARKET = 0.94; // 100 guests at popularity 100
-export const GUESTS_PER_POINT_HOTEL = 3.94; // 400 guests with the hotel district open
-
-/** Change per night (points). Each part is shown in the morning report. */
+/** Change per night, in percent of the current popularity. Each part is shown in the morning report. */
 export const POP = {
-  /** Happy share at which mood neither adds nor costs popularity... */
+  /** Happy share at which mood neither adds nor costs... */
   satisfactionNeutral: 0.4,
-  /** ...and the most it adds (everyone happy) or costs (nobody happy). */
-  satisfaction: 10,
-  /** Per share of guests who left a queue or table in anger. */
-  anger: -12,
+  /** ...and the most it adds (everyone happy) or costs (nobody happy), in %. */
+  satisfaction: 12,
+  /** % per share of guests who left a queue or table in anger (all angry = −15 %). */
+  anger: -15,
   /** Average waiting time above this share of a guest's patience starts to cost... */
   waitFree: 0.4,
-  /** ...this much per full patience waited on average. */
-  waiting: -8,
-  /** Per different dirty spot a guest walked over (on average)... */
-  dirtPerCell: -0.6,
+  /** ...this many % per full patience waited on average. */
+  waiting: -10,
+  /** % per different dirty spot a guest walked over (on average)... */
+  dirtPerCell: -1,
   /** ...but never more than this. */
-  dirtMax: -5,
-  /** Per share of guests lost to the sun (all lost = −30). */
-  lost: -30,
-  /** Offer compared with what guests expect: up to +offerBonus, down to offerPenalty. */
-  offerBonus: 4,
+  dirtMax: -8,
+  /** % per share of guests lost to the sun (all lost = −40 %). */
+  lost: -40,
+  /** Offer behind what guests expect costs up to this many %. */
   offerPenalty: -8,
-  /** Every new stall or restaurant since the last night brings this much... */
-  novelty: 1.5,
+  /** Every new stall or restaurant since the last night adds this many %... */
+  novelty: 2,
   /** ...up to this much per night. */
-  noveltyMax: 6,
-  /** Guests get used to the market: small loss every night. */
-  habit: -1,
+  noveltyMax: 8,
+  /** Every building placed or torn down at night costs this many % (guests dislike the noise)... */
+  nightWork: -1,
+  /** ...but never more than this per night. */
+  nightWorkMax: -5,
 } as const;
 
 /**
- * What guests expect on night `day`: number of different offers (kinds of
- * wishes plus kitchens). Grows every night, so a market that stops growing
- * slowly loses popularity.
+ * Different offers (kinds of wishes plus kitchens) guests expect on night
+ * `day`. Grows slowly, so a market that never adds anything new falls behind.
  */
 export function expectedOffers(day: number): number {
-  return Math.min(14, 2 + (day - 1) * 0.5);
+  return Math.min(14, 2 + (day - 1) * 0.3);
 }

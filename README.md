@@ -32,7 +32,7 @@ Then open http://localhost:5173.
 | Select a stall, hotel or worker | Left-click (no tool selected) |
 | Move a worker / send a cleaner | Select the worker, then click a building or a path |
 
-Building only works during the day; at night you manage the market and your staff.
+Build by day; at night you manage the market and your staff. Building at night is possible but costs three times as much and the noise lowers popularity.
 
 ## Build
 

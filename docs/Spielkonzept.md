@@ -40,7 +40,7 @@ Die Karte besteht aus **Bereichen**, die nacheinander freigeschaltet werden: Sob
 - In der Pause kann man in Ruhe bauen oder Personal einteilen
 - Spielschleife:
   1. **Tag – bauen:** Geister und Personal schlafen. Du baust, reißt ab, stellst Personal ein.
-  2. **Nacht – verwalten:** Bauen ist gesperrt. Arbeiter gehen zu ihren Ständen, Hotelgäste wachen auf, neue Geister kommen durchs Tor. Jeder Gast hat 2–3 **Bedürfnisse**, besucht passende Gebäude und zahlt. Du setzt Arbeiter um, schickst Putzkräfte los und stellst bei Bedarf nach.
+  2. **Nacht – verwalten:** Bauen geht nur zur Not (dreifacher Preis, kostet Beliebtheit). Arbeiter gehen zu ihren Ständen, Hotelgäste wachen auf, neue Geister kommen durchs Tor. Jeder Gast hat 2–3 **Bedürfnisse**, besucht passende Gebäude und zahlt. Du setzt Arbeiter um, schickst Putzkräfte los und stellst bei Bedarf nach.
   3. **Morgengrauen-Warnung:** Gäste eilen zum Hotel (freies Bett) oder zum Tor, Arbeiter ins Personalhaus.
   4. **Sonnenaufgang:** Wer noch draußen ist, vergeht (Gäste: kostet Beliebtheit, Arbeiter: fehlen danach). Danach Morgenbericht mit Einnahmen, Löhnen und Sauberkeit.
 
@@ -88,13 +88,13 @@ Für richtige Mahlzeiten gibt es **Restaurants**: offene Räume (4 × 4 oder 5 �
 
 | Restaurant | Küche | Größe | Tische | Preis pro Gast |
 |---|---|---|---|---|
-| Moonbroth Ramen | japanisch | 4 × 3 | 4 | 22 |
-| Mistleaf Pho | vietnamesisch | 4 × 3 | 4 | 24 |
-| Floating Dumpling House | chinesisch | 4 × 3 | 4 | 26 |
-| Firefly Curry House | thailändisch | 4 × 3 | 4 | 28 |
-| Ember Grill | koreanisch | 5 × 4 | 6 | 34 |
-| Starfish Sushi Bar | japanisch | 5 × 4 | 6 | 38 |
-| Bubbling Cauldron Hot Pot | Hexenküche | 5 × 4 | 6 | 42 |
+| Moonbroth Ramen | japanisch | 4 × 4 | 4 | 12 |
+| Mistleaf Pho | vietnamesisch | 4 × 4 | 4 | 13 |
+| Floating Dumpling House | chinesisch | 4 × 4 | 4 | 14 |
+| Firefly Curry House | thailändisch | 4 × 4 | 4 | 15 |
+| Ember Grill | koreanisch | 5 × 5 | 6 | 19 |
+| Starfish Sushi Bar | japanisch | 5 × 5 | 6 | 21 |
+| Bubbling Cauldron Hot Pot | Hexenküche | 5 × 5 | 6 | 23 |
 
 **Gelüste:** Etwa die Hälfte der Hunger-Wünsche ist ein Gelüst nach einer bestimmten Küche (Symbol über dem Kopf). Gäste nehmen dafür Umwege in Kauf; bekommen sie eine andere Küche, zählt das nur teilweise. So lohnt sich Vielfalt.
 
@@ -118,21 +118,22 @@ Neben den Restaurants gibt es viele kleine Stände mit Zauber-Einschlag:
 
 ## Geld und Wachstum
 - Start mit wenig Geld (**650 Münzen**): genug für ein kleines Restaurant, Koch, Kellner und einen Imbiss.
-- **Beliebtheit (★, 0–100)** bestimmt die Gästezahl: 6 + Beliebtheit × 0,94 (nur Markt, bis 100) bzw. × 3,94 (mit Hotel-Viertel, bis 400). Start: 10 (15 Gäste).
-- Jeden Morgen ändert sie sich nach der Nacht:
+- Preise pro Besuch: Restaurants 12–23, Stände 2–12. Löhne pro Nacht: Koch 12, Kellner 10, Verkäufer 10, Gastgeber 16, Putzkraft 8. Hotel-Viertel 4000 Münzen.
+- **Beliebtheit (★)** = Gäste pro Nacht (Start 15, mindestens 8, höchstens 100 auf dem Markt bzw. 400 mit Hotel-Viertel). Ein neuer Bereich hebt nur die Obergrenze.
+- Jeden Morgen ändert sie sich um einen Prozentsatz (mindestens ±1 Gast):
 
 | Anteil | Wirkung |
 |---|---|
-| 😊 Laune | Anteil zufriedener Gäste: über 40 % plus (bis +10), darunter minus (bis −10) |
-| ⏳ Warten | Wütend gegangene Gäste und lange Wartezeiten ziehen ab |
-| 🧹 Schmutz | Jede verschmutzte Stelle, über die ein Gast läuft (bis −5) |
-| ☀ Verloren | Vom Sonnenaufgang erwischte Gäste (alle verloren = −30) |
-| 🛍 Angebot | Verschiedene Wünsche + Küchen gegenüber der Erwartung (steigt jede Nacht um 0,5) |
-| ✨ Neues | +1,5 je neuem Stand oder Restaurant seit der letzten Nacht (bis +6) |
-| 💤 Gewöhnung | −1 jede Nacht |
+| 😊 Laune | Anteil zufriedener Gäste: über 40 % bis +12 %, darunter bis −12 % |
+| ⏳ Warten | Wütend gegangene Gäste (bis −15 %) und lange Wartezeiten |
+| 🧹 Schmutz | −1 % je verschmutzter Stelle pro Gast (bis −8 %) |
+| ☀ Verloren | Vom Sonnenaufgang erwischte Gäste (alle verloren = −40 %) |
+| 🛍 Angebot | Weniger verschiedene Wünsche + Küchen als erwartet (Erwartung steigt jede Nacht um 0,3): bis −8 % |
+| ✨ Neues | +2 % je neuem Stand oder Restaurant (bis +8 %) |
+| 🚧 Nachtbau | −1 % je Bau oder Abriss in der Nacht (bis −5 %) |
 
 - Kreislauf: Wenige Gäste sind zufrieden → Beliebtheit steigt → mehr Gäste → längere Schlangen → sie sinkt wieder. Wer nicht weiterbaut, aufräumt und Personal einstellt, verliert langsam Gäste.
-- Test: Ramen + Nudelbude + Mülleimer: Nacht 1 +4 (15 Gäste); Nacht 2 ohne Neues und ohne Putzkraft −6; mit Putzkraft fällt der Schmutz-Anteil auf unter −1.
+- Test: Ramen + Nudelbude + Mülleimer: 15 → 16 → 18 Gäste, Gewinn Nacht 1 ≈ 190 Münzen.
 - **Level:** Erfahrung aus Einnahmen (0,2 XP pro Münze) und zufriedenen Gästen (2 XP). Restaurants und Stände werden nach und nach freigeschaltet (Liste in `src/data/levels.ts`), das Hotel-Viertel ab Level 6 für 2000 Münzen.
 - Mehr Gebäude → mehr Gäste → mehr Geld → mehr Gebäude. Test: Nacht 1 mit Ramen und Nudelbude ≈ 500 Gewinn, Nacht 2 mit zweitem Restaurant und Teehaus ≈ 1150.
 - Wünsche, die der Markt gar nicht anbietet, machen Gäste nicht unzufrieden, kosten aber Einnahmen; zu wenig Angebot senkt die Beliebtheit über die steigende Erwartung.
@@ -166,10 +167,11 @@ Neben den Restaurants gibt es viele kleine Stände mit Zauber-Einschlag:
 
 | Job | Einstellen | Lohn pro Nacht |
 |---|---|---|
-| Koch | 40 | 6 |
-| Verkäufer | 30 | 5 |
-| Gastgeber | 50 | 8 |
-| Putzkraft | 30 | 4 |
+| Koch | 40 | 12 |
+| Kellner | 35 | 10 |
+| Verkäufer | 30 | 10 |
+| Gastgeber | 50 | 16 |
+| Putzkraft | 30 | 8 |
 
 ## Sauberkeit
 - Nach Essen oder Trinken lassen Gäste manchmal **Müll** fallen, außer ein **Mülleimer** steht in der Nähe (3 Felder)

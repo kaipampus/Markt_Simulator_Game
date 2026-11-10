@@ -189,7 +189,7 @@ export class UIScene extends Phaser.Scene {
     const label = day ? STR.startNight : STR.skipNight;
     if (this.nightButton.label.text !== label) this.nightButton.label.setText(label);
 
-    const rep = STR.popularityHud(state.popularity, state.guestsTonight());
+    const rep = STR.popularityHud(state.popularity, state.popularity >= state.guestCap());
     const spirits = STR.spirits(state.spiritCount);
     if (this.repText.text !== rep || this.spiritText.text !== spirits) {
       this.repText.setText(rep);
@@ -209,6 +209,7 @@ export class UIScene extends Phaser.Scene {
     else if (!t && state.phase === 'night') hint = STR.hintNight;
     else if (!t) hint = state.day === 1 ? STR.hintFirstDay : STR.hintIdle;
     else if (t.kind === 'demolish') hint = STR.hintDemolish;
+    else if (state.phase === 'night') hint = STR.hintNightBuild;
     else hint = getBuilding(t.id).dragPlace ? STR.hintPainting : STR.hintPlacing;
     if (this.hint.text !== hint) this.hint.setText(hint);
   }
@@ -411,7 +412,7 @@ export class UIScene extends Phaser.Scene {
 
   /** One-line description shown while hovering an item. */
   private describe(def: BuildingDef): string {
-    const parts: string[] = [STR.buildings[def.id], `${def.cost} coins`];
+    const parts: string[] = [STR.buildings[def.id], `${state.buildCost(def)} coins`];
     if (def.crossing?.kind === 'walk') parts.push(STR.capacity(def.crossing.capacity));
     if (def.crossing?.kind === 'boat') parts.push(STR.perTrip(def.crossing.capacity));
     if (def.hotel) parts.push(STR.beds(def.hotel.beds));
@@ -444,10 +445,6 @@ export class UIScene extends Phaser.Scene {
   }
 
   private toggleTool(tool: NonNullable<Tool>): void {
-    if (!state.canBuild) {
-      this.flashHint(STR.nightNoBuild);
-      return;
-    }
     if (tool.kind === 'build' && !state.isUnlocked(getBuilding(tool.id))) return;
     const current = state.tool;
     const same =
@@ -460,10 +457,12 @@ export class UIScene extends Phaser.Scene {
   private styleItem(item: ItemButton): void {
     const unlocked = state.isUnlocked(item.def);
     const selected = this.isSelected(item.def);
-    const affordable = state.canAfford(item.def.cost);
+    const cost = state.buildCost(item.def);
+    const affordable = state.canAfford(cost);
+    if (item.costText.text !== String(cost)) item.costText.setText(String(cost));
     item.bg.setFillStyle(selected ? COLORS.uiButtonActive : item.hovered && unlocked ? COLORS.uiButtonHover : COLORS.uiButton);
     item.bg.setStrokeStyle(selected ? 2 : 1, selected ? COLORS.uiAccent : COLORS.uiPanelEdge);
-    item.icon.setAlpha(!unlocked || !state.canBuild ? 0.25 : affordable ? 1 : 0.45);
+    item.icon.setAlpha(!unlocked ? 0.25 : affordable ? 1 : 0.45);
     item.costText.setColor(affordable ? COLORS.uiGold : COLORS.uiRed);
     item.lock.setVisible(!unlocked);
   }
@@ -515,7 +514,7 @@ export class UIScene extends Phaser.Scene {
   private popPartsText(parts: PopularityParts): string {
     return (Object.keys(parts) as Array<keyof PopularityParts>)
       .filter((k) => Math.abs(parts[k]) >= 0.5)
-      .map((k) => `${STR.popParts[k]} ${parts[k] > 0 ? '+' : '−'}${Math.abs(Math.round(parts[k]))}`)
+      .map((k) => `${STR.popParts[k]} ${parts[k] > 0 ? '+' : '−'}${Math.abs(Math.round(parts[k]))}%`)
       .join('  ·  ');
   }
 

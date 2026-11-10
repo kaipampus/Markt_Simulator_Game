@@ -2,6 +2,17 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-10 – Beliebtheit = Gäste, langsameres Geld
+- **Beliebtheit ist jetzt genau die Zahl der Gäste pro Nacht** (Start 15, mindestens 8). Ein neuer Bereich hebt nur die Obergrenze (Markt 100, mit Hotel-Viertel 400), die Gästezahl springt dadurch nicht mehr
+- Änderung pro Nacht in **Prozent** (mindestens ±1 Gast): Laune bis ±12 %, Wut und Warten, Schmutz bis −8 %, verlorene Gäste bis −40 %, zu wenig Angebot bis −8 %, Neues +2 % je Stand (bis +8 %), Nachtbau −1 % je Aktion; die Gewöhnung entfällt, damit es bei gutem Betrieb stetig wächst
+- **Wirtschaft gebremst**: Preise pro Besuch etwa 45 % niedriger, Löhne verdoppelt, Gasthaus 600, Grand Hotel 1800, Sky Hotel 5000, Hotel-Viertel 4000 Münzen; Erfahrung 0,4 XP pro Münze, damit Level gleich schnell kommen
+- Test: Nacht 1 etwa 190 Münzen Gewinn (vorher 450), Beliebtheit 15 → 16 → 18
+
+## 2026-11-10 – Bauen auch nachts (teuer)
+- Bauen und Abreißen gehen jetzt auch nachts, kosten dann aber das **Dreifache**; jede Aktion in der Nacht kostet 1 Beliebtheit (höchstens 5 pro Nacht, im Bericht „🚧 night work“)
+- Preise in der Bauleiste zeigen nachts den dreifachen Preis; eigener Hinweistext beim Bauen in der Nacht
+- Drehen und Ausbauen bleiben tagsüber; bei Einbruch der Nacht wird das Bauwerkzeug weiter abgewählt, damit man nicht versehentlich teuer baut
+
 ## 2026-11-10 – Fix: Putzkräfte teilen sich auf
 - Putzkräfte reservieren die verschmutzte Stelle, zu der sie gehen; andere Putzkräfte suchen sich eine andere. Vorher liefen mehrere zum selben Fleck
 

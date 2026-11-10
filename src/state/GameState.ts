@@ -3,11 +3,11 @@ import {
   DAWN_WARNING_MS,
   DAY_MS,
   DEMOLISH_REFUND,
+  NIGHT_BUILD_COST,
   FERRY_CELL_COST,
   FIRST_DAY_MS,
   GRID_H,
   GRID_W,
-  GUEST_CAP,
   HAPPY_THRESHOLD,
   NIGHT_MS,
   RIVER_TOP,
@@ -16,15 +16,7 @@ import {
   START_MONEY,
 } from '../config';
 import { GATE, getBuilding, type BuildingDef, type BuildingId, type Need, type Zone } from '../data/buildings';
-import {
-  expectedOffers,
-  GUESTS_MIN,
-  GUESTS_PER_POINT_HOTEL,
-  GUESTS_PER_POINT_MARKET,
-  POP,
-  POPULARITY_MAX,
-  POPULARITY_START,
-} from '../data/popularity';
+import { expectedOffers, POP, POPULARITY_MIN, POPULARITY_START } from '../data/popularity';
 import { applyTier, maxTier, TIER_LEVEL, upgradeCost } from '../data/upgrades';
 import { AREAS, LEVEL_XP, MARKET_GUEST_CAP, UNLOCK_LEVEL, XP_PER_COIN, XP_PER_HAPPY, type AreaId } from '../data/levels';
 import { DIRT, ROLES, STAFF, type Role } from '../data/staff';
@@ -91,7 +83,7 @@ export interface Sale {
   coins: number;
 }
 
-/** The parts of one night's popularity change (points). */
+/** The parts of one night's popularity change (percent of the popularity). */
 export interface PopularityParts {
   satisfaction: number;
   waiting: number;
@@ -99,7 +91,8 @@ export interface PopularityParts {
   lost: number;
   offer: number;
   novelty: number;
-  habit: number;
+  /** Building at night. */
+  construction: number;
 }
 
 /** What a guest reports when it leaves safely. */
@@ -242,10 +235,12 @@ export class GameState extends Emitter<StateEvents> {
   /** Rotation for the next building to place (R). */
   buildRot: Rot = 0;
   spiritCount = 0;
-  /** 0–100: how much the spirit world likes the market (decides the number of guests). */
+  /** How many guests come per night; changes every morning (see data/popularity.ts). */
   popularity = POPULARITY_START;
   /** New stalls and restaurants built since the last night (bonus for novelty). */
   private newAttractions = 0;
+  /** Buildings placed or torn down tonight (costs popularity). */
+  private nightWork = 0;
   level = 1;
   xp = 0;
   readonly areas = new Set<AreaId>();
@@ -444,9 +439,14 @@ export class GameState extends Emitter<StateEvents> {
     this.emit('tool', this.tool);
   }
 
-  /** Building and demolishing only happen during the day. */
+  /** Turning and upgrading only happen during the day (building works at night too, at a price). */
   get canBuild(): boolean {
     return this.phase === 'day';
+  }
+
+  /** What placing a building costs right now (more at night). */
+  buildCost(def: BuildingDef): number {
+    return this.phase === 'night' ? def.cost * NIGHT_BUILD_COST : def.cost;
   }
 
   canAfford(cost: number): boolean {
@@ -460,18 +460,19 @@ export class GameState extends Emitter<StateEvents> {
 
   place(id: BuildingId, tx: number, ty: number, free = false, rot: Rot = 0): PlaceResult {
     const def = getBuilding(id);
-    if (!free && !this.canBuild) return 'night';
     if (!free && !this.isUnlocked(def)) return 'locked';
     const check = this.checkPlace(def, tx, ty);
     if (check !== 'ok') return check;
-    if (!free && !this.canAfford(def.cost)) return 'money';
+    const cost = this.buildCost(def);
+    if (!free && !this.canAfford(cost)) return 'money';
 
     const building: PlacedBuilding = { uid: this.nextUid++, def, tx, ty, rot, tier: 1 };
     this.buildings.set(building.uid, building);
     for (let x = 0; x < def.w; x++) {
       for (let y = 0; y < def.h; y++) this.setCell(tx + x, ty + y, building.uid);
     }
-    if (!free) this.addMoney(-def.cost);
+    if (!free) this.addMoney(-cost);
+    if (!free && this.phase === 'night') this.nightWork++;
     if (!free && def.provides) this.newAttractions++;
     this.emit('placed', building);
     if (def.staff) this.autoAssign(building);
@@ -570,7 +571,7 @@ export class GameState extends Emitter<StateEvents> {
   demolish(uid: number): DemolishResult {
     const building = this.buildings.get(uid);
     if (!building) return { result: 'ok', refund: 0 };
-    if (!this.canBuild) return { result: 'night' };
+    if (this.phase === 'night') this.nightWork++;
     const { def, tx, ty } = building;
     if (def.staffBeds && this.staffBeds() - def.staffBeds < this.staff.size) return { result: 'occupied' };
     for (let x = 0; x < def.w; x++) {
@@ -1079,15 +1080,18 @@ export class GameState extends Emitter<StateEvents> {
   }
 
   /**
-   * How many spirits come tonight (sleepers included): a few always come,
-   * popularity brings more, the open areas cap it.
+   * How many spirits come tonight (sleepers included): exactly the popularity,
+   * as long as the open areas allow that many.
    */
   guestsTonight(): number {
-    const open = this.areas.has('hotel');
-    const perPoint = open ? GUESTS_PER_POINT_HOTEL : GUESTS_PER_POINT_MARKET;
-    const cap = open ? AREAS.hotel.guestCap : MARKET_GUEST_CAP;
-    return Math.min(cap, GUEST_CAP, Math.round(GUESTS_MIN + this.popularity * perPoint));
+    return Math.min(this.guestCap(), this.popularity);
   }
+
+  /** Most guests the open areas allow. */
+  guestCap(): number {
+    return this.areas.has('hotel') ? AREAS.hotel.guestCap : MARKET_GUEST_CAP;
+  }
+
 
 
   // ---------------------------------------------------------------------------
@@ -1161,7 +1165,15 @@ export class GameState extends Emitter<StateEvents> {
     const guests = n.safe + n.lost;
     const r = (v: number) => Math.round(v * 10) / 10;
     if (guests === 0) {
-      return { satisfaction: 0, waiting: 0, cleanliness: 0, lost: 0, offer: 0, novelty: 0, habit: r(POP.habit) };
+      return {
+        satisfaction: 0,
+        waiting: 0,
+        cleanliness: 0,
+        lost: 0,
+        offer: 0,
+        novelty: 0,
+        construction: r(Math.max(POP.nightWorkMax, this.nightWork * POP.nightWork)),
+      };
     }
     const happyShare = n.safe ? n.happy / n.safe : 0;
     const avgWait = n.safe ? n.waitShare / n.safe : 0;
@@ -1175,9 +1187,9 @@ export class GameState extends Emitter<StateEvents> {
       waiting: r(POP.anger * (n.angry / guests) + POP.waiting * Math.max(0, avgWait - POP.waitFree)),
       cleanliness: r(Math.max(POP.dirtMax, POP.dirtPerCell * avgDirt)),
       lost: r(POP.lost * (n.lost / guests)),
-      offer: r(offerRatio >= 1 ? Math.min(POP.offerBonus, (offerRatio - 1) * POP.offerBonus * 2) : Math.max(POP.offerPenalty, (1 - offerRatio) * POP.offerPenalty)),
+      offer: r(offerRatio >= 1 ? 0 : Math.max(POP.offerPenalty, (1 - offerRatio) * POP.offerPenalty)),
       novelty: r(Math.min(POP.noveltyMax, this.newAttractions * POP.novelty)),
-      habit: r(POP.habit),
+      construction: r(Math.max(POP.nightWorkMax, this.nightWork * POP.nightWork)),
     };
   }
 
@@ -1201,12 +1213,16 @@ export class GameState extends Emitter<StateEvents> {
     const n = this.night;
     const xpGained = Math.round(n.earned * XP_PER_COIN + n.happy * XP_PER_HAPPY);
     this.addXp(xpGained);
+    // Popularity changes by a percentage; at least one guest more or less when anything changed.
     const popParts = this.popularityParts();
-    const raw = Object.values(popParts).reduce((sum, v) => sum + v, 0);
+    const percent = Object.values(popParts).reduce((sum, v) => sum + v, 0);
     const before = this.popularity;
-    this.popularity = Math.max(0, Math.min(POPULARITY_MAX, Math.round(this.popularity + raw)));
+    let change = Math.round((before * percent) / 100);
+    if (change === 0 && Math.abs(percent) >= 0.5) change = Math.sign(percent);
+    this.popularity = Math.max(POPULARITY_MIN, Math.min(this.guestCap(), before + change));
     const popDelta = this.popularity - before;
     this.newAttractions = 0;
+    this.nightWork = 0;
     this.emit('popularity', this.popularity);
 
     this.day++;
@@ -1310,7 +1326,7 @@ export class GameState extends Emitter<StateEvents> {
     }
     this.day = data.day;
     this.money = data.money;
-    this.popularity = data.popularity ?? data.reputation ?? POPULARITY_START;
+    this.popularity = Math.max(POPULARITY_MIN, data.popularity ?? data.reputation ?? POPULARITY_START);
     this.level = data.level;
     this.xp = data.xp;
     this.lastReport = data.lastReport;

@@ -701,10 +701,11 @@ export class MarketScene extends Phaser.Scene {
     if (tool.kind === 'build') {
       const def = getBuilding(tool.id);
       const { tx, ty } = this.placementCell(def, w.x, w.y);
+      const price = state.buildCost(def);
       const result = state.place(tool.id, tx, ty, false, state.buildRot);
       const cx = (tx + def.w / 2) * TILE;
       const top = ty * TILE - def.rise;
-      if (result === 'ok') this.floatText(cx, top, STR.cost(def.cost), COLORS.uiGold);
+      if (result === 'ok') this.floatText(cx, top, STR.cost(price), COLORS.uiGold);
       else if (result === 'money') this.floatText(w.x, w.y, STR.notEnoughCoins, COLORS.uiRed);
       else if (result === 'zone') this.floatText(w.x, w.y, STR.zoneOnly[def.zone], COLORS.uiRed);
       else if (result === 'adjacent') this.floatText(w.x, w.y, STR.tooClose, COLORS.uiRed);
@@ -846,7 +847,7 @@ export class MarketScene extends Phaser.Scene {
     if (tool.kind === 'build') {
       const def = getBuilding(tool.id);
       const { tx, ty } = this.placementCell(def, w.x, w.y);
-      const ok = state.checkPlace(def, tx, ty) === 'ok' && state.canAfford(def.cost);
+      const ok = state.checkPlace(def, tx, ty) === 'ok' && state.canAfford(state.buildCost(def));
       const color = ok ? COLORS.valid : COLORS.invalid;
       this.footprint.fillStyle(color, 0.22).fillRect(tx * TILE, ty * TILE, def.w * TILE, def.h * TILE);
       this.footprint.lineStyle(2, color, 0.9).strokeRect(tx * TILE, ty * TILE, def.w * TILE, def.h * TILE);

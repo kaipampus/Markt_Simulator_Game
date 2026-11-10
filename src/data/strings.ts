@@ -10,7 +10,7 @@ function clock(ms: number): string {
 export const STR = {
   title: 'Spirit Night Market',
   spirits: (n: number) => `Spirits ${n}`,
-  popularityHud: (p: number, guests: number) => `★ Popularity ${p} · ${guests} guests`,
+  popularityHud: (p: number, full: boolean) => `★ Popularity ${p} guests${full ? ' (area full)' : ''}`,
 
   clockDay: (day: number, ms: number) => `☀ Day ${day} · night in ${clock(ms)}`,
   clockNight: (day: number, ms: number) => `☾ Night ${day} · dawn in ${clock(ms)}`,
@@ -26,10 +26,11 @@ export const STR = {
   hintPainting: 'Hold the left mouse button and drag to lay paths  ·  Right-click or Esc to cancel',
   hintDemolish: 'Click a building to demolish (50% refund)  ·  Right-click or Esc to cancel',
   hintFirstDay: 'Build by day: a restaurant next to the path (Food tab), hire a cook and a waiter (Workers tab, P), then start the night.',
-  hintNight: 'Night: building is closed. Manage the market: click stalls and workers, send cleaners to dirty paths.',
+  hintNight: 'Night: manage the market (click stalls and workers, send cleaners). Building still works, but costs 3× and the noise lowers popularity.',
+  hintNightBuild: 'Night construction: 3× the price, and the noise lowers popularity  ·  R turns the doors  ·  Esc to cancel',
   hintStaffSelected: (role: string) => `Click a ${role} building to move this worker there  ·  Esc to deselect`,
   hintCleanerSelected: 'Click a path to send this cleaner there  ·  Esc to deselect',
-  nightNoBuild: 'Building resumes at daybreak',
+  nightNoBuild: 'Only by day',
 
   notEnoughCoins: 'Not enough coins',
   areaLocked: 'This area is still closed',
@@ -152,7 +153,7 @@ export const STR = {
   restaurantInfo: (cuisine: string, tables: number) => `${cuisine} kitchen · ${tables} tables`,
   needsJobs: (jobs: string) => `needs ${jobs}`,
   popularityInfo:
-    'Popularity decides how many guests come. It rises with happy guests and new, varied offers; long queues, dirt, guests lost to the sun and a market that stops growing make it fall.',
+    'Popularity = guests per night. It grows by a few percent after a good night and with new offers; long queues, dirt, guests lost to the sun, night construction and too little variety make it shrink.',
   popularityLast: (parts: string) => `Last night: ${parts}`,
   /** Short labels for the parts of the popularity change. */
   popParts: {
@@ -162,6 +163,7 @@ export const STR = {
     lost: '☀ lost',
     offer: '🛍 offer',
     novelty: '✨ new',
+    construction: '🚧 night work',
     habit: '💤 habit',
   },
   homeIcon: '💤',
@@ -297,6 +299,6 @@ export const STR = {
     staffLost: (n: number) => `${n} workers lost to the sun`,
     xp: (xp: number, level: number) => `+${xp} XP · Level ${level}`,
     cleaned: (n: number, dirty: number) => `${n} spots cleaned · ${dirty} still dirty`,
-    popularity: (value: number, delta: number) => `★ Popularity ${value} (${delta >= 0 ? '+' : ''}${delta})`,
+    popularity: (value: number, delta: number) => `★ Popularity ${value} guests (${delta >= 0 ? '+' : ''}${delta})`,
   },
 } as const;

@@ -20,6 +20,9 @@ export const WORLD_PADDING = 160;
 
 export const START_MONEY = 650;
 
+/** Building at night costs this many times the normal price (and some popularity). */
+export const NIGHT_BUILD_COST = 3;
+
 /** Share of the build cost returned when demolishing. */
 export const DEMOLISH_REFUND = 0.5;
 
@@ -50,8 +53,6 @@ export const FERRY_CELL_COST = 2;
 /** Hard upper limit of spirits on the map. */
 export const SPIRIT_HARD_CAP = 250;
 
-/** Hard upper limit of guests per night (see data/popularity.ts for the real numbers). */
-export const GUEST_CAP = 3000;
 
 // --- Guest mood ------------------------------------------------------------------
 

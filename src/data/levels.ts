@@ -7,7 +7,7 @@ import type { BuildingId } from './buildings';
 export const LEVEL_XP = [0, 60, 160, 320, 540, 840, 1250, 1800, 2500, 3400, 4600, 6200] as const;
 
 /** Experience per night: per coin earned by guests, and per happy guest. */
-export const XP_PER_COIN = 0.2;
+export const XP_PER_COIN = 0.4;
 export const XP_PER_HAPPY = 2;
 
 /** Level at which a building can be bought (default 1). */
@@ -56,7 +56,7 @@ export const UNLOCK_LEVEL: Partial<Record<BuildingId, number>> = {
 export type AreaId = 'hotel';
 
 export const AREAS: Record<AreaId, { level: number; cost: number; guestCap: number }> = {
-  hotel: { level: 6, cost: 2000, guestCap: 400 },
+  hotel: { level: 6, cost: 4000, guestCap: 400 },
 };
 
 /** Most guests per night while only the market is open. */

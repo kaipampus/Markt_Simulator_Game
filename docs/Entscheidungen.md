@@ -13,6 +13,18 @@ Vorlage:
 
 ---
 
+## 2026-11-10 – Beliebtheit ist die Gästezahl, Wachstum in Prozent
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Die Beliebtheit gibt direkt an, wie viele Gäste pro Nacht kommen. Sie ändert sich jeden Morgen um einen Prozentsatz (Laune, Warten, Schmutz, Verluste, Angebot, Neues, Nachtbau), mindestens um einen Gast. Bereiche heben nur die Obergrenze. Ohne Probleme wächst sie stetig; es gibt keinen Gewöhnungs-Abzug mehr. Dazu ist die Wirtschaft gebremst: niedrigere Preise, höhere Löhne, teurere Hotels und Hotel-Viertel.
+**Warum:** Gleiche Beliebtheit soll gleich viele Gäste bedeuten; das Öffnen eines Bereichs darf die Gästezahl nicht vervierfachen. Geld soll schnell, aber nicht explosionsartig wachsen.
+**Ersetzt:** Gäste = 6 + Beliebtheit × Faktor je Bereich; Änderung in festen Punkten mit Gewöhnung.
+
+## 2026-11-10 – Nachts bauen erlaubt, aber teuer
+**Status:** entschieden (Wunsch des Nutzers)
+**Entscheidung:** Bauen und Abreißen sind auch nachts möglich, kosten dann das Dreifache, und jede nächtliche Bauaktion senkt die Beliebtheit um 1 (höchstens 5 pro Nacht). Drehen und Ausbauen bleiben tagsüber, weil dabei Gebäude samt Gästen neu aufgebaut werden.
+**Warum:** Die Nacht beginnt manchmal unbemerkt; eine strikte Sperre war zu umständlich. Der Preis hält die Aufteilung „tags bauen, nachts verwalten“ trotzdem sinnvoll.
+**Ersetzt teilweise:** „Tagsüber bauen, nachts verwalten“ (Bauen nachts gesperrt).
+
 ## 2026-11-10 – Beliebtheit statt Ruf, dynamisch pro Nacht
 **Status:** entschieden (Idee des Nutzers)
 **Entscheidung:** Eine Beliebtheits-Skala (0–100) bestimmt die Gästezahl. Sie wird jeden Morgen aus der Nacht berechnet: Zufriedenheit, Wartezeit/Wut, Sauberkeit, verlorene Gäste, Angebot im Vergleich zu einer jede Nacht steigenden Erwartung, Bonus für Neues und eine kleine Gewöhnung. Dadurch entsteht ein Kreislauf: wenige Gäste → kurze Schlangen → zufrieden → beliebter → mehr Gäste → längere Schlangen → weniger beliebt. Wer nicht weiterbaut, verliert langsam Gäste.
