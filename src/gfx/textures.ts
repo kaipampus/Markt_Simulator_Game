@@ -28,7 +28,7 @@ export const TEX = {
   /** Picture of a placed building; restaurants turned sideways have their own. */
   view: (def: BuildingDef, rot: number) =>
     `b_${def.id}${def.tier && def.tier > 1 && def.restaurant ? `_t${def.tier}` : ''}` +
-    (def.restaurant ? (rot % 2 === 1 ? '_ew' : '') : rot ? `_r${rot}` : ''),
+    (def.restaurant ? (rot % 2 === 1 ? '_ew' : '') : turnKey(def, rot)),
   doormat: 'doormat',
   plate: 'plate',
   litter: 'litter',
@@ -36,6 +36,12 @@ export const TEX = {
 } as const;
 
 type Ctx = CanvasRenderingContext2D;
+
+/** Texture suffix for a turned building. Stalls are open on two sides, so only two looks exist. */
+function turnKey(def: BuildingDef, rot: number): string {
+  const r = def.style === 'stall' ? rot % 2 : rot;
+  return r ? `_r${r}` : '';
+}
 
 function makeCanvas(scene: Phaser.Scene, key: string, w: number, h: number, draw: (ctx: Ctx) => void): void {
   if (scene.textures.exists(key)) return;
@@ -1232,70 +1238,49 @@ function drawBin(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
 const ROUND_STYLES = new Set(['brazier', 'lantern', 'gaslamp', 'neon', 'bin', 'path', 'bridge', 'ferry']);
 
 /**
- * A stall seen from the back (rot 2: counter faces away) or from the side
- * (rot 1: counter faces west/left, rot 3: east/right).
+ * A stall turned sideways (open to the left and right). Seen from the side it
+ * is low and long: striped roof over the footprint, a counter at both open
+ * ends, and you can look inside between them.
  */
-function drawStallTurned(ctx: Ctx, w: number, h: number, def: BuildingDef, rot: number): void {
+function drawStallTurned(ctx: Ctx, w: number, h: number, def: BuildingDef): void {
   const footH = def.h * TILE;
   footShadow(ctx, w / 2, w, h, footH);
   const { main, roof: awning, accent } = def.colors;
   const bottom = h - 4;
-
-  if (rot === 2) {
-    // Back: closed wooden panel, awning on top (same size as the front view).
-    const awnTop = Math.max(4, h - footH - def.rise + 8);
-    const awnBottom = awnTop + 20;
-    ctx.fillStyle = shade(main, -0.3);
-    ctx.fillRect(6, awnBottom - 2, w - 12, bottom - awnBottom + 2);
-    ctx.fillStyle = shade(main, -0.5);
-    for (let x = 12; x < w - 8; x += 10) ctx.fillRect(x, awnBottom, 1, bottom - awnBottom);
-    ctx.fillStyle = shade(main, -0.55);
-    ctx.fillRect(4, bottom - 6, w - 8, 6);
-    const stripes = Math.max(4, Math.round(w / 10));
-    for (let i = 0; i < stripes; i++) {
-      ctx.fillStyle = i % 2 === 0 ? awning : accent;
-      ctx.fillRect(2 + ((w - 4) / stripes) * i, awnTop, (w - 4) / stripes + 1, awnBottom - awnTop);
-    }
-    ctx.fillStyle = shade(awning, -0.5);
-    ctx.fillRect(2, awnTop - 2, w - 4, 3);
-    return;
-  }
-
-  // Side view: a low, long stall. The front face (its side wall) stands at the
-  // bottom, the striped awning roof covers the whole footprint above it, and
-  // the counter faces left (rot 1) or right (rot 3).
-  const left = rot === 1;
   const faceH = 34;
   const faceTop = bottom - faceH;
   const roofTop = h - footH - def.rise * 0.35;
+
   // Roof seen from above, stripes running along the stall.
   const stripes = Math.max(3, Math.round(w / 12));
   for (let i = 0; i < stripes; i++) {
     ctx.fillStyle = i % 2 === 0 ? awning : accent;
     ctx.fillRect(2 + ((w - 4) / stripes) * i, roofTop, (w - 4) / stripes + 1, faceTop - roofTop + 4);
   }
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.fillRect(left ? 2 : w * 0.5, roofTop, w * 0.5 - 2, faceTop - roofTop + 4);
   ctx.fillStyle = shade(awning, -0.5);
   ctx.fillRect(2, roofTop - 2, w - 4, 3);
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.fillRect(2, faceTop - 2, w - 4, 6);
 
-  // Side wall.
-  ctx.fillStyle = shade(main, -0.3);
-  ctx.fillRect(6, faceTop + 4, w - 12, faceH - 4);
-  ctx.fillStyle = shade(main, -0.5);
-  for (let y = faceTop + 12; y < bottom; y += 8) ctx.fillRect(6, y, w - 12, 1);
-  // Counter at the open side.
-  const cx = left ? 2 : w - 12;
-  ctx.fillStyle = main;
-  ctx.fillRect(cx, faceTop + 6, 10, faceH - 6);
-  ctx.fillStyle = shade(main, 0.25);
-  ctx.fillRect(cx - 1, faceTop + 3, 12, 4);
-  hangingLantern(ctx, left ? 9 : w - 9, faceTop + 2, 4);
+  // Open inside: dark floor, posts at the corners, goods hanging in between.
+  ctx.fillStyle = shade(main, -0.6);
+  ctx.fillRect(10, faceTop + 4, w - 20, faceH - 4);
+  ctx.fillStyle = shade(main, -0.25);
+  for (const x of [8, w - 11]) ctx.fillRect(x, faceTop, 3, faceH);
+  for (let x = 16; x < w - 14; x += 12) hangingLantern(ctx, x, faceTop + 8, 3.5);
+
+  // Counters at both open ends.
+  for (const cx of [2, w - 12]) {
+    ctx.fillStyle = main;
+    ctx.fillRect(cx, faceTop + 14, 10, faceH - 14);
+    ctx.fillStyle = shade(main, 0.25);
+    ctx.fillRect(cx - 1, faceTop + 11, 12, 4);
+  }
   if (def.sign) {
-    ctx.font = '13px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.font = '12px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(def.sign, w / 2 + (left ? 4 : -4), faceTop + faceH / 2 + 2);
+    ctx.fillText(def.sign, w / 2, roofTop + (faceTop - roofTop) / 2);
   }
 }
 
@@ -1337,7 +1322,7 @@ function drawBlockTurned(ctx: Ctx, w: number, h: number, def: BuildingDef, rot: 
 
 function drawBuilding(ctx: Ctx, w: number, h: number, def: BuildingDef, rot = 0): void {
   if (rot !== 0 && !def.restaurant && !ROUND_STYLES.has(def.style)) {
-    if (def.style === 'stall') return drawStallTurned(ctx, w, h, def, rot);
+    if (def.style === 'stall') return rot % 2 === 1 ? drawStallTurned(ctx, w, h, def) : drawStall(ctx, w, h, def);
     return drawBlockTurned(ctx, w, h, def, rot);
   }
   switch (def.style) {

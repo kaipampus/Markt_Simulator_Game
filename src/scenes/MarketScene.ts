@@ -465,7 +465,7 @@ export class MarketScene extends Phaser.Scene {
     // Stalls: back part, worker, then the counter in front.
     // Stalls facing the camera are split so the worker stands behind the counter.
     const stall = def.style === 'stall';
-    const split = stall && b.rot === 0;
+    const split = stall && b.rot % 2 === 0;
     const depth = def.walkable ? DEPTH.flat + b.ty : def.restaurant ? b.ty * TILE + 1 : split ? bottom - 2 : bottom;
     const texture = def.id === 'path' ? TEX.path(0) : split ? TEX.back(def.id) : TEX.view(def, b.rot);
     const image = this.add.image(b.tx * TILE, bottom, texture).setOrigin(0, 1).setDepth(depth);
@@ -478,14 +478,14 @@ export class MarketScene extends Phaser.Scene {
     }
     if (split) front = this.add.image(b.tx * TILE, bottom, TEX.front(def.id)).setOrigin(0, 1).setDepth(bottom);
     const role = stall ? def.staff?.[0] : undefined;
-    if (role && b.rot !== 2) {
-      // Behind the counter (front view) or beside the counter (side views). From the back the worker is hidden.
-      const x = b.rot === 0 ? b.tx * TILE + (def.w * TILE) / 2 : b.rot === 1 ? b.tx * TILE + 22 : (b.tx + def.w) * TILE - 22;
+    if (role) {
+      // Behind the counter (front view) or inside between the two open ends (side view).
+      const front = b.rot % 2 === 0;
       clerk = this.add
-        .image(x, bottom - (b.rot === 0 ? 9 : 6), TEX.worker(role))
+        .image(b.tx * TILE + (def.w * TILE) / 2, bottom - (front ? 9 : 7), TEX.worker(role))
         .setOrigin(0.5, 1)
-        .setFlipX(b.rot === 1)
-        .setDepth(b.rot === 0 ? bottom - 1 : bottom + 0.5)
+        .setScale(front ? 1 : 0.8)
+        .setDepth(front ? bottom - 1 : bottom + 0.5)
         .setVisible(false);
     }
     const mats = state

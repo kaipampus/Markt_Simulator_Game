@@ -42,7 +42,7 @@ export interface PlacedBuilding {
 
 export type UpgradeResult = 'ok' | 'max' | 'level' | 'money' | 'night' | 'space';
 
-/** Buildings guests or workers go into have doors; restaurants have two opposite ones. */
+/** Buildings guests or workers go into have doors; restaurants and stalls have two opposite ones. */
 export function hasDoors(def: BuildingDef): boolean {
   return !!(def.provides || def.hotel || def.staffBeds || def.staff);
 }
@@ -212,7 +212,8 @@ export function doorCellsFor(def: BuildingDef, tx: number, ty: number, rot: Rot)
   const my = ty + Math.floor(def.h / 2);
   const side = (r: number): Cell =>
     r === 0 ? { tx: mx, ty: ty + def.h } : r === 1 ? { tx: tx - 1, ty: my } : r === 2 ? { tx: mx, ty: ty - 1 } : { tx: tx + def.w, ty: my };
-  return def.restaurant ? [side(rot), side((rot + 2) % 4)] : [side(rot)];
+  // Restaurants and stalls are open on two opposite sides.
+  return def.restaurant || def.style === 'stall' ? [side(rot), side((rot + 2) % 4)] : [side(rot)];
 }
 
 /** Cell values in the occupancy grid. Positive numbers are building uids. */
