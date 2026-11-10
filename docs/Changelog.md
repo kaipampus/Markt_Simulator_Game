@@ -2,6 +2,16 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-10 – Umstieg auf 3D, Schritt B: das Spiel läuft in 3D (Branch `feature/3d-migration`)
+- Die Spielwelt wird jetzt mit Three.js in 3D gezeichnet (`src/world3d/`); die Oberfläche (noch Phaser) liegt durchsichtig darüber
+- **Kamera**: rechte Maustaste ziehen = drehen und neigen (fast senkrecht bis fast seitlich), linke Maustaste ziehen = verschieben, Mausrad = zoomen, **Q/E** = 45° drehen, WASD/Pfeile = verschieben
+- Bauen, Abreißen, Auswählen und Wege ziehen per Mausklick in 3D (Klick trifft Boden oder Gebäude); Vorschau als durchsichtiges Modell mit Fläche und Türen
+- Weicher Toon-Look (dreistufige Schattierung); Tag mit Sonne und Schatten, Nacht dunkel mit echten Lichtern an den Laternen nahe der Kamera (24 Lichter wandern mit), Fenster, Laternen und Feuer leuchten
+- Modelle aus Code für Stände, Restaurants (offen, mit Küche), Häuser und Hotels, Laternen, Gaslampen, Neon, Feuerschalen, Mülleimer, Schrein, Automaten, Brücken, Fähren mit Boot, Tor
+- Geister, Arbeiter, Köche und Kellner als 3D-Figuren; Sprechblasen, Schilder und schwebende Zahlen als HTML über dem Bild
+- Müll und Schleim, Türmatten, abgedunkeltes Hotel-Viertel mit Schild
+- Testseite `prototype-3d.html` und die alte 2D-Figurendarstellung entfernt
+
 ## 2026-11-10 – Umstieg auf 3D, Schritt A: Logik von der Grafik getrennt (Branch `feature/3d-migration`)
 - Geister, Arbeiter, Fähren und Restaurants sind jetzt reine Spiellogik ohne Phaser (`src/entities/`); sie liefern Position, Blickrichtung, Symbol und Zustand
 - Die 2D-Darstellung liegt in `src/view2d/views.ts` (Ein- und Ausblenden, Verglühen in der Sonne nur dort)

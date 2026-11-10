@@ -98,7 +98,7 @@ Schritt 3 – Neon-Viertel und Größe:
 ## Phase 3d – Umstieg auf 3D (Three.js)
 - [x] 3D-Test (`prototype-3d.html`): Markt-Ausschnitt, neigbare Kamera, Tag/Nacht
 - [x] Schritt A: Spielfiguren von Phaser trennen (Logik für Geister, Arbeiter, Fähren, Restaurants ohne Grafik-Bibliothek)
-- [ ] Schritt B: 3D-Welt statt Phaser-Szene: Boden, Gebäude, Wege, Schmutz, Türmatten, Licht, Figuren, Auswahl und Bau-Vorschau per Mausklick in 3D, Kamera mit Grenzen
+- [x] Schritt B: 3D-Welt statt Phaser-Szene: Boden, Gebäude, Wege, Schmutz, Türmatten, Licht, Figuren, Auswahl und Bau-Vorschau per Mausklick in 3D, Kamera mit Grenzen
 - [ ] Schritt C: Oberfläche als HTML/CSS (Leisten, Bauleiste, Fenster, Berichte, Titelmenü)
 - [ ] Schritt D: Phaser entfernen, Leistung für viele Gäste (Instancing), Modelle verfeinern
 

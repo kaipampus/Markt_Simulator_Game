@@ -1,5 +1,4 @@
 import * as Phaser from 'phaser';
-import { COLORS } from './config';
 import { MarketScene } from './scenes/MarketScene';
 import { MenuScene } from './scenes/MenuScene';
 import { UIScene } from './scenes/UIScene';
@@ -8,7 +7,8 @@ import { state } from './state/GameState';
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
-  backgroundColor: COLORS.background,
+  // See-through: the 3D world is drawn below the Phaser canvas, which only shows the interface.
+  transparent: true,
   scale: {
     mode: Phaser.Scale.RESIZE,
     width: window.innerWidth,

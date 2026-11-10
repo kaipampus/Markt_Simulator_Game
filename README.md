@@ -22,7 +22,8 @@ Then open http://localhost:5173.
 | Lay paths | Hold the left mouse button and drag |
 | Demolish (50 % refund) | `X`, then click a building |
 | Cancel | Right-click or `Esc` |
-| Move the view | Drag with the mouse, or `WASD` / arrow keys |
+| Move the view | Left-drag on the map (no tool selected), or `WASD` / arrow keys |
+| Turn and tilt the view | Right-drag; `Q` / `E` turn by 45° |
 | Zoom | Mouse wheel |
 | Pause / resume | `Space` |
 | Game speed 1× / 2× / 4× | `F` |

@@ -27,10 +27,9 @@ Details: [[docs/Spielkonzept]] · Fahrplan: [[docs/Roadmap]] · Entscheidungen: 
 - `config.ts`: feste Werte (Feldgröße, Kartengröße, Farben)
 - `data/`: Spielwerte und Texte (Gebäude, Personal und Sauberkeit, Zeitalter, Strings)
 - `state/`: Spielzustand (Geld, belegte Felder), unabhängig von der Darstellung
-- `scenes/`: `MarketScene` (Spielwelt, Kamera, Bauen) und `UIScene` (Anzeige, Baumenü, Personal- und Infofenster, liegt darüber)
+- `scenes/`: `MarketScene` (Spiellogik antreiben, Maus und Tasten auf der Karte, zeichnet über `world3d/`) und `UIScene` (Oberfläche, noch Phaser, liegt durchsichtig über dem 3D-Bild)
 - `entities/`: Spielfiguren als reine Logik ohne Grafik (Geister, Arbeiter, Fähren, Restaurants); `Walker` ist die gemeinsame Laufklasse
-- `view2d/`: bisherige 2D-Darstellung der Figuren (Phaser), fällt mit dem 3D-Umstieg weg
-- `proto3d/`: 3D-Darstellung (Three.js), zurzeit als Testseite `prototype-3d.html`
+- `world3d/`: 3D-Darstellung mit Three.js: `World3D` (Kamera, Licht, Boden, Mausauswahl), `models` (Modelle aus Code, Toon-Look), `views` (zeichnen Gebäude und Figuren), `labels` (Sprechblasen als HTML)
 - `gfx/`: Platzhalter-Grafiken, die per Code erzeugt werden
 
 ## Arbeitsablauf
