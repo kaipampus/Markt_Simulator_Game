@@ -1,24 +1,36 @@
+import '@fontsource/kaisei-decol/latin-700.css';
+import './ui/style.css';
 import * as Phaser from 'phaser';
-import { COLORS } from './config';
 import { MarketScene } from './scenes/MarketScene';
-import { MenuScene } from './scenes/MenuScene';
-import { UIScene } from './scenes/UIScene';
 import { state } from './state/GameState';
+import { clearSave, loadSave } from './state/storage';
+import { showMenu } from './ui/menu';
 
-const game = new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game',
-  backgroundColor: COLORS.background,
-  scale: {
-    mode: Phaser.Scale.RESIZE,
-    width: window.innerWidth,
-    height: window.innerHeight,
-  },
-  // Only the first scene starts automatically: the menu starts MarketScene, which launches UIScene.
-  scene: [MenuScene, MarketScene, UIScene],
-});
+/** Start the market. Phaser only runs the game loop and the mouse on the map; it draws nothing. */
+function startGame(): void {
+  const game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: 'game',
+    transparent: true,
+    scale: {
+      mode: Phaser.Scale.RESIZE,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    },
+    scene: [MarketScene],
+  });
+  // Handy for debugging in the browser console during development.
+  if (import.meta.env.DEV) Object.assign(window, { game, state });
+}
 
-// Handy for debugging in the browser console during development.
-if (import.meta.env.DEV) {
-  Object.assign(window, { game, state });
+// Title screen only with a saved game; otherwise straight into the market.
+const save = loadSave();
+if (save) {
+  showMenu(document.body, save, (choice) => {
+    if (choice === 'continue') state.restore(save);
+    else clearSave();
+    startGame();
+  });
+} else {
+  startGame();
 }

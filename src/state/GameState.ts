@@ -1213,7 +1213,8 @@ export class GameState extends Emitter<StateEvents> {
       cleanliness: r(Math.max(POP.dirtMax, POP.dirtPerCell * avgDirt)),
       lost: r(POP.lost * (n.lost / guests)),
       offer: r(offerRatio >= 1 ? 0 : Math.max(POP.offerPenalty, (1 - offerRatio) * POP.offerPenalty)),
-      novelty: r(Math.min(POP.noveltyMax, this.newAttractions * POP.novelty)),
+      // Shown as a percentage like the rest, but worth a fixed number of guests.
+      novelty: r((Math.min(POP.noveltyMaxGuests, this.newAttractions * POP.noveltyGuests) / Math.max(1, this.popularity)) * 100),
       construction: r(Math.max(POP.nightWorkMax, this.nightWork * POP.nightWork)),
     };
   }
@@ -1342,6 +1343,13 @@ export class GameState extends Emitter<StateEvents> {
         restAt: map(sm.restAt) ?? this.staffHouses()[0]?.uid ?? null,
         status: 'asleep',
       });
+    }
+    // Older saves may have more workers at a building than it now has places for.
+    for (const m of this.staff.values()) {
+      const b = m.post !== null ? this.buildings.get(m.post) : undefined;
+      if (!b) continue;
+      const same = [...this.staff.values()].filter((o) => o.post === b.uid && o.role === m.role);
+      if (same.indexOf(m) >= this.slotsFor(b, m.role)) m.post = null;
     }
     for (const [uid, count] of data.sleepers) {
       const n = map(uid);

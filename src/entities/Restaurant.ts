@@ -1,8 +1,7 @@
-import * as Phaser from 'phaser';
 import { TILE } from '../config';
 import type { Role } from '../data/staff';
-import { restaurantLayout, TEX } from '../gfx/textures';
 import type { GameState, PlacedBuilding } from '../state/GameState';
+import { restaurantLayout, stepInside, type P3 } from './layout';
 
 /** A guest sitting at a table. */
 export interface Diner {
@@ -12,14 +11,19 @@ export interface Diner {
 }
 
 type TableState = 'free' | 'seated' | 'ordered' | 'cooking' | 'ready' | 'served';
-type Pt = { x: number; y: number };
 
-/** A cook or waiter figure inside the restaurant. */
-interface Figure {
-  img: Phaser.GameObjects.Image;
-  plate: Phaser.GameObjects.Image;
+/** A cook or waiter inside the restaurant (logic only; views draw it). */
+export interface StaffFigure {
+  readonly role: Role;
   x: number;
   y: number;
+  /** Height above the ground (3D units): above 0 on the stairs and the second floor. */
+  z: number;
+  facingLeft: boolean;
+  /** Carrying a dish. */
+  plate: boolean;
+  /** Cooking or carrying (views animate faster). */
+  busy: boolean;
   /**
    * Cooks: 'cook' at the stove, 'carry' to the pass, 'back' to the stove.
    * Waiters: 'carry' to the table, 'back' to the pass.
@@ -32,21 +36,20 @@ const WALK_SPEED = 110;
 /**
  * Runs one restaurant. Guests take a table and order. A cook cooks the dish
  * at the stove and carries it to the pass; a waiter takes it from the pass
- * to the table. Cooks and waiters on duty are drawn inside the room; the
- * worker figures themselves wait hidden at the door.
+ * to the table. The cooks and waiters on duty are listed in `figures` for
+ * the views; the worker entities themselves wait hidden at the door.
  */
 export class Restaurant {
   private tables: Array<{ guest: Diner | null; state: TableState }>;
   private orders: number[] = [];
   private ready: number[] = [];
-  private cooks: Figure[] = [];
-  private waiters: Figure[] = [];
+  private cooks: StaffFigure[] = [];
+  private waiters: StaffFigure[] = [];
   private readonly layout;
   private readonly ox: number;
   private readonly oy: number;
 
   constructor(
-    private scene: Phaser.Scene,
     private state: GameState,
     readonly building: PlacedBuilding,
   ) {
@@ -55,10 +58,27 @@ export class Restaurant {
     this.ox = building.tx * TILE;
     this.oy = building.ty * TILE;
     this.tables = Array.from({ length: def.restaurant?.tables ?? 0 }, () => ({ guest: null, state: 'free' as TableState }));
+    const st = this.layout.stairs;
+    this.stairs = st ? { bottom: this.world(st.bottom), top: this.world(st.top) } : null;
   }
 
-  private world(p: Pt): Pt {
-    return { x: this.ox + p.x, y: this.oy + p.y };
+  /**
+   * Moves a point (world pixels, z in 3D units) towards `to`, using the
+   * stairs between the floors. True once it got there.
+   */
+  stepTowards(p: P3, to: P3, dist: number): boolean {
+    return stepInside(p, to, dist, this.stairs);
+  }
+
+  /** Cooks and waiters on duty, for drawing. */
+  get figures(): readonly StaffFigure[] {
+    return [...this.cooks, ...this.waiters];
+  }
+
+  private readonly stairs: { bottom: P3; top: P3 } | null;
+
+  private world(p: { x: number; y: number; z?: number }): P3 {
+    return { x: this.ox + p.x, y: this.oy + p.y, z: p.z ?? 0 };
   }
 
   /** Take a free table; returns its number or null. */
@@ -69,8 +89,8 @@ export class Restaurant {
     return i;
   }
 
-  /** Where a guest sits at table i (world position of the feet). */
-  seatPos(i: number): Pt {
+  /** Where a guest sits at table i (world position of the feet, z = floor height). */
+  seatPos(i: number): P3 {
     return this.world(this.layout.tables[i].seat);
   }
 
@@ -90,36 +110,21 @@ export class Restaurant {
     for (const f of [...this.cooks, ...this.waiters]) {
       if (f.task?.table === i && f.task.stage !== 'back') {
         f.task.stage = 'back';
-        f.plate.setVisible(false);
+        f.plate = false;
       }
     }
   }
 
-  /** Moves a figure towards a point; true when it got there. */
-  private walk(f: Figure, to: Pt, delta: number): boolean {
-    const dx = to.x - f.x;
-    const dy = to.y - f.y;
-    const dist = Math.hypot(dx, dy);
-    const step = (WALK_SPEED * delta) / 1000;
-    if (dist <= step) {
-      f.x = to.x;
-      f.y = to.y;
-      return true;
-    }
-    f.x += (dx / dist) * step;
-    f.y += (dy / dist) * step;
-    if (Math.abs(dx) > 0.5) f.img.setFlipX(dx < 0);
-    return false;
-  }
-
-  private draw(f: Figure, time: number, busy: boolean): void {
-    const bob = Math.sin(time / (busy ? 120 : 300) + f.x) * (busy ? 1.5 : 1);
-    f.img.setPosition(f.x, f.y - 3 + bob).setDepth(f.y);
-    f.plate.setPosition(f.x + 9, f.y - 24 + bob).setDepth(f.y + 0.1);
+  /** Moves a figure towards a point (up or down the stairs if needed); true when it got there. */
+  private walk(f: StaffFigure, to: P3, delta: number): boolean {
+    const x0 = f.x;
+    const done = this.stepTowards(f, to, (WALK_SPEED * delta) / 1000);
+    if (Math.abs(f.x - x0) > 0.01) f.facingLeft = f.x < x0;
+    return done;
   }
 
   /** `delta` is already scaled by the game speed. */
-  update(delta: number, time: number): void {
+  update(delta: number): void {
     this.sync(this.cooks, 'cook', this.state.onDutyCount(this.building.uid, 'cook'));
     this.sync(this.waiters, 'waiter', this.state.onDutyCount(this.building.uid, 'waiter'));
 
@@ -143,7 +148,7 @@ export class Restaurant {
         t.ms -= delta;
         if (t.ms <= 0) {
           t.stage = 'carry';
-          c.plate.setVisible(true);
+          c.plate = true;
         }
       } else if (t?.stage === 'carry') {
         if (this.walk(c, drop, delta)) {
@@ -152,12 +157,12 @@ export class Restaurant {
             this.ready.push(t.table);
           }
           t.stage = 'back';
-          c.plate.setVisible(false);
+          c.plate = false;
         }
       } else if (this.walk(c, stove, delta)) {
         c.task = null;
       }
-      this.draw(c, time, t?.stage === 'cook');
+      c.busy = !!c.task;
     });
 
     // Waiters: take ready dishes from the pass to the tables.
@@ -165,7 +170,7 @@ export class Restaurant {
     for (const w of this.waiters) {
       if (!w.task && this.ready.length && Math.hypot(w.x - pass.x, w.y - pass.y) < 2) {
         w.task = { table: this.ready.shift()!, stage: 'carry', ms: 0 };
-        w.plate.setVisible(true);
+        w.plate = true;
       }
       const t = w.task;
       if (t?.stage === 'carry') {
@@ -176,22 +181,20 @@ export class Restaurant {
             table.guest.foodServed();
           }
           t.stage = 'back';
-          w.plate.setVisible(false);
+          w.plate = false;
         }
       } else if (this.walk(w, pass, delta)) {
         w.task = null;
       }
-      this.draw(w, time, !!t);
+      w.busy = !!w.task;
     }
   }
 
   /** Match the figures to the workers on duty. */
-  private sync(list: Figure[], role: Role, n: number): void {
-    const start = role === 'cook' ? this.world(this.layout.stoves[list.length % this.layout.stoves.length]) : this.world(this.layout.pass);
+  private sync(list: StaffFigure[], role: Role, n: number): void {
     while (list.length < n) {
-      const img = this.scene.add.image(start.x, start.y, TEX.worker(role)).setOrigin(0.5, 1).setScale(0.9).setDepth(start.y);
-      const plate = this.scene.add.image(start.x, start.y, TEX.plate).setVisible(false);
-      list.push({ img, plate, x: start.x, y: start.y, task: null });
+      const start = role === 'cook' ? this.world(this.layout.stoves[list.length % this.layout.stoves.length]) : this.world(this.layout.pass);
+      list.push({ role, x: start.x, y: start.y, z: 0, facingLeft: false, plate: false, busy: false, task: null });
     }
     while (list.length > n) {
       const f = list.pop()!;
@@ -204,13 +207,6 @@ export class Restaurant {
           this.orders.unshift(t.table);
         } else if (role === 'waiter' && table?.state === 'ready') this.ready.unshift(t.table);
       }
-      f.img.destroy();
-      f.plate.destroy();
     }
-  }
-
-  destroy(): void {
-    this.sync(this.cooks, 'cook', 0);
-    this.sync(this.waiters, 'waiter', 0);
   }
 }

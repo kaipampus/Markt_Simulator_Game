@@ -7,7 +7,7 @@ import type { BuildingId } from './buildings';
 export const LEVEL_XP = [0, 60, 160, 320, 540, 840, 1250, 1800, 2500, 3400, 4600, 6200] as const;
 
 /** Experience per night: per coin earned by guests, and per happy guest. */
-export const XP_PER_COIN = 0.4;
+export const XP_PER_COIN = 0.3;
 export const XP_PER_HAPPY = 2;
 
 /** Level at which a building can be bought (default 1). */

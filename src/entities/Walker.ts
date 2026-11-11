@@ -1,4 +1,3 @@
-import type * as Phaser from 'phaser';
 import { SPIRIT_SPEED, TILE } from '../config';
 import type { GameState } from '../state/GameState';
 import { searchFrom, type Cell, type Field } from '../state/pathfinding';
@@ -7,7 +6,6 @@ import type { Restaurant } from './Restaurant';
 
 /** What the scene provides to everyone walking around. */
 export interface WalkerWorld {
-  glowLayer: Phaser.GameObjects.Layer;
   ferry(uid: number): Ferry | undefined;
   restaurant(uid: number): Restaurant | undefined;
 }
@@ -38,7 +36,6 @@ export abstract class Walker {
   protected waitingFor: number | null = null;
 
   constructor(
-    protected scene: Phaser.Scene,
     protected state: GameState,
     protected world: WalkerWorld,
     start: Cell,

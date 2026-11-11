@@ -19,11 +19,11 @@ export interface RoleDef {
 }
 
 export const STAFF: Record<Role, RoleDef> = {
-  cook: { hire: 40, wage: 12, speed: 1, coat: '#efe6d2', band: '#c8372d' },
-  waiter: { hire: 35, wage: 10, speed: 1.15, coat: '#2a2a33', band: '#f3e9d2' },
-  clerk: { hire: 30, wage: 10, speed: 1, coat: '#6b4aa0', band: '#f2c46a' },
-  host: { hire: 50, wage: 16, speed: 1, coat: '#7a2e2a', band: '#f2c46a' },
-  cleaner: { hire: 30, wage: 8, speed: 1.1, coat: '#3d6b8a', band: '#e8dcc0' },
+  cook: { hire: 40, wage: 10, speed: 1, coat: '#efe6d2', band: '#c8372d' },
+  waiter: { hire: 35, wage: 8, speed: 1.15, coat: '#2a2a33', band: '#f3e9d2' },
+  clerk: { hire: 30, wage: 8, speed: 1, coat: '#6b4aa0', band: '#f2c46a' },
+  host: { hire: 50, wage: 14, speed: 1, coat: '#7a2e2a', band: '#f2c46a' },
+  cleaner: { hire: 30, wage: 7, speed: 1.1, coat: '#3d6b8a', band: '#e8dcc0' },
 };
 
 /** Litter, slime and how they affect guests. */

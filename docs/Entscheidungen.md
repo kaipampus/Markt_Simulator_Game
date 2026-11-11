@@ -11,11 +11,53 @@ Vorlage:
 **Verworfen:** …
 ```
 
+## 2026-11-11 – HTML-Oberfläche: Anordnung, Schrift, Bildchen, Einstellungen
+**Status:** entschieden (Antworten des Nutzers vor Schritt C)
+**Entscheidung:**
+- Anordnung **wie bisher** (durchgehende Leisten oben und unten, Fenster an den gewohnten Stellen), nur im neuen Stil.
+- Überschriften in einer **mitgelieferten freien Zierschrift**: Kaisei Decol (SIL OFL 1.1, nur lateinische Zeichen, fett), Fließtext bleibt Systemschrift. Über npm (`@fontsource`) eingebunden, damit das Spiel offline bleibt.
+- **Bildchen aus den 3D-Modellen**: beim Start mit einem kleinen, danach verworfenen Renderer einmal abfotografiert.
+- **Einstellungen** hinter einem Zahnrad oben rechts und im Titelmenü (vorerst nur Grafikstufe, Platz für Ton usw.).
+- Technik: Fenster werden aus dem Spielzustand als HTML-Text gebaut und nur ersetzt, wenn sich etwas geändert hat; Klicks laufen über `data-act`-Attribute, Hinweistexte über `data-hint` (der Hinweis kommt vom Element unter der Maus). Ob die Maus über der Oberfläche ist, entscheidet `elementFromPoint`.
+**Warum:** Gewohnte Bedienung bleibt; die Schrift gibt den asiatisch-warmen Ton ohne Netzabhängigkeit; Bildchen aus den Modellen passen zur 3D-Welt und brauchen kein Phaser.
+**Verworfen:** schwebende Einzeltafeln statt Leisten; nur Systemschriften; alte 2D-Zeichnungen oder nur Emoji als Bildchen; Einstellung nur im Titelmenü; ein UI-Framework (React o. Ä.) – für die Menge an Fenstern unnötig.
+
 ---
 
+## 2026-11-10 – Restaurants bis Stufe 5 mit zweiter Etage
+**Status:** entschieden (Antworten des Nutzers auf Rückfragen)
+**Entscheidung:** Restaurants haben **5 Stufen**: Stufe 2 +2 Tische und ein zweiter Kellner, Stufe 3 Raum +1 Reihe, +2 Tische und ein zweiter Koch, Stufe 4 **zweite Etage** über der Küche (Treppe vor der Etage, 4 Tische oben, schnellere Herde), Stufe 5 8 Tische oben (noch schnellere Herde). Kleines Restaurant: 4 → 6 → 8 → 12 → 16 Tische. **Höchstens 2 Köche und 2 Kellner** pro Restaurant (große Restaurants starten schon mit 2/2 und bekommen keine weiteren). Die Grundfläche wächst nur einmal (Stufe 3), die zweite Etage geht nur in die Höhe. Stände und Hotels bleiben bei 3 Stufen. Die Stufen stehen als Daten in `RESTAURANT_TIERS` (`src/data/upgrades.ts`), die Infotexte werden daraus berechnet.
+**Warum:** Nutzerwunsch: Restaurants länger ausbauen können; „so viele Kellner braucht man nicht“. Nur in die Höhe wachsen heißt, der Ausbau scheitert nicht an Platzmangel. Die Etage liegt über der Küche, damit die Tische unten sichtbar bleiben; schnellere Herde gleichen aus, dass 2 Köche für bis zu 18 Tische reichen müssen.
+**Verworfen:** 4 oder 6 Stufen; mehr Köche und Kellner pro Stufe; zweite Etage über dem Gastraum (verdeckt die Gäste unten); Restaurant ab Stufe 4 auch breiter.
+
+## 2026-11-10 – Schnelleres Wachstum: Neues bringt feste Gästezahl
+**Status:** entschieden
+**Entscheidung:** Ein neuer Stand oder ein neues Restaurant bringt jetzt **1,5 neugierige Gäste** (höchstens 5 pro Nacht) statt +2 % der Beliebtheit. Zufriedenheit zählt bis +16 % (vorher 12 %), Schmutz kostet weniger (−0,6 % pro Feld, höchstens −6 %). Restaurant- und Standpreise etwas höher, Löhne etwas niedriger. Erfahrung pro Münze 0,3 statt 0,4, damit die Level nicht mitrasen.
+**Warum:** Mit reinen Prozenten wächst ein kleiner Markt kaum (15 Gäste × 12 % ≈ +2). Eine feste Zahl pro Neubau hilft am Anfang am meisten und verliert später an Gewicht, so bleibt das Wachstum spürbar, aber nicht explosionsartig. Im Bericht wird der Anteil weiter in Prozent angezeigt.
+**Verworfen:** Nur die Prozente stark erhöhen (wächst später zu schnell, Zinseszins); Startgeld erhöhen (hilft nur in der ersten Nacht).
+
+## 2026-11-10 – Grafik-Einstellung Hoch/Niedrig
+**Status:** entschieden
+**Entscheidung:** Zwei Grafikstufen, umschaltbar mit **Taste G**, gespeichert im Browser (pro Gerät, nicht im Spielstand). Hoch: Pixel-Ratio höchstens 1,5, 10 echte Nachtlichter, Schatten 1024 px, Kantenglättung. Niedrig: Pixel-Ratio 1, 4 Nachtlichter, keine Schatten, Kantenglättung aus (wirkt erst nach Neuladen). Außerdem immer: Schatten werden nachts nicht neu gezeichnet (statt sie abzuschalten, was alle Shader neu baut und ruckelt), Lichter werden nur 4× pro Sekunde neu verteilt.
+**Warum:** Das Spiel ruckelte auf dem MacBook Air. Gemessen (GPU-Zeit pro Bild, gleicher Markt, 1440 × 900 Fenster): vorher Nacht 14,4 ms / Tag 6,7 ms, jetzt Hoch 4,0 / 3,6 ms, Niedrig 2,8 / 1,2 ms. Die 24 Punktlichter bei voller Retina-Auflösung waren der größte Posten.
+**Verworfen:** Einstellung im Spielstand speichern (gehört zum Gerät, nicht zum Spiel); automatische Erkennung schwacher Rechner (unzuverlässig, kommt eventuell später mit der HTML-Oberfläche als Menüpunkt).
+
+## 2026-11-10 – Umstieg auf echte 3D-Darstellung
+**Status:** entschieden (Nutzer nach dem 3D-Test: „eher so haben“), Umsetzung in Schritten
+**Entscheidung:** Die Spielwelt wird künftig mit **Three.js in 3D** dargestellt, mit frei dreh- und neigbarer Kamera (fast senkrecht bis fast seitlich). Die Spiellogik (`GameState`, Wegfindung, Daten) bleibt. Spielfiguren werden von der Darstellung getrennt (Logik ohne Phaser, Darstellung als 3D-Modelle). Die Oberfläche (Leisten, Fenster, Menü) wird als **HTML/CSS** über das 3D-Bild gelegt. Phaser fällt am Ende weg.
+**Warum:** Der Test zeigte deutlich mehr Atmosphäre (Licht, Schatten, Einblick in Restaurants und Stände), Drehen und Neigen sind natürlich, Gebäude drehen sich ohne extra Zeichnungen.
+**Verworfen:** Bei 2D bleiben mit festen Blickwinkeln; 3D-Welt mit weiter Phaser-Oberfläche darüber (zwei Grafik-Bibliotheken gleichzeitig, unscharfer Text, doppelte Eingabeverwaltung).
+**Folgen:** Grafiken werden 3D-Modelle (zuerst einfache Low-Poly-Formen aus Code, später CC0-Modelle oder eigene); die Platzhalter-Zeichnungen in `gfx/textures.ts` entfallen.
+**Festgelegt (Antworten des Nutzers):**
+- Grafikstil: **weicher Toon-Look** (wie gemalt, weiche Schatten, warme kräftige Farben, leichte Umrisse, Nebel und Glühen); Modelle zuerst aus Code.
+- Kamera: **frei drehbar, Neigung begrenzt** (fast senkrecht bis fast seitlich), Zoom mit Grenzen, Q/E dreht in 45°-Schritten.
+- Vorgehen: **in Schritten**, nach jedem Schritt bleibt das Spiel spielbar (A Logik trennen, B 3D-Welt, C HTML-Oberfläche, D Phaser entfernen).
+- Oberfläche: **asiatisch-warm** (Papier- und Holztöne, Laternen-Akzente, geschwungene Überschriften).
+
 ## 2026-11-10 – Kamera auch von der Seite (Wunsch, später)
-**Status:** offen (Wunsch des Nutzers, Umsetzung frühestens in Phase 5)
+**Status:** erledigt durch „Umstieg auf echte 3D-Darstellung“
 **Wunsch:** Nicht nur schräg von oben, sondern die Kamera optional neigen und auch von der Seite auf den Markt schauen können.
+**Stand 2026-11-10:** Ein 3D-Test liegt auf dem Branch `feature/3d-prototype` (`prototype-3d.html`, Three.js, einfache Klötzchen-Modelle aus den Spieldaten). Entscheidung nach dem Anschauen.
 **Folge:** Mit der jetzigen 2D-Technik (fertig gezeichnete 3/4-Bilder) geht das nicht frei. Möglichkeiten: (a) Umstieg auf echte 3D-Darstellung, z. B. Three.js mit einfachen Low-Poly-Modellen; Drehen, Neigen und Zoomen wären dann natürlich, der Spielzustand bleibt unverändert. (b) Bei 2D bleiben mit wenigen festen Blickwinkeln, für die jede Grafik mehrfach gezeichnet werden muss. Empfehlung: (a), zu entscheiden vor der Grafikphase.
 
 ## 2026-11-10 – Stände auf zwei Seiten offen

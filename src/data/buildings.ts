@@ -111,8 +111,11 @@ export interface BuildingDef {
    * one worker of every listed job is on duty; extra places make it faster.
    */
   staff?: Role[];
-  /** Restaurant: guests sit at tables, the cook cooks, the waiter serves. */
-  restaurant?: { tables: number; cookMs: number; eatMs: number };
+  /**
+   * Restaurant: guests sit at tables, the cook cooks, the waiter serves.
+   * `upper` of the tables are on a second floor (from tier 4).
+   */
+  restaurant?: { tables: number; cookMs: number; eatMs: number; upper?: number };
   cuisine?: Cuisine;
   /** How many guests this building draws per night (default: from tables or service places, see GameState.popularityOf). */
   popularity?: number;
@@ -179,24 +182,24 @@ function stall(
 }
 
 const RESTAURANTS: readonly BuildingDef[] = [
-  restaurant('r_ramen', 'japanese', { cost: 260, price: 12, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍜', colors: { main: '#8a5a3c', roof: '#c8372d', accent: '#f4e6c8' } }),
-  restaurant('r_pho', 'vietnamese', { cost: 300, price: 13, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍲', colors: { main: '#6e7a4a', roof: '#3d6b4a', accent: '#f3e9c8' } }),
-  restaurant('r_dimsum', 'chinese', { cost: 340, price: 14, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 11, sign: '🥟', colors: { main: '#9a3a2a', roof: '#d9a42b', accent: '#ffe6b0' } }),
-  restaurant('r_curry', 'thai', { cost: 380, price: 15, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 12, sign: '🍛', colors: { main: '#a8743a', roof: '#6b2a5a', accent: '#ffd98a' } }),
-  restaurant('r_bbq', 'korean', { cost: 750, price: 19, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 18, sign: '🔥', colors: { main: '#5a4a44', roof: '#2a2a33', accent: '#ffb070' } }),
-  restaurant('r_sushi', 'japanese', { cost: 850, price: 21, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 20, sign: '🍣', colors: { main: '#c9a77a', roof: '#2f3f5a', accent: '#f4f0e6' } }),
-  restaurant('r_hotpot', 'magic', { cost: 1000, price: 23, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 22, sign: '🫕', colors: { main: '#4a3a6a', roof: '#7a2e5a', accent: '#c8f0ff' } }),
+  restaurant('r_ramen', 'japanese', { cost: 260, price: 14, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍜', colors: { main: '#8a5a3c', roof: '#c8372d', accent: '#f4e6c8' } }),
+  restaurant('r_pho', 'vietnamese', { cost: 300, price: 15, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 10, sign: '🍲', colors: { main: '#6e7a4a', roof: '#3d6b4a', accent: '#f3e9c8' } }),
+  restaurant('r_dimsum', 'chinese', { cost: 340, price: 16, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 11, sign: '🥟', colors: { main: '#9a3a2a', roof: '#d9a42b', accent: '#ffe6b0' } }),
+  restaurant('r_curry', 'thai', { cost: 380, price: 17, w: 4, h: 4, tables: 4, cooks: 1, waiters: 1, popularity: 12, sign: '🍛', colors: { main: '#a8743a', roof: '#6b2a5a', accent: '#ffd98a' } }),
+  restaurant('r_bbq', 'korean', { cost: 750, price: 22, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 18, sign: '🔥', colors: { main: '#5a4a44', roof: '#2a2a33', accent: '#ffb070' } }),
+  restaurant('r_sushi', 'japanese', { cost: 850, price: 24, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 20, sign: '🍣', colors: { main: '#c9a77a', roof: '#2f3f5a', accent: '#f4f0e6' } }),
+  restaurant('r_hotpot', 'magic', { cost: 1000, price: 26, w: 5, h: 5, tables: 6, cooks: 2, waiters: 2, popularity: 22, sign: '🫕', colors: { main: '#4a3a6a', roof: '#7a2e5a', accent: '#c8f0ff' } }),
 ];
 
 const NEW_STALLS: readonly BuildingDef[] = [
-  stall('skewers', 'food', { cost: 70, need: 'hunger', price: 4, staff: 'cook', slots: 2, ms: 1800, popularity: 3, sign: '🍢', colors: { main: '#6a4a33', roof: '#d9452b', accent: '#ffd27a' } }),
-  stall('mochi', 'food', { cost: 80, need: 'hunger', price: 4, staff: 'cook', slots: 1, ms: 1600, popularity: 3, sign: '🍡', colors: { main: '#7a5a4a', roof: '#f29ab8', accent: '#fff4f8' } }),
-  stall('dreamfloss', 'food', { cost: 90, need: 'hunger', price: 5, staff: 'clerk', slots: 2, ms: 1400, popularity: 4, sign: '🍭', colors: { main: '#5a4a7a', roof: '#b89aff', accent: '#ffe0f4' } }),
-  stall('bubbletea', 'food', { cost: 110, need: 'thirst', price: 5, w: 2, staff: 'cook', slots: 2, ms: 1800, popularity: 4, sign: '🧋', colors: { main: '#6a5040', roof: '#3fb8a8', accent: '#f4e6c8' } }),
-  stall('goldfish', 'market', { cost: 90, need: 'fun', price: 4, w: 2, staff: 'clerk', slots: 3, ms: 3500, popularity: 4, sign: '🎏', colors: { main: '#3a5a7a', roof: '#d9452b', accent: '#f4f8ff' } }),
-  stall('masks', 'market', { cost: 100, need: 'fun', price: 6, staff: 'clerk', slots: 2, ms: 2200, popularity: 4, sign: '👺', colors: { main: '#5a3a33', roof: '#2a2a33', accent: '#ff6b5a' } }),
-  stall('ringtoss', 'market', { cost: 120, need: 'fun', price: 5, w: 2, staff: 'clerk', slots: 3, ms: 3000, popularity: 5, sign: '🎯', colors: { main: '#4a3a2a', roof: '#f2b45a', accent: '#c8372d' } }),
-  stall('fortune', 'market', { cost: 110, need: 'luck', price: 7, staff: 'clerk', slots: 1, ms: 2400, popularity: 4, sign: '🔮', colors: { main: '#2a2440', roof: '#6b4aa0', accent: '#e8d0ff' } }),
+  stall('skewers', 'food', { cost: 70, need: 'hunger', price: 5, staff: 'cook', slots: 2, ms: 1800, popularity: 3, sign: '🍢', colors: { main: '#6a4a33', roof: '#d9452b', accent: '#ffd27a' } }),
+  stall('mochi', 'food', { cost: 80, need: 'hunger', price: 5, staff: 'cook', slots: 1, ms: 1600, popularity: 3, sign: '🍡', colors: { main: '#7a5a4a', roof: '#f29ab8', accent: '#fff4f8' } }),
+  stall('dreamfloss', 'food', { cost: 90, need: 'hunger', price: 6, staff: 'clerk', slots: 2, ms: 1400, popularity: 4, sign: '🍭', colors: { main: '#5a4a7a', roof: '#b89aff', accent: '#ffe0f4' } }),
+  stall('bubbletea', 'food', { cost: 110, need: 'thirst', price: 6, w: 2, staff: 'cook', slots: 2, ms: 1800, popularity: 4, sign: '🧋', colors: { main: '#6a5040', roof: '#3fb8a8', accent: '#f4e6c8' } }),
+  stall('goldfish', 'market', { cost: 90, need: 'fun', price: 5, w: 2, staff: 'clerk', slots: 3, ms: 3500, popularity: 4, sign: '🎏', colors: { main: '#3a5a7a', roof: '#d9452b', accent: '#f4f8ff' } }),
+  stall('masks', 'market', { cost: 100, need: 'fun', price: 7, staff: 'clerk', slots: 2, ms: 2200, popularity: 4, sign: '👺', colors: { main: '#5a3a33', roof: '#2a2a33', accent: '#ff6b5a' } }),
+  stall('ringtoss', 'market', { cost: 120, need: 'fun', price: 6, w: 2, staff: 'clerk', slots: 3, ms: 3000, popularity: 5, sign: '🎯', colors: { main: '#4a3a2a', roof: '#f2b45a', accent: '#c8372d' } }),
+  stall('fortune', 'market', { cost: 110, need: 'luck', price: 8, staff: 'clerk', slots: 1, ms: 2400, popularity: 4, sign: '🔮', colors: { main: '#2a2440', roof: '#6b4aa0', accent: '#e8d0ff' } }),
 ];
 
 export const BUILDINGS: readonly BuildingDef[] = [

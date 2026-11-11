@@ -2,6 +2,53 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-11 – Umstieg auf 3D, Schritt C: Oberfläche als HTML/CSS (Branch `feature/html-ui`)
+- Die ganze Oberfläche ist jetzt HTML/CSS über dem 3D-Bild (`src/ui/`), Phaser zeichnet nichts mehr; es treibt nur noch Spielschleife, Maus und Tasten auf der Karte
+- **Aussehen asiatisch-warm**: Leisten aus dunklem Holz mit roter Kante, Fenster als Papier mit Holzrahmen, Laternenrot und Gold als Akzente, Überschriften in der Schrift Kaisei Decol (SIL OFL, mitgeliefert, offline)
+- Anordnung wie bisher: obere Leiste (Titel, Finanzen, Geister, Beliebtheit, Geld), Level-Feld links, Uhr und Tempo in der Mitte, Bauleiste mit Reitern unten, Info-Fenster rechts unten, Finanzen rechts oben, Morgenbericht, Hinweiszeile, große Meldungen (Level, Hotel-Viertel)
+- **Bildchen in der Bauleiste aus den 3D-Modellen**: jedes Gebäude und jeder Beruf wird beim Start einmal klein abfotografiert (`src/world3d/thumbnails.ts`)
+- **Einstellungen** über das Zahnrad oben rechts (auch im Titelmenü): Grafik Hoch/Niedrig; Taste G bleibt
+- Titelmenü als HTML mit Nachthimmel und Laternen; Enter = Weiterspielen
+- Tastenkürzel unverändert (Space, F, N, P, I, R, X, Esc, Tab, G, 1–9); neu: Shift+Tab blättert die Reiter rückwärts
+- Kleinere Fenster: Uhr rückt neben bzw. unter das Level-Feld, Bauleisten-Karten werden schmaler
+- Entfernt: `UIScene`, `StaffUI`, `FinanceUI`, `MenuScene` und die alten 2D-Platzhalter-Grafiken (`src/gfx/textures.ts`)
+
+## 2026-11-10 – Schnelleres Wachstum, Restaurants bis Stufe 5, bessere Leistung (Branch `feature/balance-tiers`)
+- **Balancing**: Restaurants kosten pro Gericht 2–3 Münzen mehr (Ramen 14 statt 12), Stände 1 Münze mehr; Löhne niedriger (Koch 10, Kellner 8, Verkäufer 8, Gastgeber 14, Putzkraft 7)
+- Erfahrung pro eingenommener Münze 0,3 statt 0,4, damit die Level trotz höherer Einnahmen etwa im alten Tempo kommen (Level 6 etwa nach Nacht 6, Level 8 nach Nacht 8)
+- **Beliebtheit wächst schneller**: jeder neue Stand oder jedes neue Restaurant bringt 1,5 neugierige Gäste (höchstens 5 pro Nacht), Zufriedenheit bis +16 % (vorher 12 %), Schmutz kostet weniger (höchstens −6 %)
+- Gemessen mit einem Test-Bot (baut Wege, kauft nach fester Wunschliste, stellt Personal ein, 4× Tempo), Nacht 1–6:
+  - vorher: Gäste 15 → 14 → 15 → 16 → 17 → 18 → 19 (+1 pro Nacht), Gewinn 194 / 248 / 226 / 131 / 197 / 200
+  - jetzt: Gäste 15 → 16 → 21 → 26 → 30 → 37 → 43 (+4 bis +7 bei guten Nächten), Gewinn 262 / 214 / 365 / 491 / 511 / 658, Nacht 7–8: +6 / +8 Gäste, Gewinn je 964; ab Nacht 2 reicht es für 2–4 Stände samt Personal pro Tag
+- **Restaurants bis Stufe 5**: Stufe 2 +2 Tische und zweiter Kellner, Stufe 3 Raum +1 Reihe, +2 Tische, zweiter Koch, **Stufe 4 zweite Etage** über der Küche mit Treppe, Geländer und Laternen (4 Tische oben, schnellere Herde), Stufe 5 8 Tische oben. Kleines Restaurant 4 → 6 → 8 → 12 → 16 Tische, höchstens 2 Köche und 2 Kellner. Stufe 4 ab Level 6, Stufe 5 ab Level 8
+- Gäste, Köche und Kellner laufen über die Treppe nach oben (Höhe in der Spiellogik, `src/entities/layout.ts`); Infotext zum Ausbau zeigt, was die nächste Stufe bringt
+- Ältere Spielstände: Arbeiter über der neuen Höchstzahl eines Restaurants verlieren beim Laden ihren Platz
+- **Leistung**: Pixel-Ratio höchstens 1,5, 10 statt 24 Nachtlichter (nur 4× pro Sekunde neu verteilt), Schattenkarte 1024 statt 2048 mit einfacherer Filterung, nachts kein Schatten-Neuzeichnen, kein Shader-Neubau mehr bei Dämmerung. GPU-Zeit pro Bild (1440 × 900, gleicher Markt): Nacht 14,4 → 4,0 ms, Tag 6,7 → 3,6 ms
+- **Taste G**: Grafik Hoch/Niedrig (Niedrig: Pixel-Ratio 1, 4 Lichter, keine Schatten, ohne Kantenglättung nach Neuladen; Nacht 2,8 ms, Tag 1,2 ms); wird im Browser gemerkt
+
+## 2026-11-10 – Umstieg auf 3D, Schritt B: das Spiel läuft in 3D (Branch `feature/3d-migration`)
+- Die Spielwelt wird jetzt mit Three.js in 3D gezeichnet (`src/world3d/`); die Oberfläche (noch Phaser) liegt durchsichtig darüber
+- **Kamera**: rechte Maustaste ziehen = drehen und neigen (fast senkrecht bis fast seitlich), linke Maustaste ziehen = verschieben, Mausrad = zoomen, **Q/E** = 45° drehen, WASD/Pfeile = verschieben
+- Bauen, Abreißen, Auswählen und Wege ziehen per Mausklick in 3D (Klick trifft Boden oder Gebäude); Vorschau als durchsichtiges Modell mit Fläche und Türen
+- Weicher Toon-Look (dreistufige Schattierung); Tag mit Sonne und Schatten, Nacht dunkel mit echten Lichtern an den Laternen nahe der Kamera (24 Lichter wandern mit), Fenster, Laternen und Feuer leuchten
+- Modelle aus Code für Stände, Restaurants (offen, mit Küche), Häuser und Hotels, Laternen, Gaslampen, Neon, Feuerschalen, Mülleimer, Schrein, Automaten, Brücken, Fähren mit Boot, Tor
+- Geister, Arbeiter, Köche und Kellner als 3D-Figuren; Sprechblasen, Schilder und schwebende Zahlen als HTML über dem Bild
+- Müll und Schleim, Türmatten, abgedunkeltes Hotel-Viertel mit Schild
+- Testseite `prototype-3d.html` und die alte 2D-Figurendarstellung entfernt
+
+## 2026-11-10 – Umstieg auf 3D, Schritt A: Logik von der Grafik getrennt (Branch `feature/3d-migration`)
+- Geister, Arbeiter, Fähren und Restaurants sind jetzt reine Spiellogik ohne Phaser (`src/entities/`); sie liefern Position, Blickrichtung, Symbol und Zustand
+- Die 2D-Darstellung liegt in `src/view2d/views.ts` (Ein- und Ausblenden, Verglühen in der Sonne nur dort)
+- Zufallshilfen ohne Phaser (`src/state/random.ts`), Restaurant-Grundriss in `src/entities/layout.ts`
+- Spielerisch keine Änderung; Grundlage für die 3D-Darstellung in Schritt B
+
+## 2026-11-10 – 3D-Test (Branch `feature/3d-prototype`)
+- Eigene Testseite `prototype-3d.html` (im Entwicklungsserver: http://127.0.0.1:5173/prototype-3d.html), das Spiel selbst bleibt unverändert
+- Ein Stück Markt in echtem 3D mit Three.js: Restaurant mit offener Küche und Tischen, Stände (offen auf zwei Seiten, einer quer gedreht), Teehaus, Personal-Lodge, Toilette, Laternen, Feuerschale, Tor, schwebende Geister
+- Die Gebäude stammen aus dem echten Spielzustand (`GameState`), nur die Darstellung ist neu
+- Kamera frei: linke Maustaste drehen und neigen (fast senkrecht bis fast seitlich), rechte verschieben, Mausrad zoomen; Taste T wechselt zwischen Tag (Sonne mit Schatten) und Nacht (Laternen, Fenster und Feuer leuchten)
+- Neue Abhängigkeit: `three` (Three.js 0.170)
+
 ## 2026-11-10 – Stände auf beiden Seiten offen
 - Stände haben jetzt zwei gegenüberliegende offene Seiten mit Theke (wie Restaurants zwei Türen); Gäste kommen von beiden Seiten
 - Man schaut nie mehr auf eine Rückwand: vorn/hinten zeigt die offene Theke, quer gedreht sieht man von der Seite in den Stand hinein (Theken an beiden Enden, Arbeiter dazwischen)

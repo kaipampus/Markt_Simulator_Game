@@ -14,13 +14,60 @@
         overflow: hidden;
         background: #0b0f1a;
       }
+      /* Layers: 3D world, labels above things in the world, interface on top. */
+      #world,
+      #labels,
       #game {
-        width: 100%;
-        height: 100%;
+        position: absolute;
+        inset: 0;
+      }
+      #world {
+        z-index: 0;
+      }
+      #labels {
+        z-index: 1;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      #game {
+        z-index: 2;
+      }
+      .lbl {
+        position: absolute;
+        left: 0;
+        top: 0;
+        white-space: nowrap;
+        font-family: 'Trebuchet MS', 'Segoe UI', Helvetica, Arial, sans-serif;
+        will-change: transform;
+      }
+      .lbl.bubble,
+      .lbl.badge {
+        font-size: 13px;
+        padding: 1px 4px;
+        background: rgba(16, 18, 32, 0.7);
+        border-radius: 6px;
+        color: #f3e9d2;
+      }
+      .lbl.badge.small {
+        font-size: 11px;
+      }
+      .lbl.float {
+        font-weight: bold;
+        text-shadow: 0 0 3px #0b0f1a, 0 0 3px #0b0f1a, 0 0 2px #0b0f1a;
+      }
+      .lbl.area {
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 24px;
+        color: #f3e9d2;
+        padding: 8px 14px;
+        background: rgba(11, 15, 26, 0.7);
+        border-radius: 8px;
       }
     </style>
   </head>
   <body>
+    <div id="world"></div>
+    <div id="labels"></div>
     <div id="game"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
