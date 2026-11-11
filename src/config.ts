@@ -65,16 +65,7 @@ export const ZOOM_MIN = 0.45;
 export const ZOOM_MAX = 2;
 export const PAN_SPEED = 700;
 
-// --- UI layout (screen pixels) ------------------------------------------------
-
-export const HUD_HEIGHT = 44;
-export const BAR_HEIGHT = 122;
-/** Time controls panel right below the top bar (centred). */
-export const TIME_PANEL_HEIGHT = 34;
-export const TIME_PANEL_HALF_WIDTH = 248;
-/** Level panel below the top bar (left). */
-export const LEVEL_PANEL_WIDTH = 330;
-export const LEVEL_PANEL_HEIGHT = 58;
+// UI layout and fonts live in src/ui/style.css.
 
 // --- Night lighting ----------------------------------------------------------
 /**
@@ -134,6 +125,3 @@ export const COLORS = {
   uiRed: '#ff8a7a',
   uiGreen: '#9fe0a8',
 } as const;
-
-export const FONT_TITLE = 'Georgia, "Times New Roman", serif';
-export const FONT_UI = '"Trebuchet MS", "Segoe UI", Helvetica, Arial, sans-serif';

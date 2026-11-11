@@ -255,7 +255,21 @@ export const STR = {
     newGame: 'New game',
     confirmNew: 'Click again: delete the saved game',
     saved: (day: number, level: number, money: number) => `Saved game: day ${day} · level ${level} · ${money} coins`,
+    settings: '⚙ Settings',
   },
+
+  // --- settings --------------------------------------------------------------
+  settings: {
+    title: 'Settings',
+    button: 'Settings',
+    graphics: 'Graphics (G)',
+    high: 'High',
+    low: 'Low',
+    highNote: 'Shadows, more lights at night and smooth edges.',
+    lowNote: 'Faster on weaker computers: no shadows, fewer lights. Smooth edges change after a reload.',
+    close: 'Close (Esc)',
+  },
+  close: 'Close',
 
   // --- upgrades ------------------------------------------------------------------
   tier: (tier: number, max: number) => `Tier ${tier} / ${max}`,

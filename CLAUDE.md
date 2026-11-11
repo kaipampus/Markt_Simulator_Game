@@ -10,8 +10,8 @@ Details: [[docs/Spielkonzept]] · Fahrplan: [[docs/Roadmap]] · Entscheidungen: 
 - Code, Bezeichner, Commit-Messages: **Englisch** (Commit-Text kurz, im Imperativ, z. B. `Add building placement grid`).
 
 ## Technik
-- **TypeScript + Vite**, reines Frontend, kein Backend. Darstellung bisher **Phaser 4** (2D); **Umstieg auf Three.js (3D) läuft** (siehe [[docs/Entscheidungen]] „Umstieg auf echte 3D-Darstellung“). Neue Darstellungs-Arbeit nur noch für 3D.
-- **Ansicht:** quadratisches Raster (1 Feld = 1 Einheit in 3D), frei dreh- und neigbare Kamera. Spiellogik bleibt unabhängig von der Darstellung; Oberfläche künftig als HTML/CSS über dem 3D-Bild.
+- **TypeScript + Vite**, reines Frontend, kein Backend. Darstellung mit **Three.js (3D)**, Oberfläche als **HTML/CSS**; Phaser 4 läuft nur noch für Spielschleife und Eingabe und fällt mit Schritt D weg (siehe [[docs/Entscheidungen]] „Umstieg auf echte 3D-Darstellung“). Neue Darstellungs-Arbeit nur noch für 3D.
+- **Ansicht:** quadratisches Raster (1 Feld = 1 Einheit in 3D), frei dreh- und neigbare Kamera. Spiellogik bleibt unabhängig von der Darstellung; Oberfläche als HTML/CSS über dem 3D-Bild (`src/ui/`).
 - **Nur PC/Mac:** Maus und Tastatur, keine Touch-Bedienung nötig.
 - Spielstände im Browser (`localStorage`/IndexedDB), später als **PWA** offline installierbar.
 - Hosting: statische Dateien (`dist/`) per nginx auf dem eigenen Linux-Server, Deploy später über GitHub Actions.
@@ -23,14 +23,14 @@ Details: [[docs/Spielkonzept]] · Fahrplan: [[docs/Roadmap]] · Entscheidungen: 
 - `npm run typecheck`: nur Typprüfung
 
 ## Aufbau von `src/`
-- `main.ts`: Phaser-Konfiguration und Start
+- `main.ts`: Start (Titelmenü, dann Phaser für Spielschleife und Eingabe)
 - `config.ts`: feste Werte (Feldgröße, Kartengröße, Farben)
 - `data/`: Spielwerte und Texte (Gebäude, Personal und Sauberkeit, Zeitalter, Strings)
 - `state/`: Spielzustand (Geld, belegte Felder), unabhängig von der Darstellung
-- `scenes/`: `MarketScene` (Spiellogik antreiben, Maus und Tasten auf der Karte, zeichnet über `world3d/`) und `UIScene` (Oberfläche, noch Phaser, liegt durchsichtig über dem 3D-Bild)
+- `scenes/`: `MarketScene` (Spiellogik antreiben, Maus und Tasten auf der Karte, zeichnet über `world3d/`, bindet die Oberfläche an)
+- `ui/`: Oberfläche als HTML/CSS über dem 3D-Bild: `GameUI` (Leisten, Bauleiste, Fenster, Tastenkürzel), `staff`, `finance`, `settings`, `menu` (Titelmenü), `style.css` (Aussehen)
 - `entities/`: Spielfiguren als reine Logik ohne Grafik (Geister, Arbeiter, Fähren, Restaurants); `Walker` ist die gemeinsame Laufklasse
-- `world3d/`: 3D-Darstellung mit Three.js: `World3D` (Kamera, Licht, Boden, Mausauswahl), `models` (Modelle aus Code, Toon-Look), `views` (zeichnen Gebäude und Figuren), `labels` (Sprechblasen als HTML), `quality` (Grafikstufe Hoch/Niedrig, Taste G)
-- `gfx/`: Platzhalter-Grafiken, die per Code erzeugt werden
+- `world3d/`: 3D-Darstellung mit Three.js: `World3D` (Kamera, Licht, Boden, Mausauswahl), `models` (Modelle aus Code, Toon-Look), `views` (zeichnen Gebäude und Figuren), `labels` (Sprechblasen als HTML), `quality` (Grafikstufe Hoch/Niedrig, Taste G), `thumbnails` (Bildchen der Modelle für die Bauleiste)
 
 ## Arbeitsablauf
 - Entwickelt wird **lokal auf dem Mac** in diesem Ordner. Auf dem Server wird nicht entwickelt.

@@ -100,7 +100,7 @@ Schritt 3 – Neon-Viertel und Größe:
 - [x] 3D-Test (`prototype-3d.html`): Markt-Ausschnitt, neigbare Kamera, Tag/Nacht
 - [x] Schritt A: Spielfiguren von Phaser trennen (Logik für Geister, Arbeiter, Fähren, Restaurants ohne Grafik-Bibliothek)
 - [x] Schritt B: 3D-Welt statt Phaser-Szene: Boden, Gebäude, Wege, Schmutz, Türmatten, Licht, Figuren, Auswahl und Bau-Vorschau per Mausklick in 3D, Kamera mit Grenzen
-- [ ] Schritt C: Oberfläche als HTML/CSS (Leisten, Bauleiste, Fenster, Berichte, Titelmenü)
+- [x] Schritt C: Oberfläche als HTML/CSS (Leisten, Bauleiste, Fenster, Berichte, Titelmenü, Einstellungen)
 - [x] Leistung, erste Runde: Pixel-Ratio begrenzt, weniger Nachtlichter, kleinere Schattenkarte, Grafik-Einstellung Hoch/Niedrig (Taste G)
 - [ ] Schritt D: Phaser entfernen, Leistung für viele Gäste (Instancing, Gebäude-Teile zusammenfassen), Modelle verfeinern
 

@@ -4,7 +4,7 @@ Herkunft und Lizenz jeder fremden Grafik, jedes Sounds und jeder Schrift. Ohne E
 
 | Datei / Ordner | Quelle (Link) | Urheber | Lizenz | Kosten | Hinweis |
 |---|---|---|---|---|---|
-| – | – | – | – | – | noch keine Assets |
+| Schrift Kaisei Decol (npm `@fontsource/kaisei-decol`, nur `latin-700`) | https://fonts.google.com/specimen/Kaisei+Decol | Font-Kai | SIL Open Font License 1.1 | kostenlos | Überschriften der Oberfläche; wird mit dem Spiel ausgeliefert (offline) |
 
 ## Bevorzugte Quellen
 - **Kenney.nl**: CC0, kostenlos

@@ -2,11 +2,9 @@ import * as Phaser from 'phaser';
 import * as THREE from 'three';
 import {
   ARRIVAL_END_MARGIN_MS,
-  BAR_HEIGHT,
   COLORS,
   DAWN_WARNING_MS,
   GRID_W,
-  HUD_HEIGHT,
   NIGHT_MS,
   PAN_SPEED,
   RIVER_ROWS,
@@ -23,7 +21,6 @@ import { Restaurant } from '../entities/Restaurant';
 import { Spirit } from '../entities/Spirit';
 import type { WalkerWorld } from '../entities/Walker';
 import { Worker } from '../entities/Worker';
-import { createTextures } from '../gfx/textures';
 import { doorCellsFor, orient, state, unlockLevel, type PlacedBuilding, type StaffMember } from '../state/GameState';
 import type { Cell } from '../state/pathfinding';
 import { pick } from '../state/random';
@@ -40,7 +37,7 @@ import {
   WorkerView3D,
 } from '../world3d/views';
 import { World3D } from '../world3d/World3D';
-import type { UIScene } from './UIScene';
+import { GameUI } from '../ui/GameUI';
 
 interface DragState {
   x: number;
@@ -57,10 +54,12 @@ interface DragState {
 /**
  * The game world: runs the game logic (clock, spirits, workers, ferries,
  * restaurants), handles the mouse and keys on the map and draws everything
- * in 3D (World3D). The Phaser canvas on top only shows the interface.
+ * in 3D (World3D). The interface is HTML on top (GameUI); Phaser only runs
+ * the loop and the mouse and keys on the map.
  */
 export class MarketScene extends Phaser.Scene {
   private world3d!: World3D;
+  private ui!: GameUI;
   private world!: WalkerWorld;
 
   // logic
@@ -95,9 +94,6 @@ export class MarketScene extends Phaser.Scene {
   }
 
   create(): void {
-    // 2D textures are still used by the interface (icons in the build bar).
-    createTextures(this);
-
     this.world3d = new World3D(document.getElementById('world')!, document.getElementById('labels')!);
     this.world = {
       ferry: (uid) => this.ferries.get(uid),
@@ -152,10 +148,14 @@ export class MarketScene extends Phaser.Scene {
     this.unsubscribe.push(startAutosave(state));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unsubscribe.forEach((u) => u());
+      this.ui.dispose();
       this.world3d.dispose();
     });
 
-    this.scene.launch('UIScene');
+    this.ui = new GameUI(document.body, {
+      focusWorker: (id) => this.focusWorker(id),
+      skipToMorning: () => this.skipToMorning(),
+    });
   }
 
   update(time: number, delta: number): void {
@@ -186,6 +186,7 @@ export class MarketScene extends Phaser.Scene {
     this.updateBadges();
     this.drawSelection();
     this.world3d.render(delta);
+    this.ui.update();
   }
 
   /** Icons above buildings: no staff, staff on the way, tables taken, queue. */
@@ -424,9 +425,7 @@ export class MarketScene extends Phaser.Scene {
   }
 
   private isOverUI(p: Phaser.Input.Pointer): boolean {
-    const ui = this.scene.get('UIScene') as UIScene | null;
-    if (ui?.sys.isActive()) return ui.isOverUI(p.x, p.y);
-    return p.y < HUD_HEIGHT || p.y > this.scale.height - BAR_HEIGHT;
+    return this.ui.isOverUI(p.x, p.y);
   }
 
   private panWithKeys(delta: number): void {
@@ -601,7 +600,7 @@ export class MarketScene extends Phaser.Scene {
     }
   }
 
-  /** Centre the camera on a worker (used by the staff panel). */
+  /** Centre the camera on a worker (used by the workers tab). */
   focusWorker(id: number): void {
     const w = this.workers.get(id);
     if (w?.isAwake) this.world3d.lookAt(w.position.x, w.position.y);

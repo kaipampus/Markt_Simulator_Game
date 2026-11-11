@@ -11,6 +11,17 @@ Vorlage:
 **Verworfen:** …
 ```
 
+## 2026-11-11 – HTML-Oberfläche: Anordnung, Schrift, Bildchen, Einstellungen
+**Status:** entschieden (Antworten des Nutzers vor Schritt C)
+**Entscheidung:**
+- Anordnung **wie bisher** (durchgehende Leisten oben und unten, Fenster an den gewohnten Stellen), nur im neuen Stil.
+- Überschriften in einer **mitgelieferten freien Zierschrift**: Kaisei Decol (SIL OFL 1.1, nur lateinische Zeichen, fett), Fließtext bleibt Systemschrift. Über npm (`@fontsource`) eingebunden, damit das Spiel offline bleibt.
+- **Bildchen aus den 3D-Modellen**: beim Start mit einem kleinen, danach verworfenen Renderer einmal abfotografiert.
+- **Einstellungen** hinter einem Zahnrad oben rechts und im Titelmenü (vorerst nur Grafikstufe, Platz für Ton usw.).
+- Technik: Fenster werden aus dem Spielzustand als HTML-Text gebaut und nur ersetzt, wenn sich etwas geändert hat; Klicks laufen über `data-act`-Attribute, Hinweistexte über `data-hint` (der Hinweis kommt vom Element unter der Maus). Ob die Maus über der Oberfläche ist, entscheidet `elementFromPoint`.
+**Warum:** Gewohnte Bedienung bleibt; die Schrift gibt den asiatisch-warmen Ton ohne Netzabhängigkeit; Bildchen aus den Modellen passen zur 3D-Welt und brauchen kein Phaser.
+**Verworfen:** schwebende Einzeltafeln statt Leisten; nur Systemschriften; alte 2D-Zeichnungen oder nur Emoji als Bildchen; Einstellung nur im Titelmenü; ein UI-Framework (React o. Ä.) – für die Menge an Fenstern unnötig.
+
 ---
 
 ## 2026-11-10 – Restaurants bis Stufe 5 mit zweiter Etage

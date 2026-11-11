@@ -2,6 +2,17 @@
 
 Was sich am Spiel oder an der Projektstruktur geändert hat. Neue Einträge **oben**.
 
+## 2026-11-11 – Umstieg auf 3D, Schritt C: Oberfläche als HTML/CSS (Branch `feature/html-ui`)
+- Die ganze Oberfläche ist jetzt HTML/CSS über dem 3D-Bild (`src/ui/`), Phaser zeichnet nichts mehr; es treibt nur noch Spielschleife, Maus und Tasten auf der Karte
+- **Aussehen asiatisch-warm**: Leisten aus dunklem Holz mit roter Kante, Fenster als Papier mit Holzrahmen, Laternenrot und Gold als Akzente, Überschriften in der Schrift Kaisei Decol (SIL OFL, mitgeliefert, offline)
+- Anordnung wie bisher: obere Leiste (Titel, Finanzen, Geister, Beliebtheit, Geld), Level-Feld links, Uhr und Tempo in der Mitte, Bauleiste mit Reitern unten, Info-Fenster rechts unten, Finanzen rechts oben, Morgenbericht, Hinweiszeile, große Meldungen (Level, Hotel-Viertel)
+- **Bildchen in der Bauleiste aus den 3D-Modellen**: jedes Gebäude und jeder Beruf wird beim Start einmal klein abfotografiert (`src/world3d/thumbnails.ts`)
+- **Einstellungen** über das Zahnrad oben rechts (auch im Titelmenü): Grafik Hoch/Niedrig; Taste G bleibt
+- Titelmenü als HTML mit Nachthimmel und Laternen; Enter = Weiterspielen
+- Tastenkürzel unverändert (Space, F, N, P, I, R, X, Esc, Tab, G, 1–9); neu: Shift+Tab blättert die Reiter rückwärts
+- Kleinere Fenster: Uhr rückt neben bzw. unter das Level-Feld, Bauleisten-Karten werden schmaler
+- Entfernt: `UIScene`, `StaffUI`, `FinanceUI`, `MenuScene` und die alten 2D-Platzhalter-Grafiken (`src/gfx/textures.ts`)
+
 ## 2026-11-10 – Schnelleres Wachstum, Restaurants bis Stufe 5, bessere Leistung (Branch `feature/balance-tiers`)
 - **Balancing**: Restaurants kosten pro Gericht 2–3 Münzen mehr (Ramen 14 statt 12), Stände 1 Münze mehr; Löhne niedriger (Koch 10, Kellner 8, Verkäufer 8, Gastgeber 14, Putzkraft 7)
 - Erfahrung pro eingenommener Münze 0,3 statt 0,4, damit die Level trotz höherer Einnahmen etwa im alten Tempo kommen (Level 6 etwa nach Nacht 6, Level 8 nach Nacht 8)
